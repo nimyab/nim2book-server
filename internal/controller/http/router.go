@@ -1,0 +1,56 @@
+package http
+
+import (
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	_ "github.com/nimyab/nim2book-back/docs"
+	"github.com/nimyab/nim2book-back/internal/translate/translate_book"
+	"github.com/nimyab/nim2book-back/pkg/validator"
+	echoSwagger "github.com/swaggo/echo-swagger"
+	"log/slog"
+	"regexp"
+	"time"
+)
+
+func Router() *echo.Echo {
+	e := echo.New()
+
+	e.Use(middleware.Recover())
+	e.Use(middleware.CORS())
+	e.Use(middleware.RequestID())
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if regexp.MustCompile(`(?i).*swagger.*`).MatchString(c.Request().URL.Path) {
+				return next(c)
+			}
+
+			entry := slog.With(
+				slog.String("method", c.Request().Method),
+				slog.String("path", c.Request().URL.Path),
+				slog.String("request_id", c.Response().Header().Get(echo.HeaderXRequestID)),
+				slog.String("user_agent", c.Request().UserAgent()),
+				slog.String("host", c.Request().Host),
+			)
+			entry.Info("Request received")
+
+			t1 := time.Now()
+			defer func() {
+				entry.Info("Request completed",
+					slog.Int("status", c.Response().Status),
+					slog.String("duration", time.Since(t1).String()),
+				)
+			}()
+
+			return next(c)
+		}
+	})
+
+	e.Validator = validator.New()
+
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
+
+	apiV1 := e.Group("/api/v1")
+	apiV1.POST("/translate", translate_book.HTTPv1)
+
+	return e
+}

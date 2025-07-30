@@ -1,0 +1,76 @@
+basePath: /api/v1
+definitions:
+  domain.Book:
+    properties:
+      author:
+        type: string
+      chapter_paths:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      title:
+        type: string
+      users:
+        items:
+          $ref: '#/definitions/domain.User'
+        type: array
+    type: object
+  domain.User:
+    properties:
+      books:
+        items:
+          $ref: '#/definitions/domain.Book'
+        type: array
+      email:
+        type: string
+      id:
+        type: string
+      login:
+        type: string
+    type: object
+  translate_book.Output:
+    properties:
+      book:
+        $ref: '#/definitions/domain.Book'
+    type: object
+externalDocs:
+  description: OpenAPI
+  url: https://swagger.io/resources/open-api/
+info:
+  contact: {}
+  title: Nim2Book api
+  version: "1.0"
+paths:
+  /translate:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Upload file
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Source lang
+        in: formData
+        name: from
+        required: true
+        type: string
+      - description: Target lang
+        in: formData
+        name: to
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/translate_book.Output'
+      summary: Translate book
+      tags:
+      - translate
+swagger: "2.0"
