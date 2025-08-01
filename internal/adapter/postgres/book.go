@@ -15,6 +15,16 @@ var (
 	ErrBookAlreadyExists = errors.New("book already exists")
 )
 
+const (
+	step = 100
+)
+
+type GetBooksQuery struct {
+	Author string
+	Title  string
+	Page   int
+}
+
 func (db *Postgres) GetBookByAuthorAndTitle(ctx context.Context, author, title string) (*domain.Book, error) {
 	const operation = "postgres.GetBookByAuthorAndTitle"
 
@@ -65,4 +75,53 @@ func (db *Postgres) CreateBook(ctx context.Context, book *domain.Book) (*domain.
 
 	book.Id = id
 	return book, nil
+}
+
+func (db *Postgres) GetBook(ctx context.Context, id uuid.UUID) (*domain.Book, error) {
+	const operation = "postgres.GetBook"
+
+	sql := `select * from books where id = $1`
+	book := new(domain.Book)
+	err := db.Pool.QueryRow(ctx, sql, id).Scan(book)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrBookNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+
+	return book, nil
+}
+
+func (db *Postgres) GetBooks(ctx context.Context, query GetBooksQuery) ([]domain.Book, error) {
+	const operation = "postgres.GetBooks"
+
+	sql := `select * from books
+			where (author ilike '%' || @author || '%') and
+				  (title ilike '%' || @title || '%')
+			limit @limit
+			offset @offset`
+
+	args := pgx.NamedArgs{
+		"author": query.Author,
+		"title":  query.Title,
+		"limit":  step,
+		"offset": (query.Page - 1) * step,
+	}
+
+	rows, err := db.Pool.Query(ctx, sql, args)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+	defer rows.Close()
+
+	books, err := pgx.CollectRows(rows, pgx.RowToStructByName[domain.Book])
+	if errors.Is(err, pgx.ErrNoRows) {
+		return []domain.Book{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+
+	return books, nil
 }

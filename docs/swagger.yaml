@@ -12,23 +12,55 @@ definitions:
         type: string
       title:
         type: string
-      users:
+    type: object
+  domain.ChapterAlignNode:
+    properties:
+      content:
         items:
-          $ref: '#/definitions/domain.User'
+          $ref: '#/definitions/domain.ParagraphAlignNode'
+        type: array
+      id:
+        type: string
+      order:
+        type: integer
+      title:
+        type: string
+      translatedTitle:
+        type: string
+    type: object
+  domain.ParagraphAlignNode:
+    properties:
+      aw:
+        items:
+          $ref: '#/definitions/domain.WordAlignNode'
+        type: array
+      op:
+        type: string
+      tp:
+        type: string
+    type: object
+  domain.WordAlignNode:
+    properties:
+      iow:
+        items:
+          type: integer
+        type: array
+      itw:
+        items:
+          type: integer
         type: array
     type: object
-  domain.User:
+  get_book.Output:
+    properties:
+      book:
+        $ref: '#/definitions/domain.Book'
+    type: object
+  get_books.Output:
     properties:
       books:
         items:
           $ref: '#/definitions/domain.Book'
         type: array
-      email:
-        type: string
-      id:
-        type: string
-      login:
-        type: string
     type: object
   translate_book.Output:
     properties:
@@ -43,7 +75,69 @@ info:
   title: Nim2Book api
   version: "1.0"
 paths:
-  /translate:
+  /book:
+    get:
+      parameters:
+      - description: Chapter path
+        in: query
+        name: author
+        type: string
+      - description: Chapter path
+        in: query
+        name: title
+        type: string
+      - description: Chapter path
+        in: query
+        name: page
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_books.Output'
+      summary: Get books
+      tags:
+      - book
+  /book/{id}:
+    get:
+      parameters:
+      - description: Book id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_book.Output'
+      summary: Get book by id
+      tags:
+      - book
+  /book/get-chapter/{path}:
+    get:
+      parameters:
+      - description: Chapter path
+        in: path
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ChapterAlignNode'
+      summary: Get book chapter
+      tags:
+      - book
+  /translate/book:
     post:
       consumes:
       - multipart/form-data

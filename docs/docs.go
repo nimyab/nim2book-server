@@ -15,7 +15,103 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/translate": {
+        "/book": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "book"
+                ],
+                "summary": "Get books",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chapter path",
+                        "name": "author",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chapter path",
+                        "name": "title",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chapter path",
+                        "name": "page",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/get_books.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/book/get-chapter/{path}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "book"
+                ],
+                "summary": "Get book chapter",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chapter path",
+                        "name": "path",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.ChapterAlignNode"
+                        }
+                    }
+                }
+            }
+        },
+        "/book/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "book"
+                ],
+                "summary": "Get book by id",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Book id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/get_book.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/translate/book": {
             "post": {
                 "consumes": [
                     "multipart/form-data"
@@ -79,16 +175,75 @@ const docTemplate = `{
                 },
                 "title": {
                     "type": "string"
-                },
-                "users": {
+                }
+            }
+        },
+        "domain.ChapterAlignNode": {
+            "type": "object",
+            "properties": {
+                "content": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/domain.User"
+                        "$ref": "#/definitions/domain.ParagraphAlignNode"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "translatedTitle": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.ParagraphAlignNode": {
+            "type": "object",
+            "properties": {
+                "aw": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.WordAlignNode"
+                    }
+                },
+                "op": {
+                    "type": "string"
+                },
+                "tp": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.WordAlignNode": {
+            "type": "object",
+            "properties": {
+                "iow": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "itw": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
                     }
                 }
             }
         },
-        "domain.User": {
+        "get_book.Output": {
+            "type": "object",
+            "properties": {
+                "book": {
+                    "$ref": "#/definitions/domain.Book"
+                }
+            }
+        },
+        "get_books.Output": {
             "type": "object",
             "properties": {
                 "books": {
@@ -96,15 +251,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/domain.Book"
                     }
-                },
-                "email": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "login": {
-                    "type": "string"
                 }
             }
         },

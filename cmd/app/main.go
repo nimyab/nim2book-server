@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -12,6 +11,9 @@ import (
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
 	"github.com/nimyab/nim2book-back/internal/adapter/redis"
 	"github.com/nimyab/nim2book-back/internal/adapter/s3"
+	"github.com/nimyab/nim2book-back/internal/book/get_book"
+	"github.com/nimyab/nim2book-back/internal/book/get_books"
+	"github.com/nimyab/nim2book-back/internal/book/get_chapter"
 	"github.com/nimyab/nim2book-back/internal/controller/http"
 	"github.com/nimyab/nim2book-back/internal/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/translate/translate_book"
@@ -20,13 +22,12 @@ import (
 )
 
 // @title						Nim2Book api
-// @version					1.0
+// @version						1.0
 // @BasePath					/api/v1
 // @externalDocs.description	OpenAPI
 // @externalDocs.url			https://swagger.io/resources/open-api/
 func main() {
 	cfg := config.GetConfig()
-	fmt.Println(cfg)
 
 	slogLogger := logger.New(logger.Config{
 		Env: cfg.Env,
@@ -69,10 +70,19 @@ func appRun(cfg *config.Config) error {
 	}
 	_ = redisClient // todo
 
-	// services
+	// align service
 	wordAlign := align.New(cfg.WordAlignerURL)
+
+	// libretranslate service
 	translateService := translate.New(cfg.LibreTranslateURL)
+
+	// translate service
 	translate_book.New(s3Client, pgClient, wordAlign, translateService)
+
+	// book service
+	get_chapter.New(s3Client)
+	get_books.New(pgClient)
+	get_book.New(pgClient)
 
 	router := http.Router()
 	if err = router.Start(cfg.Port); err != nil {

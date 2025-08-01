@@ -53,11 +53,16 @@ func New(cfg *Config) (*S3, error) {
 func (s *S3) CreateBucket() error {
 	const operation = "s3.CreateBucket"
 
-	_, err := s.s3Client.CreateBucket(&s3.CreateBucketInput{
+	_, err := s.s3Client.HeadBucket(&s3.HeadBucketInput{
 		Bucket: aws.String(s.bucketName),
 	})
 	if err != nil {
-		return fmt.Errorf("%s: %w", operation, err)
+		_, err = s.s3Client.CreateBucket(&s3.CreateBucketInput{
+			Bucket: aws.String(s.bucketName),
+		})
+		if err != nil {
+			return fmt.Errorf("%s: %w", operation, err)
+		}
 	}
 
 	return nil

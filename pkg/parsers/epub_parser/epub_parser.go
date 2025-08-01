@@ -45,6 +45,7 @@ func Parse(data []byte) (*pamphlet.Book, []FormattedChapter, error) {
 		return nil, nil, fmt.Errorf("%s: %w", operation, err)
 	}
 	defer parser.Close()
+
 	book := parser.GetBook()
 	formattedChapters := make([]FormattedChapter, 0, len(book.Chapters))
 	for _, chapter := range book.Chapters {
@@ -76,22 +77,27 @@ func extractTextFromHtml(xmlText string) ([]string, error) {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 	var paragraphs []string
-	for node := range doc.Descendants() {
+	var traverse func(*html.Node)
+	traverse = func(node *html.Node) {
 		if node.Type == html.ElementNode && node.Data == "p" {
-			for childrenP := range node.ChildNodes() {
-				if TagsForRemove[childrenP.Data] {
-					node.RemoveChild(childrenP)
+			for c := node.FirstChild; c != nil; {
+				next := c.NextSibling
+				if TagsForRemove[c.Data] {
+					node.RemoveChild(c)
 				}
-				paragraph := extractTextContent(node)
-				paragraph = string(regexp.MustCompile(`\s+`).ReplaceAll([]byte(paragraph), []byte(" ")))
-				if strings.TrimSpace(paragraph) != "" {
-					paragraphs = append(paragraphs, strings.TrimSpace(paragraph))
-				}
+				c = next
 			}
-
+			paragraph := extractTextContent(node)
+			paragraph = string(regexp.MustCompile(`\s+`).ReplaceAll([]byte(paragraph), []byte(" ")))
+			if strings.TrimSpace(paragraph) != "" {
+				paragraphs = append(paragraphs, strings.TrimSpace(paragraph))
+			}
+		}
+		for c := node.FirstChild; c != nil; c = c.NextSibling {
+			traverse(c)
 		}
 	}
-
+	traverse(doc)
 	return paragraphs, nil
 }
 

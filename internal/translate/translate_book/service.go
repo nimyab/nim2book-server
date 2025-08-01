@@ -65,14 +65,14 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader) (*Outp
 
 	file, err := book.Open()
 	if err != nil {
-		slog.Debug(err.Error(), slog.String("operation", operation))
+		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, errors.New("failed to open book file")
 	}
 	defer file.Close()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		slog.Debug(err.Error(), slog.String("operation", operation))
+		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, errors.New("failed to read book file")
 	}
 
@@ -80,11 +80,11 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader) (*Outp
 
 	parsedBook, chapters, err := epub_parser.Parse(data)
 	if err != nil {
-		slog.Debug(err.Error(), slog.String("operation", operation))
+		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, errors.New("failed to parse book file")
 	}
 
-	slog.Debug(
+	slog.Info(
 		"Book is parsed successfully",
 		slog.String("duration", time.Since(startParse).String()),
 		slog.Int("chapters count", len(chapters)),
@@ -111,16 +111,16 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader) (*Outp
 	paths := make([]string, 0, len(chapters))
 	for result := range resultChan {
 		if result.Error != nil {
-			slog.Debug(result.Error.Error(), slog.String("operation", operation))
+			slog.Error(result.Error.Error(), slog.String("operation", operation))
 			return nil, errors.New("failed to translate chapter")
 		}
 		if result.Chapter == nil {
-			slog.Debug(result.Error.Error(), slog.String("operation", operation))
+			slog.Error(result.Error.Error(), slog.String("operation", operation))
 			return nil, errors.New("translated chapter is nil")
 		}
 		path, err := s.saveToS3(result.Chapter, parsedBook.Title)
 		if err != nil {
-			slog.Debug(err.Error(), slog.String("operation", operation))
+			slog.Error(err.Error(), slog.String("operation", operation))
 			return nil, errors.New("failed to save chapter to S3")
 		}
 		paths = append(paths, path)
@@ -134,7 +134,7 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader) (*Outp
 	}
 	newBook, err = s.pg.CreateBook(context.Background(), newBook)
 	if err != nil {
-		slog.Debug(err.Error(), slog.String("operation", operation))
+		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, errors.New("failed to create book")
 	}
 
@@ -176,7 +176,7 @@ func (s *Service) translateChapters(
 			})
 		}
 		if err := g.Wait(); err != nil {
-			slog.Debug(err.Error(), slog.String("operation", operation))
+			slog.Error(err.Error(), slog.String("operation", operation))
 			resultChan <- TranslatedChapterResult{
 				Chapter: nil,
 				Error:   errors.New("failed to translate paragraphs"),
@@ -192,7 +192,7 @@ func (s *Service) translateChapters(
 				Target: to,
 			})
 			if err != nil {
-				slog.Debug(err.Error(), slog.String("operation", operation))
+				slog.Error(err.Error(), slog.String("operation", operation))
 				resultChan <- TranslatedChapterResult{
 					Chapter: nil,
 					Error:   errors.New("failed to translate chapter title"),
@@ -218,7 +218,7 @@ func (s *Service) translateChapters(
 		}
 
 		duration := time.Since(startTime)
-		slog.Debug(
+		slog.Info(
 			fmt.Sprintf("translated chapter %d", chapterNode.Order),
 			slog.String("duration", duration.String()),
 		)
@@ -235,7 +235,7 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 		Target: to,
 	})
 	if err != nil {
-		slog.Debug(err.Error(), slog.String("operation", operation))
+		slog.Error(err.Error(), slog.String("operation", operation))
 		return domain.ParagraphAlignNode{}, errors.New("failed to translate paragraph")
 	}
 
@@ -244,7 +244,7 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 		TargetText: translateOutput.TranslatedText,
 	})
 	if err != nil {
-		slog.Debug(err.Error(), slog.String("operation", operation))
+		slog.Error(err.Error(), slog.String("operation", operation))
 		return domain.ParagraphAlignNode{}, errors.New("failed to align words")
 	}
 

@@ -1,0 +1,33 @@
+package get_chapter
+
+import (
+	"errors"
+	"log/slog"
+)
+
+type S3 interface {
+	Get(path string) ([]byte, error)
+}
+
+type Service struct {
+	s3 S3
+}
+
+var service *Service
+
+func New(s3 S3) *Service {
+	service = &Service{s3: s3}
+	return service
+}
+
+func (s *Service) GetChapter(input *Input) (Output, error) {
+	const operation = "book.get_chapter.GetChapter"
+
+	chapterData, err := s.s3.Get(input.Path)
+	if err != nil {
+		slog.Error(err.Error(), slog.String("path", input.Path), slog.String("operation", operation))
+		return nil, errors.New("failed to get chapter")
+	}
+
+	return chapterData, nil
+}

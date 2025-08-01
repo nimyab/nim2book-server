@@ -7,16 +7,15 @@ import (
 )
 
 // HTTPv1 godoc
-//
-//	@Summary	Translate book
-//	@Tags		translate
-//	@Accept		multipart/form-data
-//	@Produce	application/json
-//	@Param		file	formData	file	true	"Upload file"
-//	@Param		from	formData	string	true	"Source lang"
-//	@Param		to		formData	string	true	"Target lang"
-//	@Success	201		{object}	Output
-//	@Router		/translate [post]
+// @Summary	Translate book
+// @Tags	translate
+// @Accept	multipart/form-data
+// @Produce	application/json
+// @Param	file	formData	file	true	"Upload file"
+// @Param	from	formData	string	true	"Source lang"
+// @Param	to		formData	string	true	"Target lang"
+// @Success	201		{object}	Output
+// @Router	/translate/book [post]
 func HTTPv1(c echo.Context) error {
 	bookFile, err := c.FormFile("file")
 	if err != nil {
@@ -39,7 +38,7 @@ func HTTPv1(c echo.Context) error {
 	output, err := service.TranslateBook(input, bookFile)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{
-			"error": err,
+			"error": err.Error(),
 		})
 	}
 

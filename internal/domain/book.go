@@ -7,5 +7,4 @@ type Book struct {
 	Title        string    `json:"title" db:"title"`
 	Author       string    `json:"author" db:"author"`
 	ChapterPaths []string  `json:"chapter_paths" db:"chapter_paths"`
-	Users        []User    `json:"users"`
 }

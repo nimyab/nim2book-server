@@ -17,14 +17,6 @@ create table if not exists users(
     password_hash varchar(255) not null
 );
 
-create table if not exists user_books(
-    user_id uuid not null,
-    book_id uuid not null,
-    PRIMARY KEY (user_id, book_id),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
-);
-
 create table if not exists dictionary(
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     text text not null,
@@ -36,7 +28,6 @@ create table if not exists dictionary(
 
 -- +goose Down
 -- +goose StatementBegin
-drop table if exists user_books;
 drop table if exists books;
 drop table if exists users;
 drop table if exists dictionary;
