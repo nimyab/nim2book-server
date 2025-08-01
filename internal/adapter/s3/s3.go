@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/url"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -71,9 +72,13 @@ func (s *S3) CreateBucket() error {
 func (s *S3) Get(path string) ([]byte, error) {
 	const operation = "s3.Get"
 
+	decodedPath, err := url.PathUnescape(path)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
 	output, err := s.s3Client.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(s.bucketName),
-		Key:    aws.String(path),
+		Key:    aws.String(decodedPath),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
@@ -91,9 +96,13 @@ func (s *S3) Get(path string) ([]byte, error) {
 func (s *S3) Upload(path string, data []byte) error {
 	const operation = "s3.Upload"
 
-	_, err := s.s3Client.PutObject(&s3.PutObjectInput{
+	decodedPath, err := url.PathUnescape(path)
+	if err != nil {
+		return fmt.Errorf("%s: %w", operation, err)
+	}
+	_, err = s.s3Client.PutObject(&s3.PutObjectInput{
 		Bucket: aws.String(s.bucketName),
-		Key:    aws.String(path),
+		Key:    aws.String(decodedPath),
 		Body:   aws.ReadSeekCloser(bytes.NewReader(data)),
 	})
 	if err != nil {
@@ -106,9 +115,13 @@ func (s *S3) Upload(path string, data []byte) error {
 func (s *S3) Delete(path string) error {
 	const operation = "s3.Delete"
 
-	_, err := s.s3Client.DeleteObject(&s3.DeleteObjectInput{
+	decodedPath, err := url.PathUnescape(path)
+	if err != nil {
+		return fmt.Errorf("%s: %w", operation, err)
+	}
+	_, err = s.s3Client.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucketName),
-		Key:    aws.String(path),
+		Key:    aws.String(decodedPath),
 	})
 	if err != nil {
 		return fmt.Errorf("%s: %w", operation, err)
