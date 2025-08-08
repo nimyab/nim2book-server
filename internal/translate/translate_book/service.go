@@ -37,25 +37,27 @@ type Translator interface {
 }
 
 type Service struct {
-	s3          S3
-	pg          Postgres
-	wordAligner WordAligner
-	translator  Translator
+	maxRequestCount int
+	s3              S3
+	pg              Postgres
+	wordAligner     WordAligner
+	translator      Translator
 }
 
-type TranslatedChapterResult struct {
+type translatedChapterResult struct {
 	Chapter *domain.ChapterAlignNode
 	Error   error
 }
 
 var service *Service
 
-func New(s3 S3, pg Postgres, wordAligner WordAligner, translator Translator) *Service {
+func New(s3 S3, pg Postgres, wordAligner WordAligner, translator Translator, maxRequestCount int) *Service {
 	service = &Service{
-		s3:          s3,
-		pg:          pg,
-		wordAligner: wordAligner,
-		translator:  translator,
+		s3:              s3,
+		pg:              pg,
+		wordAligner:     wordAligner,
+		translator:      translator,
+		maxRequestCount: maxRequestCount,
 	}
 	return service
 }
@@ -104,7 +106,8 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader) (*Outp
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	resultChan := make(chan TranslatedChapterResult)
+	// use buffer chan to saveToS3 non block translateChapters goroutine
+	resultChan := make(chan translatedChapterResult, len(chapters))
 
 	go s.translateChapters(ctx, resultChan, chapters, input.From, input.To)
 
@@ -143,7 +146,7 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader) (*Outp
 
 func (s *Service) translateChapters(
 	ctx context.Context,
-	resultChan chan<- TranslatedChapterResult,
+	resultChan chan<- translatedChapterResult,
 	chapters []epub_parser.FormattedChapter,
 	from domain.SupportedLang,
 	to domain.SupportedLang,
@@ -163,7 +166,10 @@ func (s *Service) translateChapters(
 		startTime := time.Now()
 
 		translatedChapter := make([]domain.ParagraphAlignNode, len(chapter.Paragraphs))
+		// set limit to prevent ddos translator and word aligner services
 		g := new(errgroup.Group)
+		g.SetLimit(s.maxRequestCount)
+
 		for idx, paragraph := range chapter.Paragraphs {
 			idx, paragraph := idx, paragraph
 			g.Go(func() error {
@@ -177,7 +183,7 @@ func (s *Service) translateChapters(
 		}
 		if err := g.Wait(); err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation))
-			resultChan <- TranslatedChapterResult{
+			resultChan <- translatedChapterResult{
 				Chapter: nil,
 				Error:   errors.New("failed to translate paragraphs"),
 			}
@@ -193,7 +199,7 @@ func (s *Service) translateChapters(
 			})
 			if err != nil {
 				slog.Error(err.Error(), slog.String("operation", operation))
-				resultChan <- TranslatedChapterResult{
+				resultChan <- translatedChapterResult{
 					Chapter: nil,
 					Error:   errors.New("failed to translate chapter title"),
 				}
@@ -212,7 +218,7 @@ func (s *Service) translateChapters(
 			TranslatedTitle: translatedTitle,
 		}
 
-		resultChan <- TranslatedChapterResult{
+		resultChan <- translatedChapterResult{
 			Chapter: &chapterNode,
 			Error:   nil,
 		}

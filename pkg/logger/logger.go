@@ -12,7 +12,7 @@ type Config struct {
 func New(cfg Config) *slog.Logger {
 	switch cfg.Env {
 	case "dev":
-		return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+		return slog.New(NewPrettyHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	case "prod":
 		return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	case "local":

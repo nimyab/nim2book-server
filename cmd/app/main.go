@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"github.com/nimyab/nim2book-back/internal/auth/login"
+	"github.com/nimyab/nim2book-back/internal/auth/refresh"
+	"github.com/nimyab/nim2book-back/internal/auth/register"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -77,19 +80,24 @@ func appRun(cfg *config.Config) error {
 	translateService := translate.New(cfg.LibreTranslateURL)
 
 	// translate service
-	translate_book.New(s3Client, pgClient, wordAlign, translateService)
+	translate_book.New(s3Client, pgClient, wordAlign, translateService, cfg.MaxRequestCount)
 
 	// book service
 	get_chapter.New(s3Client)
 	get_books.New(pgClient)
 	get_book.New(pgClient)
 
+	// auth service
+	register.New(pgClient)
+	login.New(pgClient, cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
+	refresh.New(cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
+
 	router := http.Router()
 	if err = router.Start(cfg.Port); err != nil {
 		return err
 	}
 
-	sig := make(chan os.Signal, 1)
+	sig := make(chan os.Signal, 2)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 
 	<-sig

@@ -7,6 +7,123 @@
     },
     "basePath": "/api/v1",
     "paths": {
+        "/auth/login": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Login user",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/login.Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/login.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Logout user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/logout.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/refresh": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Refresh user",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "data",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/refresh.Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/refresh.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/register": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Register user",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/register.Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/register.Output"
+                        }
+                    }
+                }
+            }
+        },
         "/book": {
             "get": {
                 "produces": [
@@ -156,7 +273,7 @@
                 "author": {
                     "type": "string"
                 },
-                "chapter_paths": {
+                "chapterPaths": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -210,6 +327,20 @@
                 }
             }
         },
+        "domain.User": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "isAdmin": {
+                    "type": "boolean"
+                }
+            }
+        },
         "domain.WordAlignNode": {
             "type": "object",
             "properties": {
@@ -243,6 +374,90 @@
                     "items": {
                         "$ref": "#/definitions/domain.Book"
                     }
+                }
+            }
+        },
+        "login.Input": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                }
+            }
+        },
+        "login.Output": {
+            "type": "object",
+            "properties": {
+                "accessToken": {
+                    "type": "string"
+                },
+                "refreshToken": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/domain.User"
+                }
+            }
+        },
+        "logout.Output": {
+            "type": "object",
+            "properties": {
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "refresh.Input": {
+            "type": "object",
+            "required": [
+                "refreshToken"
+            ],
+            "properties": {
+                "refreshToken": {
+                    "type": "string"
+                }
+            }
+        },
+        "refresh.Output": {
+            "type": "object",
+            "properties": {
+                "accessToken": {
+                    "type": "string"
+                },
+                "refreshToken": {
+                    "type": "string"
+                }
+            }
+        },
+        "register.Input": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                }
+            }
+        },
+        "register.Output": {
+            "type": "object",
+            "properties": {
+                "success": {
+                    "type": "boolean"
                 }
             }
         },

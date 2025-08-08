@@ -25,7 +25,7 @@ func New(cfg *Config) (*Redis, error) {
 
 	client := redis.NewClient(opt)
 
-	if _, err := client.Ping(context.Background()).Result(); err != nil {
+	if _, err = client.Ping(context.Background()).Result(); err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 

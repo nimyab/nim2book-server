@@ -4,7 +4,7 @@ definitions:
     properties:
       author:
         type: string
-      chapter_paths:
+      chapterPaths:
         items:
           type: string
         type: array
@@ -39,6 +39,15 @@ definitions:
       tp:
         type: string
     type: object
+  domain.User:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      isAdmin:
+        type: boolean
+    type: object
   domain.WordAlignNode:
     properties:
       iow:
@@ -62,6 +71,61 @@ definitions:
           $ref: '#/definitions/domain.Book'
         type: array
     type: object
+  login.Input:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  login.Output:
+    properties:
+      accessToken:
+        type: string
+      refreshToken:
+        type: string
+      user:
+        $ref: '#/definitions/domain.User'
+    type: object
+  logout.Output:
+    properties:
+      success:
+        type: boolean
+    type: object
+  refresh.Input:
+    properties:
+      refreshToken:
+        type: string
+    required:
+    - refreshToken
+    type: object
+  refresh.Output:
+    properties:
+      accessToken:
+        type: string
+      refreshToken:
+        type: string
+    type: object
+  register.Input:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  register.Output:
+    properties:
+      success:
+        type: boolean
+    type: object
   translate_book.Output:
     properties:
       book:
@@ -75,6 +139,80 @@ info:
   title: Nim2Book api
   version: "1.0"
 paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/login.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/login.Output'
+      summary: Login user
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/logout.Output'
+      summary: Logout user
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: data
+        schema:
+          $ref: '#/definitions/refresh.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/refresh.Output'
+      summary: Refresh user
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/register.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/register.Output'
+      summary: Register user
+      tags:
+      - auth
   /book:
     get:
       parameters:
