@@ -96,6 +96,11 @@ definitions:
       success:
         type: boolean
     type: object
+  me.Output:
+    properties:
+      user:
+        $ref: '#/definitions/domain.User'
+    type: object
   refresh.Input:
     properties:
       refreshToken:
@@ -302,7 +307,29 @@ paths:
           description: Created
           schema:
             $ref: '#/definitions/translate_book.Output'
+      security:
+      - BearerAuth: []
       summary: Translate book
       tags:
       - translate
+  /user/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/me.Output'
+      security:
+      - BearerAuth: []
+      summary: Get user info
+      tags:
+      - user
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

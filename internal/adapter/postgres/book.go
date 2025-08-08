@@ -82,7 +82,7 @@ func (db *Postgres) GetBook(ctx context.Context, id uuid.UUID) (*domain.Book, er
 
 	sql := `select * from books where id = $1`
 	book := new(domain.Book)
-	err := db.Pool.QueryRow(ctx, sql, id).Scan(book)
+	err := db.Pool.QueryRow(ctx, sql, id).Scan(&book.Id, &book.Author, &book.Title, &book.ChapterPaths)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrBookNotFound
 	}

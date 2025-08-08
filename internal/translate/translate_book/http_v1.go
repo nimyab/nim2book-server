@@ -9,6 +9,7 @@ import (
 // HTTPv1 godoc
 // @Summary	Translate book
 // @Tags	translate
+// @Security BearerAuth
 // @Accept	multipart/form-data
 // @Produce	application/json
 // @Param	file	formData	file	true	"Upload file"

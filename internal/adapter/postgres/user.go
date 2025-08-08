@@ -55,10 +55,27 @@ func (db *Postgres) CreateUser(ctx context.Context, user *domain.User) (*domain.
 func (db *Postgres) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	const operation = "postgres.GetUserByEmail"
 
-	sql := `select id, email, password_hash, is_admin from users where email = $1`
+	sql := `select * from users where email = $1`
 
 	user := new(domain.User)
-	err := db.Pool.QueryRow(ctx, sql, email).Scan(user)
+	err := db.Pool.QueryRow(ctx, sql, email).Scan(&user.Id, &user.Email, &user.PasswordHash, &user.IsAdmin)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrUserNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+
+	return user, nil
+}
+
+func (db *Postgres) GetUserById(ctx context.Context, userId uuid.UUID) (*domain.User, error) {
+	const operation = "postgres.GetUserById"
+
+	sql := `select * from users where id = $1`
+
+	user := new(domain.User)
+	err := db.Pool.QueryRow(ctx, sql, userId).Scan(&user.Id, &user.Email, &user.PasswordHash, &user.IsAdmin)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}

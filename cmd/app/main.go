@@ -5,6 +5,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/auth/login"
 	"github.com/nimyab/nim2book-back/internal/auth/refresh"
 	"github.com/nimyab/nim2book-back/internal/auth/register"
+	"github.com/nimyab/nim2book-back/internal/user/me"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -29,6 +30,10 @@ import (
 // @BasePath					/api/v1
 // @externalDocs.description	OpenAPI
 // @externalDocs.url			https://swagger.io/resources/open-api/
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 func main() {
 	cfg := config.GetConfig()
 
@@ -92,7 +97,10 @@ func appRun(cfg *config.Config) error {
 	login.New(pgClient, cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
 	refresh.New(cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
 
-	router := http.Router()
+	// user service
+	me.New(pgClient)
+
+	router := http.Router(cfg.JWTSecret)
 	if err = router.Start(cfg.Port); err != nil {
 		return err
 	}

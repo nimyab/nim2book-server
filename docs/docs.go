@@ -230,6 +230,11 @@ const docTemplate = `{
         },
         "/translate/book": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -268,6 +273,30 @@ const docTemplate = `{
                         "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/translate_book.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get user info",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/me.Output"
                         }
                     }
                 }
@@ -423,6 +452,14 @@ const docTemplate = `{
                 }
             }
         },
+        "me.Output": {
+            "type": "object",
+            "properties": {
+                "user": {
+                    "$ref": "#/definitions/domain.User"
+                }
+            }
+        },
         "refresh.Input": {
             "type": "object",
             "required": [
@@ -476,6 +513,14 @@ const docTemplate = `{
                     "$ref": "#/definitions/domain.Book"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     },
     "externalDocs": {
