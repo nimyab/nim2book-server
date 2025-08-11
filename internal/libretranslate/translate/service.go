@@ -39,12 +39,12 @@ func (s *Service) Translate(input *Input) (*Output, error) {
 	}
 
 	resp, err := retry.DoWithData(func() (*http.Response, error) {
-		innerResp, err := http.PostForm(fmt.Sprintf("%s/%s", s.ULR, "translate"), formData)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", operation, err)
-		}
-		return innerResp, nil
+		return http.PostForm(fmt.Sprintf("%s/%s", s.ULR, "translate"), formData)
 	}, retry.Attempts(5))
+
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, fmt.Errorf("%s: status code: %d", operation, resp.StatusCode)

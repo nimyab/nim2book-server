@@ -33,16 +33,16 @@ func (s *Service) Align(input *Input) (*Output, error) {
 	}
 
 	resp, err := retry.DoWithData(func() (*http.Response, error) {
-		innerResp, err := http.Post(fmt.Sprintf("%s/%s", s.URL, "align"), "application/json", bytes.NewBuffer(data))
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", operation, err)
-		}
-		return innerResp, nil
+		return http.Post(fmt.Sprintf("%s/%s", s.URL, "align"), "application/json", bytes.NewBuffer(data))
 	}, retry.Attempts(5))
+
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		responseBody, _ := io.ReadAll(resp.Body)
-		slog.Debug("Align failed", "Status Code", resp.StatusCode, "Response", responseBody)
+		slog.Debug("Align failed", "Status Code", resp.StatusCode, "Response", string(responseBody))
 		return nil, fmt.Errorf("%s: status code: %d", operation, resp.StatusCode)
 	}
 

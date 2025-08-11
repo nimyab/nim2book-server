@@ -11,6 +11,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/book/get_book"
 	"github.com/nimyab/nim2book-back/internal/book/get_books"
 	"github.com/nimyab/nim2book-back/internal/book/get_chapter"
+	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	customMiddleware "github.com/nimyab/nim2book-back/internal/middleware"
 	"github.com/nimyab/nim2book-back/internal/translate/translate_book"
 	"github.com/nimyab/nim2book-back/internal/user/me"
@@ -29,6 +30,7 @@ func Router(secretKey string) *echo.Echo {
 	e.Validator = validator.New()
 
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
+	e.GET("/ws", websocket.NewSocketConn)
 
 	apiV1 := e.Group("/api/v1")
 	{

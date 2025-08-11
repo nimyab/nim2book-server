@@ -99,7 +99,7 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader) (*Outp
 		return &Output{Book: *existedBook}, nil
 	}
 	if err != nil && !errors.Is(err, postgres.ErrBookNotFound) {
-		slog.Debug(err.Error(), slog.String("operation", operation))
+		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, errors.New("failed to find book")
 	}
 

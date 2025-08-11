@@ -45,7 +45,7 @@ func New(cfg *Config) (*S3, error) {
 		s3Client:   s3.New(sess),
 		bucketName: cfg.S3BucketName,
 	}
-	if err := s3Client.CreateBucket(); err != nil {
+	if err = s3Client.CreateBucket(); err != nil {
 		slog.Error(err.Error())
 	}
 	return s3Client, nil

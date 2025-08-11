@@ -5,6 +5,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/auth/login"
 	"github.com/nimyab/nim2book-back/internal/auth/refresh"
 	"github.com/nimyab/nim2book-back/internal/auth/register"
+	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/user/me"
 	"log/slog"
 	"os"
@@ -99,6 +100,9 @@ func appRun(cfg *config.Config) error {
 
 	// user service
 	me.New(pgClient)
+
+	// websocket
+	websocket.NewAndStart()
 
 	router := http.Router(cfg.JWTSecret)
 	if err = router.Start(cfg.Port); err != nil {
