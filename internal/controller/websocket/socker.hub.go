@@ -1,26 +1,26 @@
 package websocket
 
 import (
-	"github.com/google/uuid"
+	"fmt"
+	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/validator"
+	"log/slog"
+	"sync"
 )
 
 type Validator interface {
 	Validate(v interface{}) error
 }
 
-type UserStorage interface {
-	SetUser(uuid.UUID, *SocketConn) error
-	GetUser(uuid.UUID) (*SocketConn, error)
-}
-
 type SocketHub struct {
 	broadcastCh  chan *Message
 	registerCh   chan *SocketConn
 	unregisterCh chan *SocketConn
-	userStorage  UserStorage
 
 	validator Validator
+
+	clients map[domain.Id]*SocketConn
+	mu      sync.RWMutex
 }
 
 var socketHub *SocketHub
@@ -38,8 +38,19 @@ func NewAndStart() *SocketHub {
 	return socketHub
 }
 
-func SendMessage(userId uuid.UUID, msg *Message) {
+func SendMessage(userId domain.Id, msg *Message) {
+	const operation = "websocket.SendMessage"
 
+	socketHub.mu.RLock()
+	defer socketHub.mu.RUnlock()
+
+	client, ok := socketHub.clients[userId]
+	if !ok {
+		slog.Info(fmt.Sprintf("socketHub.clients[%v] is nil", userId), slog.String("operation", operation))
+		return
+	}
+
+	client.messageChan <- msg
 }
 
 func (h *SocketHub) Run() {
@@ -56,13 +67,27 @@ func (h *SocketHub) Run() {
 }
 
 func (h *SocketHub) registerConn(conn *SocketConn) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
+	h.clients[conn.userId] = conn
+	slog.Info("socket conn register", slog.String("userId", conn.userId.String()))
 }
 
 func (h *SocketHub) unregisterConn(conn *SocketConn) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
+	if _, ok := h.clients[conn.userId]; ok {
+		delete(h.clients, conn.userId)
+		close(conn.messageChan)
+		slog.Info("socket conn unregister", slog.String("userId", conn.userId.String()))
+	}
 }
 
 func (h *SocketHub) handleMessage(msg *Message) {
-
+	switch msg.Event {
+	default:
+		slog.Info("unsupported event", slog.String("event", msg.Event))
+	}
 }

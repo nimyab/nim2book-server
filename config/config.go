@@ -66,7 +66,7 @@ func init() {
 		S3Region:            os.Getenv("S3_REGION"),
 		JWTSecret:           os.Getenv("JWT_SECRET"),
 		JWTAccessTime:       time.Duration(jwtAccessTime) * time.Minute,
-		JWTRefreshTime:      time.Duration(jwtRefreshTime) * time.Minute,
+		JWTRefreshTime:      time.Duration(jwtRefreshTime) * time.Hour * 24,
 	}
 }
 

@@ -1,4 +1,4 @@
-package redis
+package redis_cache
 
 import (
 	"context"
@@ -11,12 +11,12 @@ type Config struct {
 	RedisURL string
 }
 
-type Redis struct {
+type RedisCache struct {
 	client *redis.Client
 }
 
-func New(cfg *Config) (*Redis, error) {
-	const operation = "redis.New"
+func New(cfg *Config) (*RedisCache, error) {
+	const operation = "redis_cache.New"
 
 	opt, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
@@ -29,5 +29,5 @@ func New(cfg *Config) (*Redis, error) {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 
-	return &Redis{client: client}, nil
+	return &RedisCache{client: client}, nil
 }

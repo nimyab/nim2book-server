@@ -1,6 +1,7 @@
 package translate_book
 
 import (
+	"github.com/nimyab/nim2book-back/pkg/jwt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -18,6 +19,8 @@ import (
 // @Success	201		{object}	Output
 // @Router	/translate/book [post]
 func HTTPv1(c echo.Context) error {
+	userPayload := jwt.GetUserPayload(c)
+
 	bookFile, err := c.FormFile("file")
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{
@@ -36,7 +39,7 @@ func HTTPv1(c echo.Context) error {
 		})
 	}
 
-	output, err := service.TranslateBook(input, bookFile)
+	output, err := service.TranslateBook(input, bookFile, userPayload.Id)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),

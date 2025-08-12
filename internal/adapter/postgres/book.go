@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/nimyab/nim2book-back/internal/domain"
 )
@@ -31,7 +30,7 @@ func (db *Postgres) GetBookByAuthorAndTitle(ctx context.Context, author, title s
 	sql := `SELECT * FROM books WHERE author = $1 AND title = $2`
 
 	book := new(domain.Book)
-	err := db.Pool.QueryRow(ctx, sql, author, title).Scan(book)
+	err := db.Pool.QueryRow(ctx, sql, author, title).Scan(&book.Id, &book.Title, &book.Author, &book.ChapterPaths)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrBookNotFound
 	}
@@ -62,7 +61,7 @@ func (db *Postgres) CreateBook(ctx context.Context, book *domain.Book) (*domain.
 	}
 
 	sql = `insert into books (title, author, chapter_paths) values ($1, $2, $3) returning id`
-	var id uuid.UUID
+	var id domain.Id
 	err = tx.QueryRow(ctx, sql, book.Title, book.Author, book.ChapterPaths).Scan(&id)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
@@ -77,7 +76,7 @@ func (db *Postgres) CreateBook(ctx context.Context, book *domain.Book) (*domain.
 	return book, nil
 }
 
-func (db *Postgres) GetBook(ctx context.Context, id uuid.UUID) (*domain.Book, error) {
+func (db *Postgres) GetBook(ctx context.Context, id domain.Id) (*domain.Book, error) {
 	const operation = "postgres.GetBook"
 
 	sql := `select * from books where id = $1`

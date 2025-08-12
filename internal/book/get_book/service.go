@@ -2,13 +2,12 @@ package get_book
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"log/slog"
 )
 
 type Postgres interface {
-	GetBook(ctx context.Context, id uuid.UUID) (*domain.Book, error)
+	GetBook(ctx context.Context, id domain.Id) (*domain.Book, error)
 }
 
 type Service struct {

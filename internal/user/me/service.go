@@ -3,14 +3,13 @@ package me
 import (
 	"context"
 	"errors"
-	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"log/slog"
 )
 
 type Postgres interface {
-	GetUserById(ctx context.Context, userId uuid.UUID) (*domain.User, error)
+	GetUserById(ctx context.Context, userId domain.Id) (*domain.User, error)
 }
 
 type Service struct {

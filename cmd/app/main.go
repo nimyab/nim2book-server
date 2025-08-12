@@ -14,7 +14,7 @@ import (
 
 	"github.com/nimyab/nim2book-back/config"
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
-	"github.com/nimyab/nim2book-back/internal/adapter/redis"
+	"github.com/nimyab/nim2book-back/internal/adapter/redis_cache"
 	"github.com/nimyab/nim2book-back/internal/adapter/s3"
 	"github.com/nimyab/nim2book-back/internal/book/get_book"
 	"github.com/nimyab/nim2book-back/internal/book/get_books"
@@ -70,14 +70,14 @@ func appRun(cfg *config.Config) error {
 		return err
 	}
 
-	// Redis
-	redisClient, err := redis.New(&redis.Config{
+	// RedisCache
+	redisCacheClient, err := redis_cache.New(&redis_cache.Config{
 		RedisURL: cfg.RedisURL,
 	})
 	if err != nil {
 		return err
 	}
-	_ = redisClient // todo
+	_ = redisCacheClient // todo
 
 	// align service
 	wordAlign := align.New(cfg.WordAlignerURL)

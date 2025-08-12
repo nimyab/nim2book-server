@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"io"
 	"log/slog"
 	"mime/multipart"
@@ -62,7 +63,7 @@ func New(s3 S3, pg Postgres, wordAligner WordAligner, translator Translator, max
 	return service
 }
 
-func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader) (*Output, error) {
+func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId domain.Id) (*Output, error) {
 	const operation = "translate_book.Service.TranslateBook"
 
 	file, err := book.Open()
@@ -127,7 +128,15 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader) (*Outp
 			return nil, errors.New("failed to save chapter to S3")
 		}
 		paths = append(paths, path)
-		// todo: add send message to websocket
+		websocket.SendMessage(userId, &websocket.Message{
+			Event: websocket.ChapterTranslatedEvent,
+			Body: map[string]any{
+				"path":   path,
+				"author": parsedBook.Author,
+				"title":  parsedBook.Title,
+				"order":  result.Chapter.Order,
+			},
+		})
 	}
 
 	newBook := &domain.Book{

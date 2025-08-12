@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/nimyab/nim2book-back/internal/domain"
 )
@@ -37,7 +36,7 @@ func (db *Postgres) CreateUser(ctx context.Context, user *domain.User) (*domain.
 		"isAdmin":      user.IsAdmin,
 	}
 
-	var id uuid.UUID
+	var id domain.Id
 	err = tx.QueryRow(ctx, sql, args).Scan(&id)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
@@ -69,7 +68,7 @@ func (db *Postgres) GetUserByEmail(ctx context.Context, email string) (*domain.U
 	return user, nil
 }
 
-func (db *Postgres) GetUserById(ctx context.Context, userId uuid.UUID) (*domain.User, error) {
+func (db *Postgres) GetUserById(ctx context.Context, userId domain.Id) (*domain.User, error) {
 	const operation = "postgres.GetUserById"
 
 	sql := `select * from users where id = $1`
