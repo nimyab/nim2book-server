@@ -12,6 +12,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/book/get_books"
 	"github.com/nimyab/nim2book-back/internal/book/get_chapter"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
+	"github.com/nimyab/nim2book-back/internal/dictionary/lookup"
 	customMiddleware "github.com/nimyab/nim2book-back/internal/middleware"
 	"github.com/nimyab/nim2book-back/internal/translate/translate_book"
 	"github.com/nimyab/nim2book-back/internal/user/me"
@@ -46,6 +47,8 @@ func Router(secretKey string) *echo.Echo {
 		apiV1.POST("/auth/refresh", refresh.HTTPv1)
 
 		apiV1.GET("/user/me", me.HTTPv1, customMiddleware.JWT(secretKey))
+
+		apiV1.POST("/dictionary/lookup", lookup.HTTPv1)
 	}
 
 	return e

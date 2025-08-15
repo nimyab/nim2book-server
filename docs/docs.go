@@ -228,7 +228,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/translate/book": {
+        "/startTranslate/book": {
             "post": {
                 "security": [
                     {
@@ -242,7 +242,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "translate"
+                    "startTranslate"
                 ],
                 "summary": "Translate book",
                 "parameters": [
@@ -511,6 +511,9 @@ const docTemplate = `{
             "properties": {
                 "book": {
                     "$ref": "#/definitions/domain.Book"
+                },
+                "message": {
+                    "type": "string"
                 }
             }
         }

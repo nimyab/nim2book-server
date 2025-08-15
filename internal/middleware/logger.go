@@ -1,10 +1,11 @@
 package middleware
 
 import (
-	"github.com/labstack/echo/v4"
 	"log/slog"
 	"regexp"
 	"time"
+
+	"github.com/labstack/echo/v4"
 )
 
 func Logger() echo.MiddlewareFunc {

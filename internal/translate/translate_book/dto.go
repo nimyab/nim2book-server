@@ -8,5 +8,6 @@ type Input struct {
 }
 
 type Output struct {
-	Book domain.Book `json:"book"`
+	Book    *domain.Book `json:"book,omitempty"`
+	Message string       `json:"message,omitempty"`
 }

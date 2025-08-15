@@ -2,15 +2,17 @@ package main
 
 import (
 	"context"
-	"github.com/nimyab/nim2book-back/internal/auth/login"
-	"github.com/nimyab/nim2book-back/internal/auth/refresh"
-	"github.com/nimyab/nim2book-back/internal/auth/register"
-	"github.com/nimyab/nim2book-back/internal/controller/websocket"
-	"github.com/nimyab/nim2book-back/internal/user/me"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/nimyab/nim2book-back/internal/auth/login"
+	"github.com/nimyab/nim2book-back/internal/auth/refresh"
+	"github.com/nimyab/nim2book-back/internal/auth/register"
+	"github.com/nimyab/nim2book-back/internal/controller/websocket"
+	"github.com/nimyab/nim2book-back/internal/dictionary/lookup"
+	"github.com/nimyab/nim2book-back/internal/user/me"
 
 	"github.com/nimyab/nim2book-back/config"
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
@@ -100,6 +102,9 @@ func appRun(cfg *config.Config) error {
 
 	// user service
 	me.New(pgClient)
+
+	// dictionary service
+	lookup.New(pgClient, redisCacheClient, cfg.YandexDictionaryKey, cfg.YandexDictionaryURL)
 
 	// websocket
 	websocket.NewAndStart()

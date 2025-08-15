@@ -2,8 +2,9 @@ package register
 
 import (
 	"errors"
-	"github.com/labstack/echo/v4"
 	"net/http"
+
+	"github.com/labstack/echo/v4"
 )
 
 // HTTPv1 godoc

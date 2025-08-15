@@ -3,10 +3,11 @@ package register
 import (
 	"context"
 	"errors"
+	"log/slog"
+
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"golang.org/x/crypto/bcrypt"
-	"log/slog"
 )
 
 type Postgres interface {

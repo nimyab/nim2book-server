@@ -2,8 +2,9 @@ package get_chapter
 
 import (
 	"bytes"
-	"github.com/labstack/echo/v4"
 	"net/http"
+
+	"github.com/labstack/echo/v4"
 )
 
 // HTTPv1 godoc

@@ -9,7 +9,7 @@ import (
 
 // HTTPv1 godoc
 // @Summary	Translate book
-// @Tags	translate
+// @Tags	startTranslate
 // @Security BearerAuth
 // @Accept	multipart/form-data
 // @Produce	application/json
@@ -17,7 +17,7 @@ import (
 // @Param	from	formData	string	true	"Source lang"
 // @Param	to		formData	string	true	"Target lang"
 // @Success	201		{object}	Output
-// @Router	/translate/book [post]
+// @Router	/startTranslate/book [post]
 func HTTPv1(c echo.Context) error {
 	userPayload := jwt.GetUserPayload(c)
 

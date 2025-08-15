@@ -1,4 +1,4 @@
-package get_books
+package lookup
 
 import (
 	"net/http"
@@ -7,14 +7,13 @@ import (
 )
 
 // HTTPv1 godoc
-// @Summary	Get books
-// @Tags	book
-// @Produce	application/json
-// @Param	author	query	string	false	"Chapter path"
-// @Param	title	query	string	false	"Chapter path"
-// @Param	page	query	string	true	"Chapter path"
+// @Summary	Get translate from dictionary
+// @Tags	dictionary
+// @Accept  json
+// @Produce	json
+// @Param	data	body	Input	true
 // @Success	200		{object}	Output
-// @Router	/book	[get]
+// @Router	/dictionary/lookup	[post]
 func HTTPv1(c echo.Context) error {
 	input := new(Input)
 	if err := c.Bind(input); err != nil {
@@ -29,7 +28,7 @@ func HTTPv1(c echo.Context) error {
 		})
 	}
 
-	output, err := service.GetBooks(input)
+	output, err := service.Lookup(input)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),

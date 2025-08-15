@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"io"
 	"log/slog"
 	"mime/multipart"
@@ -13,10 +12,13 @@ import (
 	"time"
 
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
+	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/word_aligner/align"
+	"github.com/nimyab/nim2book-back/pkg/logger"
 	"github.com/nimyab/nim2book-back/pkg/parsers/epub_parser"
+	"github.com/timsims/pamphlet"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -97,11 +99,26 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 
 	existedBook, err := s.pg.GetBookByAuthorAndTitle(context.Background(), parsedBook.Author, parsedBook.Title)
 	if existedBook != nil {
-		return &Output{Book: *existedBook}, nil
+		return &Output{Book: existedBook}, nil
 	}
 	if err != nil && !errors.Is(err, postgres.ErrBookNotFound) {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, errors.New("failed to find book")
+	}
+
+	go s.startTranslate(userId, chapters, parsedBook, input)
+
+	return &Output{Message: "start translate"}, nil
+}
+
+func (s *Service) startTranslate(userId domain.Id, chapters []epub_parser.FormattedChapter, book *pamphlet.Book, input *Input) {
+	const operation = "translate_book.startTranslate"
+
+	sendErrorMessage := func(body map[string]any) {
+		websocket.SendMessage(userId, &websocket.Message{
+			Event: websocket.ErrorEvent,
+			Body:  body,
+		})
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -115,42 +132,50 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 	paths := make([]string, 0, len(chapters))
 	for result := range resultChan {
 		if result.Error != nil {
-			slog.Error(result.Error.Error(), slog.String("operation", operation))
-			return nil, errors.New("failed to translate chapter")
+			logger.Error("failed to translate chapter", result.Error, operation)
+			return
 		}
 		if result.Chapter == nil {
-			slog.Error(result.Error.Error(), slog.String("operation", operation))
-			return nil, errors.New("translated chapter is nil")
+			logger.Error("translated chapter is nil", result.Error, operation)
+			sendErrorMessage(map[string]any{
+				"error": "internal server error: translated chapter is nil",
+			})
+			return
 		}
-		path, err := s.saveToS3(result.Chapter, parsedBook.Title)
+		path, err := s.saveToS3(result.Chapter, book.Title)
 		if err != nil {
-			slog.Error(err.Error(), slog.String("operation", operation))
-			return nil, errors.New("failed to save chapter to S3")
+			logger.Error(fmt.Sprintf("failed to save to s3 chapter %d order", result.Chapter.Order), err, operation)
+			sendErrorMessage(map[string]any{
+				"error": fmt.Sprintf("failed to save to s3 chapter %d order", result.Chapter.Order),
+			})
+			return
 		}
 		paths = append(paths, path)
 		websocket.SendMessage(userId, &websocket.Message{
 			Event: websocket.ChapterTranslatedEvent,
 			Body: map[string]any{
-				"path":   path,
-				"author": parsedBook.Author,
-				"title":  parsedBook.Title,
-				"order":  result.Chapter.Order,
+				"chapterPath":       path,
+				"author":            book.Author,
+				"title":             book.Title,
+				"order":             result.Chapter.Order,
+				"totalChapterCount": len(book.Chapters),
 			},
 		})
 	}
 
 	newBook := &domain.Book{
-		Author:       parsedBook.Author,
-		Title:        parsedBook.Title,
+		Author:       book.Author,
+		Title:        book.Title,
 		ChapterPaths: paths,
 	}
-	newBook, err = s.pg.CreateBook(context.Background(), newBook)
+	newBook, err := s.pg.CreateBook(context.Background(), newBook)
 	if err != nil {
-		slog.Error(err.Error(), slog.String("operation", operation))
-		return nil, errors.New("failed to create book")
+		logger.Error("failed to save book to database", err, operation)
+		sendErrorMessage(map[string]any{
+			"error": "failed to save book to database",
+		})
+		return
 	}
-
-	return &Output{Book: *newBook}, nil
 }
 
 func (s *Service) translateChapters(
@@ -194,7 +219,7 @@ func (s *Service) translateChapters(
 			slog.Error(err.Error(), slog.String("operation", operation))
 			resultChan <- translatedChapterResult{
 				Chapter: nil,
-				Error:   errors.New("failed to translate paragraphs"),
+				Error:   errors.New("failed to startTranslate paragraphs"),
 			}
 			return
 		}
@@ -210,7 +235,7 @@ func (s *Service) translateChapters(
 				slog.Error(err.Error(), slog.String("operation", operation))
 				resultChan <- translatedChapterResult{
 					Chapter: nil,
-					Error:   errors.New("failed to translate chapter title"),
+					Error:   errors.New("failed to startTranslate chapter title"),
 				}
 				return
 			}
@@ -251,7 +276,7 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 	})
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
-		return domain.ParagraphAlignNode{}, errors.New("failed to translate paragraph")
+		return domain.ParagraphAlignNode{}, errors.New("failed to startTranslate paragraph")
 	}
 
 	alignOutput, err := s.wordAligner.Align(&align.Input{

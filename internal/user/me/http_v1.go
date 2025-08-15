@@ -1,9 +1,10 @@
 package me
 
 import (
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 	"github.com/nimyab/nim2book-back/pkg/jwt"
-	"net/http"
 )
 
 // HTTPv1 godoc

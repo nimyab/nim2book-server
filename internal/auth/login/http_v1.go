@@ -2,10 +2,11 @@ package login
 
 import (
 	"errors"
-	"github.com/labstack/echo/v4"
-	"github.com/nimyab/nim2book-back/config"
 	"net/http"
 	"time"
+
+	"github.com/labstack/echo/v4"
+	"github.com/nimyab/nim2book-back/config"
 )
 
 // HTTPv1 godoc

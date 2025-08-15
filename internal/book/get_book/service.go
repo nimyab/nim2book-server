@@ -2,8 +2,9 @@ package get_book
 
 import (
 	"context"
-	"github.com/nimyab/nim2book-back/internal/domain"
 	"log/slog"
+
+	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
 type Postgres interface {

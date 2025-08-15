@@ -220,7 +220,7 @@
                 }
             }
         },
-        "/translate/book": {
+        "/startTranslate/book": {
             "post": {
                 "security": [
                     {
@@ -234,7 +234,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "translate"
+                    "startTranslate"
                 ],
                 "summary": "Translate book",
                 "parameters": [
@@ -503,6 +503,9 @@
             "properties": {
                 "book": {
                     "$ref": "#/definitions/domain.Book"
+                },
+                "message": {
+                    "type": "string"
                 }
             }
         }

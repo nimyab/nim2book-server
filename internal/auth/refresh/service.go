@@ -2,9 +2,10 @@ package refresh
 
 import (
 	"errors"
-	"github.com/nimyab/nim2book-back/pkg/jwt"
 	"log/slog"
 	"time"
+
+	"github.com/nimyab/nim2book-back/pkg/jwt"
 )
 
 type Service struct {

@@ -3,12 +3,13 @@ package login
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"time"
+
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/jwt"
 	"golang.org/x/crypto/bcrypt"
-	"log/slog"
-	"time"
 )
 
 type Postgres interface {

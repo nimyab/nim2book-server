@@ -135,6 +135,8 @@ definitions:
     properties:
       book:
         $ref: '#/definitions/domain.Book'
+      message:
+        type: string
     type: object
 externalDocs:
   description: OpenAPI
@@ -280,7 +282,7 @@ paths:
       summary: Get book chapter
       tags:
       - book
-  /translate/book:
+  /startTranslate/book:
     post:
       consumes:
       - multipart/form-data
@@ -311,7 +313,7 @@ paths:
       - BearerAuth: []
       summary: Translate book
       tags:
-      - translate
+      - startTranslate
   /user/me:
     get:
       produces:

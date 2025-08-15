@@ -3,9 +3,10 @@ package me
 import (
 	"context"
 	"errors"
+	"log/slog"
+
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"log/slog"
 )
 
 type Postgres interface {

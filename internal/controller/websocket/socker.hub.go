@@ -2,10 +2,11 @@ package websocket
 
 import (
 	"fmt"
-	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/pkg/validator"
 	"log/slog"
 	"sync"
+
+	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/pkg/validator"
 )
 
 type Validator interface {
@@ -71,7 +72,7 @@ func (h *SocketHub) registerConn(conn *SocketConn) {
 	defer h.mu.Unlock()
 
 	h.clients[conn.userId] = conn
-	slog.Info("socket conn register", slog.String("userId", conn.userId.String()))
+	slog.Info("socket conn register", slog.Any("userId", conn.userId.String()))
 }
 
 func (h *SocketHub) unregisterConn(conn *SocketConn) {
