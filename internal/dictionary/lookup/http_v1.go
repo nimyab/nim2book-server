@@ -11,7 +11,7 @@ import (
 // @Tags	dictionary
 // @Accept  json
 // @Produce	json
-// @Param	data	body	Input	true
+// @Param	data	body	Input	true	"body"
 // @Success	200		{object}	Output
 // @Router	/dictionary/lookup	[post]
 func HTTPv1(c echo.Context) error {

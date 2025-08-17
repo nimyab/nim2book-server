@@ -228,7 +228,40 @@ const docTemplate = `{
                 }
             }
         },
-        "/startTranslate/book": {
+        "/dictionary/lookup": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dictionary"
+                ],
+                "summary": "Get translate from dictionary",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/lookup.Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/lookup.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/translate/book": {
             "post": {
                 "security": [
                     {
@@ -242,7 +275,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "startTranslate"
+                    "translate"
                 ],
                 "summary": "Translate book",
                 "parameters": [
@@ -347,6 +380,69 @@ const docTemplate = `{
                 }
             }
         },
+        "domain.Definition": {
+            "type": "object",
+            "required": [
+                "text",
+                "tr"
+            ],
+            "properties": {
+                "pos": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "tr": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Translation"
+                    }
+                },
+                "ts": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.Example": {
+            "type": "object",
+            "required": [
+                "text"
+            ],
+            "properties": {
+                "text": {
+                    "type": "string"
+                },
+                "tr": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ExampleTranslation"
+                    }
+                }
+            }
+        },
+        "domain.ExampleTranslation": {
+            "type": "object",
+            "required": [
+                "text"
+            ],
+            "properties": {
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.Mean": {
+            "type": "object",
+            "required": [
+                "text"
+            ],
+            "properties": {
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.ParagraphAlignNode": {
             "type": "object",
             "properties": {
@@ -360,6 +456,32 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "tp": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.Translation": {
+            "type": "object",
+            "required": [
+                "text"
+            ],
+            "properties": {
+                "ex": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Example"
+                    }
+                },
+                "mean": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Mean"
+                    }
+                },
+                "pos": {
+                    "type": "string"
+                },
+                "text": {
                     "type": "string"
                 }
             }
@@ -449,6 +571,43 @@ const docTemplate = `{
             "properties": {
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "lookup.Input": {
+            "type": "object",
+            "required": [
+                "lang",
+                "text",
+                "ui"
+            ],
+            "properties": {
+                "lang": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "ui": {
+                    "type": "string"
+                }
+            }
+        },
+        "lookup.Output": {
+            "type": "object",
+            "required": [
+                "def"
+            ],
+            "properties": {
+                "def": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Definition"
+                    }
+                },
+                "head": {
+                    "type": "object",
+                    "additionalProperties": {}
                 }
             }
         },

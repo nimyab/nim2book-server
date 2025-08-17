@@ -1,15 +1,16 @@
 package translate_book
 
 import (
-	"github.com/nimyab/nim2book-back/pkg/jwt"
 	"net/http"
+
+	"github.com/nimyab/nim2book-back/pkg/jwt"
 
 	"github.com/labstack/echo/v4"
 )
 
 // HTTPv1 godoc
 // @Summary	Translate book
-// @Tags	startTranslate
+// @Tags	translate
 // @Security BearerAuth
 // @Accept	multipart/form-data
 // @Produce	application/json
@@ -17,7 +18,7 @@ import (
 // @Param	from	formData	string	true	"Source lang"
 // @Param	to		formData	string	true	"Target lang"
 // @Success	201		{object}	Output
-// @Router	/startTranslate/book [post]
+// @Router	/translate/book [post]
 func HTTPv1(c echo.Context) error {
 	userPayload := jwt.GetUserPayload(c)
 

@@ -28,6 +28,47 @@ definitions:
       translatedTitle:
         type: string
     type: object
+  domain.Definition:
+    properties:
+      pos:
+        type: string
+      text:
+        type: string
+      tr:
+        items:
+          $ref: '#/definitions/domain.Translation'
+        type: array
+      ts:
+        type: string
+    required:
+    - text
+    - tr
+    type: object
+  domain.Example:
+    properties:
+      text:
+        type: string
+      tr:
+        items:
+          $ref: '#/definitions/domain.ExampleTranslation'
+        type: array
+    required:
+    - text
+    type: object
+  domain.ExampleTranslation:
+    properties:
+      text:
+        type: string
+    required:
+    - text
+    type: object
+  domain.Mean:
+    properties:
+      text:
+        type: string
+    required:
+    - text
+    type: object
   domain.ParagraphAlignNode:
     properties:
       aw:
@@ -38,6 +79,23 @@ definitions:
         type: string
       tp:
         type: string
+    type: object
+  domain.Translation:
+    properties:
+      ex:
+        items:
+          $ref: '#/definitions/domain.Example'
+        type: array
+      mean:
+        items:
+          $ref: '#/definitions/domain.Mean'
+        type: array
+      pos:
+        type: string
+      text:
+        type: string
+    required:
+    - text
     type: object
   domain.User:
     properties:
@@ -95,6 +153,31 @@ definitions:
     properties:
       success:
         type: boolean
+    type: object
+  lookup.Input:
+    properties:
+      lang:
+        type: string
+      text:
+        type: string
+      ui:
+        type: string
+    required:
+    - lang
+    - text
+    - ui
+    type: object
+  lookup.Output:
+    properties:
+      def:
+        items:
+          $ref: '#/definitions/domain.Definition'
+        type: array
+      head:
+        additionalProperties: {}
+        type: object
+    required:
+    - def
     type: object
   me.Output:
     properties:
@@ -282,7 +365,28 @@ paths:
       summary: Get book chapter
       tags:
       - book
-  /startTranslate/book:
+  /dictionary/lookup:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/lookup.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/lookup.Output'
+      summary: Get translate from dictionary
+      tags:
+      - dictionary
+  /translate/book:
     post:
       consumes:
       - multipart/form-data
@@ -313,7 +417,7 @@ paths:
       - BearerAuth: []
       summary: Translate book
       tags:
-      - startTranslate
+      - translate
   /user/me:
     get:
       produces:
