@@ -279,10 +279,13 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 		return domain.ParagraphAlignNode{}, errors.New("failed to startTranslate paragraph")
 	}
 
+	time.Sleep(5 * time.Second)
 	alignOutput, err := s.wordAligner.Align(&align.Input{
 		SourceText: paragraph,
 		TargetText: translateOutput.TranslatedText,
 	})
+	time.Sleep(5 * time.Second)
+
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return domain.ParagraphAlignNode{}, errors.New("failed to align words")
