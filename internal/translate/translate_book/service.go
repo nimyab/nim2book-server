@@ -41,10 +41,12 @@ type Translator interface {
 
 type Service struct {
 	maxRequestCount int
-	s3              S3
-	pg              Postgres
-	wordAligner     WordAligner
-	translator      Translator
+	waitSeconds     time.Duration
+
+	s3          S3
+	pg          Postgres
+	wordAligner WordAligner
+	translator  Translator
 }
 
 type translatedChapterResult struct {
@@ -54,13 +56,21 @@ type translatedChapterResult struct {
 
 var service *Service
 
-func New(s3 S3, pg Postgres, wordAligner WordAligner, translator Translator, maxRequestCount int) *Service {
+func New(
+	s3 S3,
+	pg Postgres,
+	wordAligner WordAligner,
+	translator Translator,
+	maxRequestCount int,
+	waitSeconds time.Duration,
+) *Service {
 	service = &Service{
 		s3:              s3,
 		pg:              pg,
 		wordAligner:     wordAligner,
 		translator:      translator,
 		maxRequestCount: maxRequestCount,
+		waitSeconds:     waitSeconds,
 	}
 	return service
 }
@@ -278,13 +288,13 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return domain.ParagraphAlignNode{}, errors.New("failed to startTranslate paragraph")
 	}
-
-	time.Sleep(5 * time.Second)
+	time.Sleep(s.waitSeconds)
+	
 	alignOutput, err := s.wordAligner.Align(&align.Input{
 		SourceText: paragraph,
 		TargetText: translateOutput.TranslatedText,
 	})
-	time.Sleep(5 * time.Second)
+	time.Sleep(s.waitSeconds)
 
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))

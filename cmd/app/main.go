@@ -88,7 +88,14 @@ func appRun(cfg *config.Config) error {
 	translateService := translate.New(cfg.LibreTranslateURL)
 
 	// translate service
-	translate_book.New(s3Client, pgClient, wordAlign, translateService, cfg.MaxRequestCount)
+	translate_book.New(
+		s3Client,
+		pgClient,
+		wordAlign,
+		translateService,
+		cfg.MaxRequestCount,
+		cfg.WaitSeconds,
+	)
 
 	// book service
 	get_chapter.New(s3Client)
