@@ -93,7 +93,7 @@ func appRun(cfg *config.Config) error {
 		wordAlign,
 		translateService,
 		cfg.MaxRequestCount,
-		cfg.WaitSeconds,
+		cfg.WaitMilliseconds,
 	)
 
 	// book service

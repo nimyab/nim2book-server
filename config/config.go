@@ -21,8 +21,8 @@ type Config struct {
 	YandexDictionaryKey string `env:"YANDEX_DICTIONARY_KEY"`
 	YandexDictionaryURL string `env:"YANDEX_DICTIONARY_URL"`
 
-	MaxRequestCount int           `env:"MAX_REQUEST_COUNT" envDefault:"1"`
-	WaitSeconds     time.Duration `env:"WAIT_SECONDS" envDefault:"2"`
+	MaxRequestCount  int           `env:"MAX_REQUEST_COUNT" envDefault:"1"`
+	WaitMilliseconds time.Duration `env:"WAIT_MILLISECONDS" envDefault:"1000"`
 
 	LibreTranslateURL string `env:"LIBRE_TRANSLATE_URL"`
 
@@ -49,7 +49,7 @@ func init() {
 	maxRequestCount, _ := strconv.Atoi(os.Getenv("MAX_REQUEST_COUNT"))
 	jwtAccessTime, _ := strconv.Atoi(os.Getenv("JWT_ACCESS_TIME"))
 	jwtRefreshTime, _ := strconv.Atoi(os.Getenv("JWT_REFRESH_TIME"))
-	waitSeconds, _ := strconv.Atoi(os.Getenv("WAIT_SECONDS"))
+	waitMilliseconds, _ := strconv.Atoi(os.Getenv("WAIT_SECONDS"))
 
 	appConfig = &Config{
 		Env:                 os.Getenv("ENV"),
@@ -57,7 +57,7 @@ func init() {
 		YandexDictionaryKey: os.Getenv("YANDEX_DICTIONARY_KEY"),
 		YandexDictionaryURL: os.Getenv("YANDEX_DICTIONARY_URL"),
 		MaxRequestCount:     maxRequestCount,
-		WaitSeconds:         time.Duration(waitSeconds) * time.Second,
+		WaitMilliseconds:    time.Duration(waitMilliseconds) * time.Millisecond,
 		LibreTranslateURL:   os.Getenv("LIBRE_TRANSLATE_URL"),
 		WordAlignerURL:      os.Getenv("WORD_ALIGNER_URL"),
 		RedisURL:            os.Getenv("REDIS_URL"),

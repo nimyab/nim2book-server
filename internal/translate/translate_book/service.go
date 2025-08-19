@@ -41,8 +41,8 @@ type Translator interface {
 }
 
 type Service struct {
-	maxRequestCount int
-	waitSeconds     time.Duration
+	maxRequestCount  int
+	waitMilliseconds time.Duration
 
 	s3          S3
 	pg          Postgres
@@ -63,15 +63,15 @@ func New(
 	wordAligner WordAligner,
 	translator Translator,
 	maxRequestCount int,
-	waitSeconds time.Duration,
+	waitMilliseconds time.Duration,
 ) *Service {
 	service = &Service{
-		s3:              s3,
-		pg:              pg,
-		wordAligner:     wordAligner,
-		translator:      translator,
-		maxRequestCount: maxRequestCount,
-		waitSeconds:     waitSeconds,
+		s3:               s3,
+		pg:               pg,
+		wordAligner:      wordAligner,
+		translator:       translator,
+		maxRequestCount:  maxRequestCount,
+		waitMilliseconds: waitMilliseconds,
 	}
 	return service
 }
@@ -302,13 +302,13 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 		}
 		return alignedParagraph, nil
 	}
-	time.Sleep(s.waitSeconds)
+	time.Sleep(s.waitMilliseconds)
 
 	alignOutput, err := s.wordAligner.Align(&align.Input{
 		SourceText: paragraph,
 		TargetText: translateOutput.TranslatedText,
 	})
-	time.Sleep(s.waitSeconds)
+	time.Sleep(s.waitMilliseconds)
 
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
