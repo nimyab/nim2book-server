@@ -24,6 +24,9 @@ Thumbs.db
 *.log
 
 .env
+.env.dev
+.env.prod
+.env.local
 
 *.iml
 *.ipr

@@ -21,8 +21,6 @@ func Logger() echo.MiddlewareFunc {
 				slog.String("path", c.Request().URL.Path),
 				slog.String("request_id", c.Response().Header().Get(echo.HeaderXRequestID)),
 				slog.String("user_agent", c.Request().UserAgent()),
-				slog.String("host", c.Request().Host),
-				slog.String("remote_ip", c.Request().RemoteAddr),
 			)
 
 			t1 := time.Now()
@@ -33,8 +31,6 @@ func Logger() echo.MiddlewareFunc {
 					slog.String("path", c.Request().URL.Path),
 					slog.String("request_id", c.Response().Header().Get(echo.HeaderXRequestID)),
 					slog.String("user_agent", c.Request().UserAgent()),
-					slog.String("host", c.Request().Host),
-					slog.String("remote_ip", c.Request().RemoteAddr),
 					slog.Int("status", c.Response().Status),
 					slog.String("duration", time.Since(t1).String()),
 				)

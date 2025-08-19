@@ -79,7 +79,6 @@ func appRun(cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
-	_ = redisCacheClient // todo
 
 	// align service
 	wordAlign := align.New(cfg.WordAlignerURL)
@@ -117,15 +116,19 @@ func appRun(cfg *config.Config) error {
 	websocket.NewAndStart()
 
 	router := http.Router(cfg.JWTSecret)
-	if err = router.Start(cfg.Port); err != nil {
-		return err
-	}
+
+	go func() {
+		if err = router.Start(cfg.Port); err != nil {
+			panic(err)
+		}
+	}()
 
 	sig := make(chan os.Signal, 2)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 
 	<-sig
 
+	_ = router.Shutdown(context.Background())
 	pgClient.Close()
 	return nil
 }

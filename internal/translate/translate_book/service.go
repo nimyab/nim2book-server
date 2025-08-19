@@ -16,6 +16,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/word_aligner/align"
+	"github.com/nimyab/nim2book-back/pkg/contains_letters"
 	"github.com/nimyab/nim2book-back/pkg/logger"
 	"github.com/nimyab/nim2book-back/pkg/parsers/epub_parser"
 	"github.com/timsims/pamphlet"
@@ -288,8 +289,21 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return domain.ParagraphAlignNode{}, errors.New("failed to startTranslate paragraph")
 	}
+
+	// case: 500 error on alignment if paragraph has no letters.
+	if !contains_letters.ContainsLetters(paragraph) || !contains_letters.ContainsLetters(translateOutput.TranslatedText) {
+		alignedParagraph := domain.ParagraphAlignNode{
+			OriginalParagraph:   paragraph,
+			TranslatedParagraph: translateOutput.TranslatedText,
+			AlignmentWords: []domain.WordAlignNode{{
+				IndexesOriginalWord:   [2]int{0, len([]rune(paragraph)) - 1},
+				IndexesTranslatedWord: [2]int{0, len([]rune(translateOutput.TranslatedText)) - 1},
+			}},
+		}
+		return alignedParagraph, nil
+	}
 	time.Sleep(s.waitSeconds)
-	
+
 	alignOutput, err := s.wordAligner.Align(&align.Input{
 		SourceText: paragraph,
 		TargetText: translateOutput.TranslatedText,
