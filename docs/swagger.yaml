@@ -8,6 +8,8 @@ definitions:
         items:
           type: string
         type: array
+      cover:
+        type: string
       id:
         type: string
       title:
@@ -221,6 +223,11 @@ definitions:
       message:
         type: string
     type: object
+  update_book.Output:
+    properties:
+      book:
+        $ref: '#/definitions/domain.Book'
+    type: object
 externalDocs:
   description: OpenAPI
   url: https://swagger.io/resources/open-api/
@@ -347,6 +354,37 @@ paths:
       summary: Get book by id
       tags:
       - book
+    put:
+      parameters:
+      - description: Cover file
+        in: formData
+        name: cover
+        type: file
+      - description: Author book
+        in: formData
+        name: author
+        type: string
+      - description: Title book
+        in: formData
+        name: title
+        type: string
+      - description: Book id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/update_book.Output'
+      security:
+      - BearerAuth: []
+      summary: Update book
+      tags:
+      - book
   /book/get-chapter/{path}:
     get:
       parameters:
@@ -386,6 +424,22 @@ paths:
       summary: Get translate from dictionary
       tags:
       - dictionary
+  /file/public:
+    get:
+      parameters:
+      - description: path
+        in: query
+        name: path
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      summary: Get file data
+      tags:
+      - file
   /translate/book:
     post:
       consumes:

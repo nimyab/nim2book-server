@@ -30,7 +30,7 @@ func (db *Postgres) GetBookByAuthorAndTitle(ctx context.Context, author, title s
 	sql := `SELECT * FROM books WHERE author = $1 AND title = $2`
 
 	book := new(domain.Book)
-	err := db.Pool.QueryRow(ctx, sql, author, title).Scan(&book.Id, &book.Title, &book.Author, &book.ChapterPaths)
+	err := db.Pool.QueryRow(ctx, sql, author, title).Scan(&book.Id, &book.Title, &book.Author, &book.ChapterPaths, &book.Cover)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrBookNotFound
 	}
@@ -60,15 +60,14 @@ func (db *Postgres) CreateBook(ctx context.Context, book *domain.Book) (*domain.
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 
-	sql = `insert into books (title, author, chapter_paths) values ($1, $2, $3) returning id`
+	sql = `insert into books (title, author, chapter_paths, cover) values ($1, $2, $3, $4) returning id`
 	var id domain.Id
-	err = tx.QueryRow(ctx, sql, book.Title, book.Author, book.ChapterPaths).Scan(&id)
+	err = tx.QueryRow(ctx, sql, book.Title, book.Author, book.ChapterPaths, book.Cover).Scan(&id)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 
-	err = tx.Commit(ctx)
-	if err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 
@@ -81,7 +80,13 @@ func (db *Postgres) GetBook(ctx context.Context, id domain.Id) (*domain.Book, er
 
 	sql := `select * from books where id = $1`
 	book := new(domain.Book)
-	err := db.Pool.QueryRow(ctx, sql, id).Scan(&book.Id, &book.Title, &book.Author, &book.ChapterPaths)
+	err := db.Pool.QueryRow(ctx, sql, id).Scan(
+		&book.Id,
+		&book.Title,
+		&book.Author,
+		&book.ChapterPaths,
+		&book.Cover,
+	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrBookNotFound
 	}
@@ -123,4 +128,36 @@ func (db *Postgres) GetBooks(ctx context.Context, query GetBooksQuery) ([]domain
 	}
 
 	return books, nil
+}
+
+func (db *Postgres) UpdateBook(ctx context.Context, book *domain.Book) error {
+	const operation = "postgres.UpdateBook"
+
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("%s: unable to begin transaction: %w", operation, err)
+	}
+	defer tx.Rollback(ctx)
+
+	sql := `update books
+			set title = @title, author = @author, cover = @cover
+			where id = @id`
+
+	args := pgx.NamedArgs{
+		"title":  book.Title,
+		"author": book.Author,
+		"cover":  book.Cover,
+		"id":     book.Id,
+	}
+
+	_, err = tx.Exec(ctx, sql, args)
+	if err != nil {
+		return fmt.Errorf("%s: %w", operation, err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("%s: %w", operation, err)
+	}
+
+	return nil
 }

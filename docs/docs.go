@@ -226,6 +226,55 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "book"
+                ],
+                "summary": "Update book",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Cover file",
+                        "name": "cover",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Author book",
+                        "name": "author",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Title book",
+                        "name": "title",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Book id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/update_book.Output"
+                        }
+                    }
+                }
             }
         },
         "/dictionary/lookup": {
@@ -256,6 +305,31 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/lookup.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/file/public": {
+            "get": {
+                "tags": [
+                    "file"
+                ],
+                "summary": "Get file data",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "path",
+                        "name": "path",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
                         }
                     }
                 }
@@ -348,6 +422,9 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "cover": {
+                    "type": "string"
                 },
                 "id": {
                     "type": "string"
@@ -673,6 +750,14 @@ const docTemplate = `{
                 },
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "update_book.Output": {
+            "type": "object",
+            "properties": {
+                "book": {
+                    "$ref": "#/definitions/domain.Book"
                 }
             }
         }

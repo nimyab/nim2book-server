@@ -11,8 +11,10 @@ import (
 	"github.com/nimyab/nim2book-back/internal/book/get_book"
 	"github.com/nimyab/nim2book-back/internal/book/get_books"
 	"github.com/nimyab/nim2book-back/internal/book/get_chapter"
+	"github.com/nimyab/nim2book-back/internal/book/update_book"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/dictionary/lookup"
+	"github.com/nimyab/nim2book-back/internal/file/file_public"
 	customMiddleware "github.com/nimyab/nim2book-back/internal/middleware"
 	"github.com/nimyab/nim2book-back/internal/translate/translate_book"
 	"github.com/nimyab/nim2book-back/internal/user/me"
@@ -22,6 +24,9 @@ import (
 
 func Router(secretKey string) *echo.Echo {
 	e := echo.New()
+
+	jwtMiddleware := customMiddleware.JWT(secretKey)
+	adminRoleMiddleware := customMiddleware.AdminRole()
 
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
@@ -35,20 +40,23 @@ func Router(secretKey string) *echo.Echo {
 
 	apiV1 := e.Group("/api/v1")
 	{
-		apiV1.POST("/translate/book", translate_book.HTTPv1, customMiddleware.JWT(secretKey))
+		apiV1.POST("/translate/book", translate_book.HTTPv1, jwtMiddleware)
 
 		apiV1.GET("/book/get-chapter/:path", get_chapter.HTTPv1)
 		apiV1.GET("/book", get_books.HTTPv1)
 		apiV1.GET("/book/:id", get_book.HTTPv1)
+		apiV1.PUT("/book/:id", update_book.HTTPv1, jwtMiddleware, adminRoleMiddleware)
 
 		apiV1.POST("/auth/register", register.HTTPv1)
 		apiV1.POST("/auth/login", login.HTTPv1)
 		apiV1.POST("/auth/logout", logout.HTTPv1)
 		apiV1.POST("/auth/refresh", refresh.HTTPv1)
 
-		apiV1.GET("/user/me", me.HTTPv1, customMiddleware.JWT(secretKey))
+		apiV1.GET("/user/me", me.HTTPv1, jwtMiddleware)
 
 		apiV1.POST("/dictionary/lookup", lookup.HTTPv1)
+
+		apiV1.GET("/file/public", file_public.HTTPv1)
 	}
 
 	return e

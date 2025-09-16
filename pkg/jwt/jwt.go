@@ -1,10 +1,11 @@
 package jwt
 
 import (
+	"time"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"time"
 )
 
 type CustomClaims struct {
@@ -23,7 +24,7 @@ func ParseToken(token, secret string) (domain.JwtPayload, error) {
 	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(secret), nil
 	})
-	
+
 	if err != nil {
 		return domain.JwtPayload{}, err
 	}

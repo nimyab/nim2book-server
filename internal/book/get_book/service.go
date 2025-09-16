@@ -25,7 +25,7 @@ func New(pg Postgres) *Service {
 }
 
 func (s *Service) GetBook(input *Input) (*Output, error) {
-	const operation = "postgres.GetBook"
+	const operation = "book.get_book.GetBook"
 
 	book, err := s.pg.GetBook(context.Background(), input.Id)
 	if err != nil {

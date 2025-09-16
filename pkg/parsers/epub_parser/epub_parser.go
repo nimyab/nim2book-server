@@ -2,6 +2,7 @@ package epub_parser
 
 import (
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 
@@ -37,25 +38,31 @@ type FormattedChapter struct {
 	Paragraphs []string
 }
 
-func Parse(data []byte) (*pamphlet.Book, []FormattedChapter, error) {
+func Parse(data []byte) (*pamphlet.Book, []FormattedChapter, []byte, error) {
 	const operation = "pkg.parsers.epub_parser.Parse"
 
 	parser, err := pamphlet.OpenBytes(data)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%s: %w", operation, err)
+		return nil, nil, nil, fmt.Errorf("%s: %w", operation, err)
 	}
 	defer parser.Close()
 
 	book := parser.GetBook()
+
+	coverData, err := extractCover(book)
+	if err != nil {
+		slog.Error(err.Error())
+	}
+
 	formattedChapters := make([]FormattedChapter, 0, len(book.Chapters))
 	for _, chapter := range book.Chapters {
 		content, err := chapter.GetContent()
 		if err != nil {
-			return nil, nil, fmt.Errorf("%s: %w", operation, err)
+			return nil, nil, nil, fmt.Errorf("%s: %w", operation, err)
 		}
 		paragraphs, err := extractTextFromHtml(content)
 		if err != nil {
-			return nil, nil, fmt.Errorf("%s: %w", operation, err)
+			return nil, nil, nil, fmt.Errorf("%s: %w", operation, err)
 		}
 		if len(paragraphs) == 0 {
 			continue
@@ -66,7 +73,7 @@ func Parse(data []byte) (*pamphlet.Book, []FormattedChapter, error) {
 		})
 	}
 
-	return book, formattedChapters, nil
+	return book, formattedChapters, coverData, nil
 }
 
 func extractTextFromHtml(xmlText string) ([]string, error) {
@@ -112,4 +119,42 @@ func extractTextContent(n *html.Node) string {
 	}
 
 	return result.String()
+}
+
+func extractCover(book *pamphlet.Book) ([]byte, error) {
+	const operation = "pkg.parsers.epub_parser.extractCover"
+
+	var coverItem *pamphlet.ManifestItem
+
+	for _, item := range book.ManifestItems {
+		if strings.HasPrefix(item.MediaType, "image/") {
+			// Ищем файлы с "cover" в имени или пути
+			if strings.Contains(strings.ToLower(item.Href), "cover") ||
+				strings.Contains(strings.ToLower(item.RealPath), "cover") {
+				coverItem = &item
+				break
+			}
+		}
+	}
+
+	// Если не нашли обложку по имени, берем первое изображение
+	if coverItem == nil {
+		for _, item := range book.ManifestItems {
+			if strings.HasPrefix(item.MediaType, "image/") {
+				coverItem = &item
+				break
+			}
+		}
+	}
+
+	if coverItem == nil {
+		return nil, fmt.Errorf("cover not found")
+	}
+
+	data, err := coverItem.GetRawContent()
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+
+	return data, nil
 }

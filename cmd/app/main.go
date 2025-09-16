@@ -10,8 +10,10 @@ import (
 	"github.com/nimyab/nim2book-back/internal/auth/login"
 	"github.com/nimyab/nim2book-back/internal/auth/refresh"
 	"github.com/nimyab/nim2book-back/internal/auth/register"
+	"github.com/nimyab/nim2book-back/internal/book/update_book"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/dictionary/lookup"
+	"github.com/nimyab/nim2book-back/internal/file/file_public"
 	"github.com/nimyab/nim2book-back/internal/user/me"
 
 	"github.com/nimyab/nim2book-back/config"
@@ -100,6 +102,7 @@ func appRun(cfg *config.Config) error {
 	get_chapter.New(s3Client)
 	get_books.New(pgClient)
 	get_book.New(pgClient)
+	update_book.New(pgClient, s3Client)
 
 	// auth service
 	register.New(pgClient)
@@ -112,6 +115,9 @@ func appRun(cfg *config.Config) error {
 	// dictionary service
 	lookup.New(pgClient, redisCacheClient, cfg.YandexDictionaryKey, cfg.YandexDictionaryURL)
 
+	// file services
+	file_public.New(s3Client)
+
 	// websocket
 	websocket.NewAndStart()
 
@@ -119,7 +125,8 @@ func appRun(cfg *config.Config) error {
 
 	go func() {
 		if err = router.Start(cfg.Port); err != nil {
-			panic(err)
+			slog.Error(err.Error())
+			return
 		}
 	}()
 

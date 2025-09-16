@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/domain"
@@ -94,7 +95,7 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 
 	startParse := time.Now()
 
-	parsedBook, chapters, err := epub_parser.Parse(data)
+	parsedBook, chapters, coverData, err := epub_parser.Parse(data)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, errors.New("failed to parse book file")
@@ -117,12 +118,18 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 		return nil, errors.New("failed to find book")
 	}
 
-	go s.startTranslate(userId, chapters, parsedBook, input)
+	go s.startTranslate(userId, chapters, coverData, parsedBook, input)
 
 	return &Output{Message: "start translate"}, nil
 }
 
-func (s *Service) startTranslate(userId domain.Id, chapters []epub_parser.FormattedChapter, book *pamphlet.Book, input *Input) {
+func (s *Service) startTranslate(
+	userId domain.Id,
+	chapters []epub_parser.FormattedChapter,
+	coverData []byte,
+	book *pamphlet.Book,
+	input *Input,
+) {
 	const operation = "translate_book.startTranslate"
 
 	sendErrorMessage := func(body map[string]any) {
@@ -135,7 +142,7 @@ func (s *Service) startTranslate(userId domain.Id, chapters []epub_parser.Format
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// use buffer chan to saveToS3 non block translateChapters goroutine
+	// use buffer chan to saveChapterToS3 non block translateChapters goroutine
 	resultChan := make(chan translatedChapterResult, len(chapters))
 
 	go s.translateChapters(ctx, resultChan, chapters, input.From, input.To)
@@ -153,7 +160,7 @@ func (s *Service) startTranslate(userId domain.Id, chapters []epub_parser.Format
 			})
 			return
 		}
-		path, err := s.saveToS3(result.Chapter, book.Title)
+		path, err := s.saveChapterToS3(result.Chapter, book.Title)
 		if err != nil {
 			logger.Error(fmt.Sprintf("failed to save to s3 chapter %d order", result.Chapter.Order), err, operation)
 			sendErrorMessage(map[string]any{
@@ -174,10 +181,21 @@ func (s *Service) startTranslate(userId domain.Id, chapters []epub_parser.Format
 		})
 	}
 
+	var cover *string = nil
+	if coverData != nil {
+		coverPath, err := s.saveCoverToS3(coverData, book.Title)
+		if err != nil {
+			slog.Error(err.Error(), slog.String("operation", operation))
+		} else {
+			cover = &coverPath
+		}
+	}
+
 	newBook := &domain.Book{
 		Author:       book.Author,
 		Title:        book.Title,
 		ChapterPaths: paths,
+		Cover:        cover,
 	}
 	newBook, err := s.pg.CreateBook(context.Background(), newBook)
 	if err != nil {
@@ -332,8 +350,8 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 	return alignedParagraph, nil
 }
 
-func (s *Service) saveToS3(chapter *domain.ChapterAlignNode, bookTitle string) (string, error) {
-	const operation = "translate_book.Service.saveToS3"
+func (s *Service) saveChapterToS3(chapter *domain.ChapterAlignNode, bookTitle string) (string, error) {
+	const operation = "translate_book.Service.saveChapterToS3"
 
 	path := fmt.Sprintf("book/%s/%d.json", strings.ReplaceAll(bookTitle, " ", "_"), chapter.Order)
 
@@ -343,6 +361,18 @@ func (s *Service) saveToS3(chapter *domain.ChapterAlignNode, bookTitle string) (
 	}
 
 	if err := s.s3.Upload(path, data); err != nil {
+		return "", fmt.Errorf("%s: failed upload to s3: %w", operation, err)
+	}
+
+	return path, nil
+}
+
+func (s *Service) saveCoverToS3(coverData []byte, bookTitle string) (string, error) {
+	const operation = "translate_book.Service.saveCoverToS3"
+
+	path := fmt.Sprintf("cover/%s/%s", strings.ReplaceAll(bookTitle, " ", "_"), uuid.New().String())
+
+	if err := s.s3.Upload(path, coverData); err != nil {
 		return "", fmt.Errorf("%s: failed upload to s3: %w", operation, err)
 	}
 
