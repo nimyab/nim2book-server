@@ -298,6 +298,7 @@ func (s *Service) translateChapters(
 func (s *Service) translateAndAlignParagraph(paragraph string, from domain.SupportedLang, to domain.SupportedLang) (domain.ParagraphAlignNode, error) {
 	const operation = "translate_book.Service.translateAndAlignParagraph"
 
+	// перевод параграфа
 	translateOutput, err := s.translator.Translate(&translate.Input{
 		Q:      paragraph,
 		Source: from,
@@ -322,6 +323,7 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 	}
 	time.Sleep(s.waitMilliseconds)
 
+	// выравнивание слов
 	alignOutput, err := s.wordAligner.Align(&align.Input{
 		SourceText: paragraph,
 		TargetText: translateOutput.TranslatedText,
@@ -333,18 +335,33 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 		return domain.ParagraphAlignNode{}, errors.New("failed to align words")
 	}
 
-	alignWord := make([]domain.WordAlignNode, len(alignOutput.Alignments))
-	for i, alignment := range alignOutput.Alignments {
-		alignWord[i] = domain.WordAlignNode{
+	// в массив alignWords добавляем только уникальные слова, уникальность проверяем по исходному тексту
+	// пример: у нас есть тект "the boy" и переведен как "мальчик", слова "the" и "boy" будут ссылаться на слово "мальчик", нас это устраивает, но если будет наоборот
+	// то есть если у нас будет одно слово на англ и два на русском, то нас это не будет устраивать, так как появляются проблемы на фронте в отображении слов, слова просто повторяются
+	// p.s. можно подумать почему в русском не будут повторяться, все просто, в русском мы показываем весь пораграф, а не разбиваем его на слова, а выбранное слово выделяем по индексам
+	alignWords := make([]domain.WordAlignNode, 0, len(alignOutput.Alignments))
+	for _, alignment := range alignOutput.Alignments {
+		alignWord := domain.WordAlignNode{
 			IndexesOriginalWord:   alignment.SourceIndexes,
 			IndexesTranslatedWord: alignment.TargetIndexes,
+		}
+		exist := false
+		for _, addedAlignWord := range alignWords {
+			if alignWord.IndexesOriginalWord[0] == addedAlignWord.IndexesOriginalWord[0] &&
+				alignWord.IndexesOriginalWord[1] == addedAlignWord.IndexesOriginalWord[1] {
+				exist = true
+				break
+			}
+		}
+		if !exist {
+			alignWords = append(alignWords, alignWord)
 		}
 	}
 
 	alignedParagraph := domain.ParagraphAlignNode{
 		OriginalParagraph:   paragraph,
 		TranslatedParagraph: translateOutput.TranslatedText,
-		AlignmentWords:      alignWord,
+		AlignmentWords:      alignWords,
 	}
 
 	return alignedParagraph, nil
