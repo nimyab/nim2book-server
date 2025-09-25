@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"mime/multipart"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -45,6 +46,9 @@ type Service struct {
 	maxRequestCount  int
 	waitMilliseconds time.Duration
 
+	mu                          sync.Mutex
+	currentCountBookTranslating int
+
 	s3          S3
 	pg          Postgres
 	wordAligner WordAligner
@@ -67,12 +71,13 @@ func New(
 	waitMilliseconds time.Duration,
 ) *Service {
 	service = &Service{
-		s3:               s3,
-		pg:               pg,
-		wordAligner:      wordAligner,
-		translator:       translator,
-		maxRequestCount:  maxRequestCount,
-		waitMilliseconds: waitMilliseconds,
+		s3:                          s3,
+		pg:                          pg,
+		wordAligner:                 wordAligner,
+		translator:                  translator,
+		maxRequestCount:             maxRequestCount,
+		waitMilliseconds:            waitMilliseconds,
+		currentCountBookTranslating: 0,
 	}
 	return service
 }
@@ -131,6 +136,17 @@ func (s *Service) startTranslate(
 	input *Input,
 ) {
 	const operation = "translate_book.startTranslate"
+
+	// увеличиваем колличество переводимых книг, нужно для задержер
+	s.mu.Lock()
+	s.currentCountBookTranslating++
+	s.mu.Unlock()
+
+	defer func() {
+		s.mu.Lock()
+		s.currentCountBookTranslating--
+		s.mu.Unlock()
+	}()
 
 	sendErrorMessage := func(body map[string]any) {
 		websocket.SendMessage(userId, &websocket.Message{
@@ -321,14 +337,14 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 		}
 		return alignedParagraph, nil
 	}
-	time.Sleep(s.waitMilliseconds)
+	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.waitMilliseconds)
 
 	// выравнивание слов
 	alignOutput, err := s.wordAligner.Align(&align.Input{
 		SourceText: paragraph,
 		TargetText: translateOutput.TranslatedText,
 	})
-	time.Sleep(s.waitMilliseconds)
+	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.waitMilliseconds)
 
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
