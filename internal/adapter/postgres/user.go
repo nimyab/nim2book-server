@@ -74,7 +74,8 @@ func (db *Postgres) CreateUserByGoogle(ctx context.Context, data *domain.GoogleA
 	defer tx.Rollback(ctx)
 
 	sql := `select sub from google_accounts where sub = $1`
-	_, err = db.Pool.Exec(ctx, sql, data.Sub)
+	var sub string
+	err = db.Pool.QueryRow(ctx, sql, data.Sub).Scan(&sub)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
