@@ -1,8 +1,8 @@
 package domain
 
 type User struct {
-	Id           Id     `json:"id" db:"id"`
-	Email        string `json:"email" db:"email"`
-	PasswordHash string `json:"-" db:"password_hash"`
-	IsAdmin      bool   `json:"isAdmin" db:"is_admin"`
+	Id                   Id                    `json:"id" db:"id"`
+	IsAdmin              bool                  `json:"isAdmin" db:"is_admin"`
+	GoogleAccount        *GoogleAccount        `json:"googleAccount,omitempty"`
+	EmailPasswordAccount *EmailPasswordAccount `json:"emailPasswordAccount,omitempty"`
 }

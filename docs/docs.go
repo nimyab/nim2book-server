@@ -15,6 +15,39 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/auth/google-login": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "GoogleLogin user",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/google_login.Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/google_login.Output"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "consumes": [
@@ -481,6 +514,17 @@ const docTemplate = `{
                 }
             }
         },
+        "domain.EmailPasswordAccount": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.Example": {
             "type": "object",
             "required": [
@@ -505,6 +549,26 @@ const docTemplate = `{
             ],
             "properties": {
                 "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.GoogleAccount": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "emailVerified": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "picture": {
+                    "type": "string"
+                },
+                "sub": {
                     "type": "string"
                 }
             }
@@ -566,8 +630,11 @@ const docTemplate = `{
         "domain.User": {
             "type": "object",
             "properties": {
-                "email": {
-                    "type": "string"
+                "emailPasswordAccount": {
+                    "$ref": "#/definitions/domain.EmailPasswordAccount"
+                },
+                "googleAccount": {
+                    "$ref": "#/definitions/domain.GoogleAccount"
                 },
                 "id": {
                     "type": "string"
@@ -610,6 +677,31 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/domain.Book"
                     }
+                }
+            }
+        },
+        "google_login.Input": {
+            "type": "object",
+            "required": [
+                "idToken"
+            ],
+            "properties": {
+                "idToken": {
+                    "type": "string"
+                }
+            }
+        },
+        "google_login.Output": {
+            "type": "object",
+            "properties": {
+                "accessToken": {
+                    "type": "string"
+                },
+                "refreshToken": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/domain.User"
                 }
             }
         },

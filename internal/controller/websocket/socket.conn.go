@@ -3,14 +3,15 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"time"
+
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/nimyab/nim2book-back/config"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/jwt"
 	"github.com/nimyab/nim2book-back/pkg/logger"
-	"net/http"
-	"time"
 )
 
 const (

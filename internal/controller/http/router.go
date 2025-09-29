@@ -4,6 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/nimyab/nim2book-back/docs"
+	"github.com/nimyab/nim2book-back/internal/auth/google_login"
 	"github.com/nimyab/nim2book-back/internal/auth/login"
 	"github.com/nimyab/nim2book-back/internal/auth/logout"
 	"github.com/nimyab/nim2book-back/internal/auth/refresh"
@@ -49,6 +50,7 @@ func Router(secretKey string) *echo.Echo {
 
 		apiV1.POST("/auth/register", register.HTTPv1)
 		apiV1.POST("/auth/login", login.HTTPv1)
+		apiV1.POST("/auth/google-login", google_login.HTTPv1)
 		apiV1.POST("/auth/logout", logout.HTTPv1)
 		apiV1.POST("/auth/refresh", refresh.HTTPv1)
 

@@ -12,7 +12,7 @@ import (
 
 type Postgres interface {
 	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
-	CreateUser(ctx context.Context, user *domain.User) (*domain.User, error)
+	CreateUserByEmailAndPassword(ctx context.Context, data *domain.EmailPasswordAccount) (*domain.User, error)
 }
 
 var (
@@ -54,12 +54,11 @@ func (s *Service) Register(input *Input) (*Output, error) {
 		return nil, ErrInternal
 	}
 
-	newUser := &domain.User{
+	newUser := &domain.EmailPasswordAccount{
 		Email:        input.Email,
 		PasswordHash: string(passwordHashBytes),
-		IsAdmin:      false,
 	}
-	user, err = s.pg.CreateUser(context.Background(), newUser)
+	user, err = s.pg.CreateUserByEmailAndPassword(context.Background(), newUser)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternal

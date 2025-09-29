@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/nimyab/nim2book-back/internal/auth/google_login"
 	"github.com/nimyab/nim2book-back/internal/auth/login"
 	"github.com/nimyab/nim2book-back/internal/auth/refresh"
 	"github.com/nimyab/nim2book-back/internal/auth/register"
@@ -107,6 +108,7 @@ func appRun(cfg *config.Config) error {
 	// auth service
 	register.New(pgClient)
 	login.New(pgClient, cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
+	google_login.New(pgClient, cfg.GoogleClientID, cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
 	refresh.New(cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
 
 	// user service

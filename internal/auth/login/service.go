@@ -52,8 +52,8 @@ func (s *Service) Login(input *Input) (*Output, error) {
 		return nil, ErrInternal
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password))
-	if errors.Is(bcrypt.ErrMismatchedHashAndPassword, err) {
+	err = bcrypt.CompareHashAndPassword([]byte(user.EmailPasswordAccount.PasswordHash), []byte(input.Password))
+	if err != nil && errors.Is(bcrypt.ErrMismatchedHashAndPassword, err) {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrPasswordDoNotMatch
 	}
