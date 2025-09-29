@@ -93,7 +93,7 @@ func (db *Postgres) CreateUserByGoogle(ctx context.Context, data *domain.GoogleA
 		"name":          data.Name,
 		"picture":       data.Picture,
 	}
-	err = tx.QueryRow(ctx, sql, args).Scan()
+	_, err = tx.Exec(ctx, sql, args)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
