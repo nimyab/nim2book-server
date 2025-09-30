@@ -9,7 +9,7 @@ import (
 )
 
 // HTTPv1 godoc
-// @Summary	Translate book
+// @Summary	Translate book. Only VIP users can translate books
 // @Tags	translate
 // @Security BearerAuth
 // @Accept	multipart/form-data

@@ -14,6 +14,8 @@ import (
 	"github.com/nimyab/nim2book-back/internal/book/update_book"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/dictionary/lookup"
+	"github.com/nimyab/nim2book-back/internal/fcm_token/add_fcm_token"
+	"github.com/nimyab/nim2book-back/internal/fcm_token/delete_fcm_token"
 	"github.com/nimyab/nim2book-back/internal/file/file_public"
 	"github.com/nimyab/nim2book-back/internal/user/me"
 
@@ -119,6 +121,10 @@ func appRun(cfg *config.Config) error {
 
 	// file services
 	file_public.New(s3Client)
+
+	// fcm_token services
+	add_fcm_token.New(pgClient)
+	delete_fcm_token.New(pgClient)
 
 	// websocket
 	websocket.NewAndStart()

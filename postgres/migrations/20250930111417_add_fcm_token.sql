@@ -1,11 +1,11 @@
 -- +goose Up
 -- +goose StatementBegin
-alter table books
-    add column cover varchar(255);
+alter table users
+    add column fcm_token varchar(255) null;
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-alter table books
-    drop column cover;
+alter table users
+    drop column fcm_token;
 -- +goose StatementEnd

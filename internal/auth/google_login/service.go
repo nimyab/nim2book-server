@@ -90,6 +90,7 @@ func (s *Service) GoogleLogin(input *Input) (*Output, error) {
 		domain.JwtPayload{
 			Id:      user.Id,
 			IsAdmin: user.IsAdmin,
+			IsVIP:   user.IsVIP,
 		},
 		s.secret,
 		s.accessTime,

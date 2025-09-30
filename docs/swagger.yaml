@@ -1,5 +1,22 @@
 basePath: /api/v1
 definitions:
+  add_fcm_token.Input:
+    properties:
+      fcmToken:
+        type: string
+    required:
+    - fcmToken
+    type: object
+  add_fcm_token.Output:
+    properties:
+      success:
+        type: boolean
+    type: object
+  delete_fcm_token.Output:
+    properties:
+      success:
+        type: boolean
+    type: object
   domain.Book:
     properties:
       author:
@@ -128,6 +145,8 @@ definitions:
       id:
         type: string
       isAdmin:
+        type: boolean
+      isVIP:
         type: boolean
     type: object
   domain.WordAlignNode:
@@ -483,6 +502,45 @@ paths:
       summary: Get translate from dictionary
       tags:
       - dictionary
+  /fcm-token/add:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/add_fcm_token.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/add_fcm_token.Output'
+      summary: Add fcm token for send notifications
+      tags:
+      - fcm-token
+  /fcm-token/delete:
+    delete:
+      parameters:
+      - description: token
+        in: query
+        name: data
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/delete_fcm_token.Output'
+      summary: Delete fcm token
+      tags:
+      - fcm-token
   /file/public:
     get:
       parameters:
@@ -528,7 +586,7 @@ paths:
             $ref: '#/definitions/translate_book.Output'
       security:
       - BearerAuth: []
-      summary: Translate book
+      summary: Translate book. Only VIP users can translate books
       tags:
       - translate
   /user/me:

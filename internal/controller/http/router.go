@@ -15,6 +15,8 @@ import (
 	"github.com/nimyab/nim2book-back/internal/book/update_book"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/dictionary/lookup"
+	"github.com/nimyab/nim2book-back/internal/fcm_token/add_fcm_token"
+	"github.com/nimyab/nim2book-back/internal/fcm_token/delete_fcm_token"
 	"github.com/nimyab/nim2book-back/internal/file/file_public"
 	customMiddleware "github.com/nimyab/nim2book-back/internal/middleware"
 	"github.com/nimyab/nim2book-back/internal/translate/translate_book"
@@ -28,6 +30,7 @@ func Router(secretKey string) *echo.Echo {
 
 	jwtMiddleware := customMiddleware.JWT(secretKey)
 	adminRoleMiddleware := customMiddleware.AdminRole()
+	vipRoleMiddleware := customMiddleware.VIPRole()
 
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
@@ -41,7 +44,8 @@ func Router(secretKey string) *echo.Echo {
 
 	apiV1 := e.Group("/api/v1")
 	{
-		apiV1.POST("/translate/book", translate_book.HTTPv1, jwtMiddleware)
+		// книги могут переводить тоьлко vip пользователи
+		apiV1.POST("/translate/book", translate_book.HTTPv1, jwtMiddleware, vipRoleMiddleware)
 
 		apiV1.GET("/book/get-chapter/:path", get_chapter.HTTPv1)
 		apiV1.GET("/book", get_books.HTTPv1)
@@ -59,6 +63,9 @@ func Router(secretKey string) *echo.Echo {
 		apiV1.POST("/dictionary/lookup", lookup.HTTPv1)
 
 		apiV1.GET("/file/public", file_public.HTTPv1)
+
+		apiV1.POST("/fcm-token/add", add_fcm_token.HTTPv1, jwtMiddleware)
+		apiV1.DELETE("/fcm-token/delete", delete_fcm_token.HTTPv1, jwtMiddleware)
 	}
 
 	return e

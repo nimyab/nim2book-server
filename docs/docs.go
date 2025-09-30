@@ -343,6 +343,67 @@ const docTemplate = `{
                 }
             }
         },
+        "/fcm-token/add": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "fcm-token"
+                ],
+                "summary": "Add fcm token for send notifications",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/add_fcm_token.Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/add_fcm_token.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/fcm-token/delete": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "fcm-token"
+                ],
+                "summary": "Delete fcm token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "token",
+                        "name": "data",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/delete_fcm_token.Output"
+                        }
+                    }
+                }
+            }
+        },
         "/file/public": {
             "get": {
                 "tags": [
@@ -384,7 +445,7 @@ const docTemplate = `{
                 "tags": [
                     "translate"
                 ],
-                "summary": "Translate book",
+                "summary": "Translate book. Only VIP users can translate books",
                 "parameters": [
                     {
                         "type": "file",
@@ -444,6 +505,33 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "add_fcm_token.Input": {
+            "type": "object",
+            "required": [
+                "fcmToken"
+            ],
+            "properties": {
+                "fcmToken": {
+                    "type": "string"
+                }
+            }
+        },
+        "add_fcm_token.Output": {
+            "type": "object",
+            "properties": {
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "delete_fcm_token.Output": {
+            "type": "object",
+            "properties": {
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "domain.Book": {
             "type": "object",
             "properties": {
@@ -640,6 +728,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "isAdmin": {
+                    "type": "boolean"
+                },
+                "isVIP": {
                     "type": "boolean"
                 }
             }

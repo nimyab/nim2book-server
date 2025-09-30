@@ -1,11 +1,11 @@
 -- +goose Up
 -- +goose StatementBegin
-alter table books
-    add column cover varchar(255);
+alter table users
+    add column is_vip boolean default false;
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-alter table books
-    drop column cover;
+alter table users
+    drop column is_vip;
 -- +goose StatementEnd
