@@ -277,7 +277,7 @@ definitions:
     properties:
       book:
         $ref: '#/definitions/domain.Book'
-      message:
+      messageAboutTranslate:
         type: string
     type: object
   update_book.Output:

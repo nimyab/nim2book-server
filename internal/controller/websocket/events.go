@@ -4,4 +4,5 @@ const (
 	AuthEvent              = "auth"
 	ErrorEvent             = "error"
 	ChapterTranslatedEvent = "chapter-translated"
+	TranslateSuccessEvent  = "translate-success"
 )

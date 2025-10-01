@@ -931,7 +931,7 @@ const docTemplate = `{
                 "book": {
                     "$ref": "#/definitions/domain.Book"
                 },
-                "message": {
+                "messageAboutTranslate": {
                     "type": "string"
                 }
             }

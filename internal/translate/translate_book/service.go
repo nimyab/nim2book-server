@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"firebase.google.com/go/v4/messaging"
 	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
-	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/word_aligner/align"
@@ -32,6 +32,7 @@ type S3 interface {
 type Postgres interface {
 	GetBookByAuthorAndTitle(ctx context.Context, author, title string) (*domain.Book, error)
 	CreateBook(ctx context.Context, book *domain.Book) (*domain.Book, error)
+	GetFcmTokensByUserId(ctx context.Context, userId domain.Id) ([]domain.FcmToken, error)
 }
 
 type WordAligner interface {
@@ -53,12 +54,20 @@ type Service struct {
 	pg          Postgres
 	wordAligner WordAligner
 	translator  Translator
+
+	messagingFirebaseClient *messaging.Client
 }
 
 type translatedChapterResult struct {
 	Chapter *domain.ChapterAlignNode
 	Error   error
 }
+
+var (
+	ErrFailedTranslateChapter   = errors.New("failed translate chapter")
+	ErrFailedSaveToStorage      = errors.New("failed save to storage")
+	ErrFailedSaveBookToDatabase = errors.New("failed save book to database")
+)
 
 var service *Service
 
@@ -69,6 +78,7 @@ func New(
 	translator Translator,
 	maxRequestCount int,
 	waitMilliseconds time.Duration,
+	messagingFirebaseClient *messaging.Client,
 ) *Service {
 	service = &Service{
 		s3:                          s3,
@@ -78,6 +88,7 @@ func New(
 		maxRequestCount:             maxRequestCount,
 		waitMilliseconds:            waitMilliseconds,
 		currentCountBookTranslating: 0,
+		messagingFirebaseClient:     messagingFirebaseClient,
 	}
 	return service
 }
@@ -123,7 +134,32 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 		return nil, errors.New("failed to find book")
 	}
 
-	go s.startTranslate(userId, chapters, coverData, parsedBook, input)
+	go func() {
+		err := s.startTranslate(userId, chapters, coverData, parsedBook, input)
+		if err != nil {
+			switch {
+			case errors.Is(err, ErrFailedSaveToStorage):
+				s.sendMessageAboutError(userId, &messageAboutError{
+					title:        parsedBook.Title,
+					author:       parsedBook.Author,
+					errorMessage: "Произошла ошибка во время сохраниения главы, попробуйте перевести книгу позже.",
+				})
+			case errors.Is(err, ErrFailedTranslateChapter):
+				s.sendMessageAboutError(userId, &messageAboutError{
+					title:        parsedBook.Title,
+					author:       parsedBook.Author,
+					errorMessage: "Произошла ошибка во время перевода главы, попробуйте перевести книгу позже.",
+				})
+			case errors.Is(err, ErrFailedSaveBookToDatabase):
+				s.sendMessageAboutError(userId, &messageAboutError{
+					title:        parsedBook.Title,
+					author:       parsedBook.Author,
+					errorMessage: "Произошла ошибка во время сохраниения книги, попробуйте перевести книгу позже, извините за неудобства.",
+				})
+			default:
+			}
+		}
+	}()
 
 	return &Output{Message: "start translate"}, nil
 }
@@ -134,7 +170,7 @@ func (s *Service) startTranslate(
 	coverData []byte,
 	book *pamphlet.Book,
 	input *Input,
-) {
+) error {
 	const operation = "translate_book.startTranslate"
 
 	// увеличиваем колличество переводимых книг, нужно для задержер
@@ -148,52 +184,50 @@ func (s *Service) startTranslate(
 		s.mu.Unlock()
 	}()
 
-	sendErrorMessage := func(body map[string]any) {
-		websocket.SendMessage(userId, &websocket.Message{
-			Event: websocket.ErrorEvent,
-			Body:  body,
-		})
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// use buffer chan to saveChapterToS3 non block translateChapters goroutine
 	resultChan := make(chan translatedChapterResult, len(chapters))
 
-	go s.translateChapters(ctx, resultChan, chapters, input.From, input.To)
+	go s.translateChapters(ctx, resultChan, chapters, book, input.From, input.To)
 
 	paths := make([]string, 0, len(chapters))
 	for result := range resultChan {
 		if result.Error != nil {
-			logger.Error("failed to translate chapter", result.Error, operation)
-			return
+			logger.Error(
+				fmt.Sprintf("failed to translate chapter, title: %s, author: %s", book.Title, book.Author),
+				result.Error,
+				operation,
+			)
+			return ErrFailedTranslateChapter
 		}
 		if result.Chapter == nil {
-			logger.Error("translated chapter is nil", result.Error, operation)
-			sendErrorMessage(map[string]any{
-				"error": "internal server error: translated chapter is nil",
-			})
-			return
+			logger.Error(
+				fmt.Sprintf("translated chapter is nil, title: %s, author: %s", book.Title, book.Author),
+				result.Error,
+				operation,
+			)
+			return ErrFailedTranslateChapter
 		}
 		path, err := s.saveChapterToS3(result.Chapter, book.Title)
 		if err != nil {
-			logger.Error(fmt.Sprintf("failed to save to s3 chapter %d order", result.Chapter.Order), err, operation)
-			sendErrorMessage(map[string]any{
-				"error": fmt.Sprintf("failed to save to s3 chapter %d order", result.Chapter.Order),
-			})
-			return
+			logger.Error(
+				fmt.Sprintf("failed to save to s3 chapter %d order, title: %s, author: %s", result.Chapter.Order, book.Title, book.Author),
+				err,
+				operation,
+			)
+			return ErrFailedSaveToStorage
 		}
 		paths = append(paths, path)
-		websocket.SendMessage(userId, &websocket.Message{
-			Event: websocket.ChapterTranslatedEvent,
-			Body: map[string]any{
-				"chapterPath":       path,
-				"author":            book.Author,
-				"title":             book.Title,
-				"order":             result.Chapter.Order,
-				"totalChapterCount": len(book.Chapters),
-			},
+
+		// отправляем уведомления везде
+		go s.sendMessageAboutTranslate(userId, &messageAboutTranslate{
+			chapterPath:       path,
+			author:            book.Author,
+			title:             book.Title,
+			chapterOrder:      result.Chapter.Order,
+			totalChapterCount: len(book.Chapters),
 		})
 	}
 
@@ -215,18 +249,25 @@ func (s *Service) startTranslate(
 	}
 	newBook, err := s.pg.CreateBook(context.Background(), newBook)
 	if err != nil {
-		logger.Error("failed to save book to database", err, operation)
-		sendErrorMessage(map[string]any{
-			"error": "failed to save book to database",
-		})
-		return
+		logger.Error(
+			fmt.Sprintf("failed to save book to database, title: %s, author: %s", book.Title, book.Author),
+			err,
+			operation,
+		)
+		return ErrFailedSaveBookToDatabase
 	}
+	s.sendMessageAboutTranslateSuccess(userId, &messageAboutTranslateSuccess{
+		book: newBook,
+	})
+
+	return nil
 }
 
 func (s *Service) translateChapters(
 	ctx context.Context,
 	resultChan chan<- translatedChapterResult,
 	chapters []epub_parser.FormattedChapter,
+	book *pamphlet.Book,
 	from domain.SupportedLang,
 	to domain.SupportedLang,
 ) {
@@ -264,7 +305,7 @@ func (s *Service) translateChapters(
 			slog.Error(err.Error(), slog.String("operation", operation))
 			resultChan <- translatedChapterResult{
 				Chapter: nil,
-				Error:   errors.New("failed to startTranslate paragraphs"),
+				Error:   ErrFailedTranslateChapter,
 			}
 			return
 		}
@@ -280,7 +321,7 @@ func (s *Service) translateChapters(
 				slog.Error(err.Error(), slog.String("operation", operation))
 				resultChan <- translatedChapterResult{
 					Chapter: nil,
-					Error:   errors.New("failed to startTranslate chapter title"),
+					Error:   ErrFailedTranslateChapter,
 				}
 				return
 			}
@@ -306,6 +347,8 @@ func (s *Service) translateChapters(
 		slog.Info(
 			fmt.Sprintf("translated chapter %d", chapterNode.Order),
 			slog.String("duration", duration.String()),
+			slog.String("title", book.Title),
+			slog.String("author", book.Author),
 		)
 	}
 

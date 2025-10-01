@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/nimyab/nim2book-back/internal/adapter/firebase"
 	"github.com/nimyab/nim2book-back/internal/auth/google_login"
 	"github.com/nimyab/nim2book-back/internal/auth/login"
 	"github.com/nimyab/nim2book-back/internal/auth/refresh"
@@ -85,6 +86,16 @@ func appRun(cfg *config.Config) error {
 		return err
 	}
 
+	// Firebase
+	firebaseApp, err := firebase.New(context.Background(), &firebase.Config{GoogleCredentials: cfg.GoogleCredentials})
+	if err != nil {
+		return err
+	}
+	messagingFirebaseClient, err := firebaseApp.Messaging(context.Background())
+	if err != nil {
+		return err
+	}
+
 	// align service
 	wordAlign := align.New(cfg.WordAlignerURL)
 
@@ -99,6 +110,7 @@ func appRun(cfg *config.Config) error {
 		translateService,
 		cfg.MaxRequestCount,
 		cfg.WaitMilliseconds,
+		messagingFirebaseClient,
 	)
 
 	// book service
@@ -110,7 +122,7 @@ func appRun(cfg *config.Config) error {
 	// auth service
 	register.New(pgClient)
 	login.New(pgClient, cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
-	google_login.New(pgClient, cfg.GoogleClientID, cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
+	google_login.New(pgClient, cfg.GoogleClientId, cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
 	refresh.New(cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
 
 	// user service

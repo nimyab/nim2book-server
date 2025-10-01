@@ -42,7 +42,8 @@ type Config struct {
 	JWTAccessTime  time.Duration `env:"JWT_ACCESS_TIME" envDefault:"15"`
 	JWTRefreshTime time.Duration `env:"JWT_REFRESH_TIME" envDefault:"30"`
 
-	GoogleClientID string `env:"GOOGLE_CLIENT_ID"`
+	GoogleClientId    string `env:"GOOGLE_CLIENT_ID"`
+	GoogleCredentials string `env:"GOOGLE_CREDENTIALS"`
 }
 
 var appConfig *Config
@@ -72,7 +73,8 @@ func init() {
 		JWTSecret:           os.Getenv("JWT_SECRET"),
 		JWTAccessTime:       time.Duration(jwtAccessTime) * time.Minute,
 		JWTRefreshTime:      time.Duration(jwtRefreshTime) * time.Hour * 24,
-		GoogleClientID:      os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleClientId:      os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleCredentials:   os.Getenv("GOOGLE_CREDENTIALS"),
 	}
 }
 
