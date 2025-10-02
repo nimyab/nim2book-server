@@ -54,13 +54,8 @@ func (db *Postgres) AddFcmToken(ctx context.Context, data *domain.FcmToken) (*do
 		"token":  data.Token,
 		"userId": data.UserId,
 	}
-	rows, err := tx.Query(ctx, sql, args)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", operation, err)
-	}
-	defer rows.Close()
-
-	token, err := pgx.RowToStructByName[domain.FcmToken](rows)
+	var token domain.FcmToken
+	err = tx.QueryRow(ctx, sql, args).Scan(&token.Token, &token.UserId, &token.CreateAt)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
