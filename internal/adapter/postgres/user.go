@@ -208,7 +208,7 @@ func (db *Postgres) GetUserById(ctx context.Context, userId domain.Id) (*domain.
 	const operation = "postgres.GetUserById"
 
 	sql := `select u.id, u.is_admin, u.is_vip,
-       			g.email, g.emailVerified, g.name, g.picture, g.sub,
+       			g.email, g.email_verified, g.name, g.picture, g.sub,
        			e.id, e.email, e.password_hash
 			from users as u 
 			left join google_accounts as g on u.google_account_sub = g.sub
