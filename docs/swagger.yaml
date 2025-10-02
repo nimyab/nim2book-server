@@ -520,15 +520,17 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/add_fcm_token.Output'
+      security:
+      - BearerAuth: []
       summary: Add fcm token for send notifications
       tags:
       - fcm-token
   /fcm-token/delete:
     delete:
       parameters:
-      - description: token
+      - description: fcm token
         in: query
-        name: data
+        name: token
         required: true
         type: string
       produces:
@@ -538,6 +540,8 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/delete_fcm_token.Output'
+      security:
+      - BearerAuth: []
       summary: Delete fcm token
       tags:
       - fcm-token

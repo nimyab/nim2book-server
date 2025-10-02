@@ -345,6 +345,11 @@ const docTemplate = `{
         },
         "/fcm-token/add": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -378,6 +383,11 @@ const docTemplate = `{
         },
         "/fcm-token/delete": {
             "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -388,8 +398,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "token",
-                        "name": "data",
+                        "description": "fcm token",
+                        "name": "token",
                         "in": "query",
                         "required": true
                     }

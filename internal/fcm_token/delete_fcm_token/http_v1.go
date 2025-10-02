@@ -10,9 +10,10 @@ import (
 
 // HTTPv1 godoc
 // @Summary	Delete fcm token
+// @Security BearerAuth
 // @Tags	fcm-token
 // @Produce	json
-// @Param	data	query	string	true	"token"
+// @Param	token	query	string	true	"fcm token"
 // @Success	200		{object}	Output
 // @Router	/fcm-token/delete	[delete]
 func HTTPv1(c echo.Context) error {

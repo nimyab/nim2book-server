@@ -10,6 +10,7 @@ import (
 
 // HTTPv1 godoc
 // @Summary	Add fcm token for send notifications
+// @Security BearerAuth
 // @Tags	fcm-token
 // @Accept  json
 // @Produce	json
