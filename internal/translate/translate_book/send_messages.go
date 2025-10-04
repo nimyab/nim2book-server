@@ -1,13 +1,10 @@
 package translate_book
 
 import (
-	"context"
-	"fmt"
-	"log/slog"
-
-	"firebase.google.com/go/v4/messaging"
-	"github.com/nimyab/nim2book-back/internal/controller/websocket"
+	"github.com/google/uuid"
+	"github.com/nimyab/nim2book-back/internal/adapter/rabbitmq"
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/pkg/logger"
 )
 
 type messageAboutTranslate struct {
@@ -21,9 +18,10 @@ type messageAboutTranslate struct {
 func (s *Service) sendMessageAboutTranslate(userId domain.Id, message *messageAboutTranslate) {
 	const operation = "translate_book.sendMessageAboutTranslate"
 
-	websocket.SendMessage(userId, &websocket.Message{
-		Event: websocket.ChapterTranslatedEvent,
-		Body: map[string]any{
+	err := s.rabbitmq.Publish(&rabbitmq.NotificationData{
+		Id:     uuid.New().String(),
+		UserId: userId,
+		Data: map[string]interface{}{
 			"chapterPath":       message.chapterPath,
 			"author":            message.author,
 			"title":             message.title,
@@ -31,23 +29,37 @@ func (s *Service) sendMessageAboutTranslate(userId domain.Id, message *messageAb
 			"totalChapterCount": message.totalChapterCount,
 		},
 	})
-
-	fcmTokens, err := s.pg.GetFcmTokensByUserId(context.Background(), userId)
 	if err != nil {
-		slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", userId))
+		logger.Error("fail publish message", err, operation)
 	}
-	for _, fcmToken := range fcmTokens {
-		_, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
-			Token: fcmToken.Token,
-			Notification: &messaging.Notification{
-				Title: fmt.Sprintf("Переведена глава %d", message.chapterOrder),
-				Body:  fmt.Sprintf("Книга: %s - %s.\nПозже отправим уведомление о следующих главах", message.author, message.title),
-			},
-		})
-		if err != nil {
-			slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", userId))
-		}
-	}
+
+	//websocket.SendMessage(userId, &websocket.Message{
+	//	Event: websocket.ChapterTranslatedEvent,
+	//	Body: map[string]any{
+	//		"chapterPath":       message.chapterPath,
+	//		"author":            message.author,
+	//		"title":             message.title,
+	//		"order":             message.chapterOrder,
+	//		"totalChapterCount": message.totalChapterCount,
+	//	},
+	//})
+	//
+	//fcmTokens, err := s.pg.GetFcmTokensByUserId(context.Background(), userId)
+	//if err != nil {
+	//	slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", userId))
+	//}
+	//for _, fcmToken := range fcmTokens {
+	//	_, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
+	//		Token: fcmToken.Token,
+	//		Notification: &messaging.Notification{
+	//			Title: fmt.Sprintf("Переведена глава %d", message.chapterOrder),
+	//			Body:  fmt.Sprintf("Книга: %s - %s.\nПозже отправим уведомление о следующих главах", message.author, message.title),
+	//		},
+	//	})
+	//	if err != nil {
+	//		slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", userId))
+	//	}
+	//}
 }
 
 type messageAboutError struct {
@@ -59,31 +71,43 @@ type messageAboutError struct {
 func (s *Service) sendMessageAboutError(userId domain.Id, message *messageAboutError) {
 	const operation = "translate_book.sendMessageAboutError"
 
-	websocket.SendMessage(userId, &websocket.Message{
-		Event: websocket.ErrorEvent,
-		Body: map[string]interface{}{
+	err := s.rabbitmq.Publish(&rabbitmq.NotificationData{
+		Id:     uuid.New().String(),
+		UserId: userId,
+		Data: map[string]interface{}{
 			"author": message.author,
 			"title":  message.title,
 			"error":  message.errorMessage,
 		},
 	})
-
-	fcmTokens, err := s.pg.GetFcmTokensByUserId(context.Background(), userId)
 	if err != nil {
-		slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", userId))
+		logger.Error("fail publish message", err, operation)
 	}
-	for _, fcmToken := range fcmTokens {
-		_, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
-			Token: fcmToken.Token,
-			Notification: &messaging.Notification{
-				Title: fmt.Sprintf("Перевод книги прервался"),
-				Body:  fmt.Sprintf("%s\nКнига: %s - %s", message.errorMessage, message.author, message.title),
-			},
-		})
-		if err != nil {
-			slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", userId))
-		}
-	}
+	//websocket.SendMessage(userId, &websocket.Message{
+	//	Event: websocket.ErrorEvent,
+	//	Body: map[string]interface{}{
+	//		"author": message.author,
+	//		"title":  message.title,
+	//		"error":  message.errorMessage,
+	//	},
+	//})
+	//
+	//fcmTokens, err := s.pg.GetFcmTokensByUserId(context.Background(), userId)
+	//if err != nil {
+	//	slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", userId))
+	//}
+	//for _, fcmToken := range fcmTokens {
+	//	_, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
+	//		Token: fcmToken.Token,
+	//		Notification: &messaging.Notification{
+	//			Title: fmt.Sprintf("Перевод книги прервался"),
+	//			Body:  fmt.Sprintf("%s\nКнига: %s - %s", message.errorMessage, message.author, message.title),
+	//		},
+	//	})
+	//	if err != nil {
+	//		slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", userId))
+	//	}
+	//}
 }
 
 type messageAboutTranslateSuccess struct {
@@ -93,30 +117,41 @@ type messageAboutTranslateSuccess struct {
 func (s *Service) sendMessageAboutTranslateSuccess(userId domain.Id, message *messageAboutTranslateSuccess) {
 	const operation = "translate_book.sendMessageAboutTranslateSuccess"
 
-	websocket.SendMessage(userId, &websocket.Message{
-		Event: websocket.TranslateSuccessEvent,
-		Body: map[string]interface{}{
+	err := s.rabbitmq.Publish(&rabbitmq.NotificationData{
+		Id:     uuid.New().String(),
+		UserId: userId,
+		Data: map[string]interface{}{
 			"book": message.book,
 		},
 	})
-
-	fcmTokens, err := s.pg.GetFcmTokensByUserId(context.Background(), userId)
 	if err != nil {
-		slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", userId))
+		logger.Error("fail publish message", err, operation)
 	}
-	for _, fcmToken := range fcmTokens {
-		_, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
-			Token: fcmToken.Token,
-			Notification: &messaging.Notification{
-				Title: fmt.Sprintf("Перевод книги завершился"),
-				Body:  fmt.Sprintf("Книга: %s - %s была переведена, теперь ее можно скачать из библиотеки книг", message.book.Author, message.book.Title),
-			},
-			Data: map[string]string{
-				"bookId": message.book.Id.String(),
-			},
-		})
-		if err != nil {
-			slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", userId))
-		}
-	}
+
+	//websocket.SendMessage(userId, &websocket.Message{
+	//	Event: websocket.TranslateSuccessEvent,
+	//	Body: map[string]interface{}{
+	//		"book": message.book,
+	//	},
+	//})
+	//
+	//fcmTokens, err := s.pg.GetFcmTokensByUserId(context.Background(), userId)
+	//if err != nil {
+	//	slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", userId))
+	//}
+	//for _, fcmToken := range fcmTokens {
+	//	_, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
+	//		Token: fcmToken.Token,
+	//		Notification: &messaging.Notification{
+	//			Title: fmt.Sprintf("Перевод книги завершился"),
+	//			Body:  fmt.Sprintf("Книга: %s - %s была переведена, теперь ее можно скачать из библиотеки книг", message.book.Author, message.book.Title),
+	//		},
+	//		Data: map[string]string{
+	//			"bookId": message.book.Id.String(),
+	//		},
+	//	})
+	//	if err != nil {
+	//		slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", userId))
+	//	}
+	//}
 }

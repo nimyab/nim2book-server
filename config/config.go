@@ -44,6 +44,8 @@ type Config struct {
 
 	GoogleClientId    string `env:"GOOGLE_CLIENT_ID"`
 	GoogleCredentials string `env:"GOOGLE_CREDENTIALS"`
+
+	RabbitmqUrl string `env:"RABBITMQ_URL"`
 }
 
 var appConfig *Config
@@ -75,6 +77,7 @@ func init() {
 		JWTRefreshTime:      time.Duration(jwtRefreshTime) * time.Hour * 24,
 		GoogleClientId:      os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleCredentials:   os.Getenv("GOOGLE_CREDENTIALS"),
+		RabbitmqUrl:         os.Getenv("RABBITMQ_URL"),
 	}
 }
 

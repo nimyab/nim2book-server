@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/nimyab/nim2book-back/internal/adapter/firebase"
+	"github.com/nimyab/nim2book-back/internal/adapter/rabbitmq"
 	"github.com/nimyab/nim2book-back/internal/auth/google_login"
 	"github.com/nimyab/nim2book-back/internal/auth/login"
 	"github.com/nimyab/nim2book-back/internal/auth/refresh"
@@ -86,6 +87,14 @@ func appRun(cfg *config.Config) error {
 		return err
 	}
 
+	// RabbitMQ
+	rabbit, err := rabbitmq.New(&rabbitmq.Config{
+		RabbitmqUrl: cfg.RabbitmqUrl,
+	})
+	if err != nil {
+		return err
+	}
+
 	// Firebase
 	firebaseApp, err := firebase.New(context.Background(), &firebase.Config{GoogleCredentials: cfg.GoogleCredentials})
 	if err != nil {
@@ -108,6 +117,7 @@ func appRun(cfg *config.Config) error {
 		pgClient,
 		wordAlign,
 		translateService,
+		rabbit,
 		cfg.MaxRequestCount,
 		cfg.WaitMilliseconds,
 		messagingFirebaseClient,
@@ -157,5 +167,9 @@ func appRun(cfg *config.Config) error {
 
 	_ = router.Shutdown(context.Background())
 	pgClient.Close()
+	if err = rabbit.Close(); err != nil {
+		slog.Error(err.Error())
+	}
+
 	return nil
 }
