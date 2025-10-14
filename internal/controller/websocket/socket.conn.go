@@ -41,7 +41,7 @@ func NewSocketConn(c echo.Context) error {
 
 	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
-		logger.Error("Error upgrading to websocket", err, operation)
+		logger.Error("NotificationError upgrading to websocket", err, operation)
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
 
@@ -50,14 +50,14 @@ func NewSocketConn(c echo.Context) error {
 	token, ok := <-tokenCh
 	if !ok {
 		if err = conn.Close(); err != nil {
-			logger.Error("Error closing socket", err, operation)
+			logger.Error("NotificationError closing socket", err, operation)
 		}
 		return c.JSON(http.StatusUnauthorized, echo.Map{"error": "unauthorized"})
 	}
 
 	payload, err := jwt.ParseToken(token, config.GetConfig().JWTSecret)
 	if err != nil {
-		logger.Error("Error parsing token", err, operation)
+		logger.Error("NotificationError parsing token", err, operation)
 		return c.JSON(http.StatusUnauthorized, echo.Map{"error": err.Error()})
 	}
 
@@ -93,12 +93,12 @@ func GetAuthTokenChan(conn *websocket.Conn) <-chan string {
 			default:
 				_, message, err := conn.ReadMessage()
 				if err != nil {
-					logger.Error("Error reading WebSocket message", err, operation)
+					logger.Error("NotificationError reading WebSocket message", err, operation)
 					return
 				}
 				msg := new(Message)
 				if err = json.Unmarshal(message, msg); err != nil {
-					logger.Error("Error unmarshalling message", err, operation)
+					logger.Error("NotificationError unmarshalling message", err, operation)
 					continue
 				}
 				if msg.Event != AuthEvent {
@@ -124,13 +124,13 @@ func (sc *SocketConn) readPump() {
 	defer func() {
 		socketHub.unregisterCh <- sc
 		if err := sc.conn.Close(); err != nil {
-			logger.Error("Error closing connection", err, operation)
+			logger.Error("NotificationError closing connection", err, operation)
 		}
 	}()
 
 	sc.conn.SetReadLimit(maxMessageSize)
 	if err := sc.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-		logger.Error("Error setting read deadline", err, operation)
+		logger.Error("NotificationError setting read deadline", err, operation)
 	}
 	sc.conn.SetPongHandler(func(string) error {
 		return sc.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -145,13 +145,13 @@ func (sc *SocketConn) readPump() {
 
 		_, message, err := sc.conn.ReadMessage()
 		if err != nil {
-			logger.Error("Error reading message", err, operation)
+			logger.Error("NotificationError reading message", err, operation)
 			break
 		}
 
 		msg := new(Message)
 		if err = json.Unmarshal(message, msg); err != nil {
-			logger.Error("Error unmarshalling message", err, operation)
+			logger.Error("NotificationError unmarshalling message", err, operation)
 			continue
 		}
 
@@ -176,25 +176,25 @@ func (sc *SocketConn) writePump() {
 		case message, ok := <-sc.messageChan:
 			if !ok {
 				if err := sc.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
-					logger.Error("Error writing close message", err, operation)
+					logger.Error("NotificationError writing close message", err, operation)
 				}
 				return
 			}
 
 			if err := sc.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
-				logger.Error("Error setting write deadline", err, operation)
+				logger.Error("NotificationError setting write deadline", err, operation)
 			}
 
 			if err := sc.conn.WriteJSON(message); err != nil {
-				logger.Error("Error writing JSON message", err, operation)
+				logger.Error("NotificationError writing JSON message", err, operation)
 			}
 
 		case <-ticker.C:
 			if err := sc.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
-				logger.Error("Error setting write deadline", err, operation)
+				logger.Error("NotificationError setting write deadline", err, operation)
 			}
 			if err := sc.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				logger.Error("Error writing ping message", err, operation)
+				logger.Error("NotificationError writing ping message", err, operation)
 				return
 			}
 		}

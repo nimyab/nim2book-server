@@ -1,0 +1,33 @@
+package domain
+
+type NotificationType string
+
+const (
+	NotificationError                   NotificationType = "error"
+	NotificationChapterTranslateSucceed NotificationType = "chapter_translate_succeed"
+	NotificationBookTranslated          NotificationType = "book_translated"
+)
+
+type NotificationErrorData struct {
+	Author       string `json:"author"`
+	Title        string `json:"title"`
+	ErrorMessage string `json:"errorMessage"`
+}
+
+type NotificationChapterTranslateSucceedData struct {
+	ChapterPath       string `json:"chapterPath"`
+	Author            string `json:"author"`
+	Title             string `json:"title"`
+	ChapterOrder      int    `json:"chapterOrder"`
+	TotalChapterCount int    `json:"totalChapterCount"`
+}
+
+type NotificationBookTranslatedData struct {
+	Book *Book `json:"book"`
+}
+
+type Notification struct {
+	UserId Id               `json:"user_id"`
+	Type   NotificationType `json:"type"`
+	Data   any              `json:"data"`
+}

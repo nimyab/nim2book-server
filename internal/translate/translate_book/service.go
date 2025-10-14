@@ -14,8 +14,8 @@ import (
 
 	"firebase.google.com/go/v4/messaging"
 	"github.com/google/uuid"
+	"github.com/maniartech/signals"
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
-	"github.com/nimyab/nim2book-back/internal/adapter/rabbitmq"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/word_aligner/align"
@@ -28,10 +28,6 @@ import (
 
 type S3 interface {
 	Upload(path string, data []byte) error
-}
-
-type Rabbitmq interface {
-	Publish(data *rabbitmq.NotificationData) error
 }
 
 type Postgres interface {
@@ -59,9 +55,9 @@ type Service struct {
 	pg          Postgres
 	wordAligner WordAligner
 	translator  Translator
-	rabbitmq    Rabbitmq
 
 	messagingFirebaseClient *messaging.Client
+	notificationSignal      *signals.AsyncSignal[*domain.Notification]
 }
 
 type translatedChapterResult struct {
@@ -82,21 +78,19 @@ func New(
 	pg Postgres,
 	wordAligner WordAligner,
 	translator Translator,
-	rabbitmq Rabbitmq,
 	maxRequestCount int,
 	waitMilliseconds time.Duration,
-	messagingFirebaseClient *messaging.Client,
+	notificationSignal *signals.AsyncSignal[*domain.Notification],
 ) *Service {
 	service = &Service{
 		s3:                          s3,
 		pg:                          pg,
 		wordAligner:                 wordAligner,
 		translator:                  translator,
-		rabbitmq:                    rabbitmq,
 		maxRequestCount:             maxRequestCount,
 		waitMilliseconds:            waitMilliseconds,
 		currentCountBookTranslating: 0,
-		messagingFirebaseClient:     messagingFirebaseClient,
+		notificationSignal:          notificationSignal,
 	}
 	return service
 }
@@ -147,38 +141,35 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 		if err != nil {
 			switch {
 			case errors.Is(err, ErrFailedSaveToStorage):
-				if err := s.rabbitmq.Publish(&rabbitmq.NotificationData{
-					Id:     uuid.New().String(),
+				s.notificationSignal.Emit(context.Background(), &domain.Notification{
 					UserId: userId,
-					Data: map[string]interface{}{
-						"book":         parsedBook,
-						"errorMessage": "Произошла ошибка во время сохранения главы, попробуйте перевести книгу позже.",
+					Type:   domain.NotificationError,
+					Data: &domain.NotificationErrorData{
+						Title:        parsedBook.Title,
+						Author:       parsedBook.Author,
+						ErrorMessage: "Произошла ошибка во время сохранения главы, попробуйте перевести книгу позже.",
 					},
-				}); err != nil {
-					logger.Error("fail send message to rabbit", err, operation)
-				}
+				})
 			case errors.Is(err, ErrFailedTranslateChapter):
-				if err := s.rabbitmq.Publish(&rabbitmq.NotificationData{
-					Id:     uuid.New().String(),
+				s.notificationSignal.Emit(context.Background(), &domain.Notification{
 					UserId: userId,
-					Data: map[string]interface{}{
-						"book":         parsedBook,
-						"errorMessage": "Произошла ошибка во время перевода главы, попробуйте перевести книгу позже.",
+					Type:   domain.NotificationError,
+					Data: &domain.NotificationErrorData{
+						Author:       parsedBook.Author,
+						Title:        parsedBook.Title,
+						ErrorMessage: "Произошла ошибка во время перевода главы, попробуйте перевести книгу позже.",
 					},
-				}); err != nil {
-					logger.Error("fail send message to rabbit", err, operation)
-				}
+				})
 			case errors.Is(err, ErrFailedSaveBookToDatabase):
-				if err := s.rabbitmq.Publish(&rabbitmq.NotificationData{
-					Id:     uuid.New().String(),
+				s.notificationSignal.Emit(context.Background(), &domain.Notification{
+					Type:   domain.NotificationError,
 					UserId: userId,
-					Data: map[string]interface{}{
-						"book":         parsedBook,
-						"errorMessage": "Произошла ошибка во время сохранения книги, попробуйте перевести книгу позже, извините за неудобства.",
+					Data: &domain.NotificationErrorData{
+						Title:        parsedBook.Title,
+						Author:       parsedBook.Author,
+						ErrorMessage: "Произошла ошибка во время сохранения книги, попробуйте перевести книгу позже, извините за неудобства.",
 					},
-				}); err != nil {
-					logger.Error("fail send message to rabbit", err, operation)
-				}
+				})
 			default:
 				logger.Error("unexpected error", err, operation)
 			}
@@ -246,19 +237,17 @@ func (s *Service) startTranslate(
 		paths = append(paths, path)
 
 		// отправляем уведомления о переведенной главе
-		if err := s.rabbitmq.Publish(&rabbitmq.NotificationData{
-			Id:     uuid.New().String(),
+		s.notificationSignal.Emit(ctx, &domain.Notification{
 			UserId: userId,
-			Data: map[string]interface{}{
-				"chapterPath":       path,
-				"author":            book.Author,
-				"title":             book.Title,
-				"chapterOrder":      result.Chapter.Order,
-				"totalChapterCount": len(book.Chapters),
+			Type:   domain.NotificationChapterTranslateSucceed,
+			Data: &domain.NotificationChapterTranslateSucceedData{
+				Author:            book.Author,
+				ChapterPath:       path,
+				Title:             book.Title,
+				ChapterOrder:      result.Chapter.Order,
+				TotalChapterCount: len(book.Chapters),
 			},
-		}); err != nil {
-			logger.Error("fail send message to rabbit", err, operation)
-		}
+		})
 	}
 
 	var cover *string = nil
@@ -287,15 +276,14 @@ func (s *Service) startTranslate(
 		return ErrFailedSaveBookToDatabase
 	}
 
-	if err := s.rabbitmq.Publish(&rabbitmq.NotificationData{
-		Id:     uuid.New().String(),
+	// уведомление что книга создана
+	s.notificationSignal.Emit(ctx, &domain.Notification{
 		UserId: userId,
-		Data: map[string]interface{}{
-			"book": newBook,
+		Type:   domain.NotificationBookTranslated,
+		Data: &domain.NotificationBookTranslatedData{
+			Book: newBook,
 		},
-	}); err != nil {
-		logger.Error("fail send message to rabbit", err, operation)
-	}
+	})
 
 	return nil
 }
@@ -394,7 +382,7 @@ func (s *Service) translateChapters(
 func (s *Service) translateAndAlignParagraph(paragraph string, from domain.SupportedLang, to domain.SupportedLang) (domain.ParagraphAlignNode, error) {
 	const operation = "translate_book.Service.translateAndAlignParagraph"
 
-	// перевод параграфа
+	// перевод параграфа (использую libretranslate, которую развернул на серваке у себя)
 	translateOutput, err := s.translator.Translate(&translate.Input{
 		Q:      paragraph,
 		Source: from,
@@ -419,7 +407,7 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 	}
 	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.waitMilliseconds)
 
-	// выравнивание слов
+	// выравнивание слов (самописный выравниватель на змеинном, можно в docker-compose найти образ)
 	alignOutput, err := s.wordAligner.Align(&align.Input{
 		SourceText: paragraph,
 		TargetText: translateOutput.TranslatedText,

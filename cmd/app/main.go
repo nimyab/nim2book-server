@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/maniartech/signals"
 	"github.com/nimyab/nim2book-back/internal/adapter/firebase"
-	"github.com/nimyab/nim2book-back/internal/adapter/rabbitmq"
 	"github.com/nimyab/nim2book-back/internal/auth/google_login"
 	"github.com/nimyab/nim2book-back/internal/auth/login"
 	"github.com/nimyab/nim2book-back/internal/auth/refresh"
@@ -16,9 +16,11 @@ import (
 	"github.com/nimyab/nim2book-back/internal/book/update_book"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/dictionary/lookup"
+	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/fcm_token/add_fcm_token"
 	"github.com/nimyab/nim2book-back/internal/fcm_token/delete_fcm_token"
 	"github.com/nimyab/nim2book-back/internal/file/file_public"
+	"github.com/nimyab/nim2book-back/internal/notification"
 	"github.com/nimyab/nim2book-back/internal/user/me"
 
 	"github.com/nimyab/nim2book-back/config"
@@ -59,6 +61,9 @@ func main() {
 }
 
 func appRun(cfg *config.Config) error {
+	// register signals for messaging
+	notificationSignal := signals.New[*domain.Notification]()
+
 	// Postgres
 	pgClient, err := postgres.New(context.Background(), &postgres.Config{
 		PostgresURL: cfg.PostgresURL,
@@ -87,14 +92,6 @@ func appRun(cfg *config.Config) error {
 		return err
 	}
 
-	// RabbitMQ
-	rabbit, err := rabbitmq.New(&rabbitmq.Config{
-		RabbitmqUrl: cfg.RabbitmqUrl,
-	})
-	if err != nil {
-		return err
-	}
-
 	// Firebase
 	firebaseApp, err := firebase.New(context.Background(), &firebase.Config{GoogleCredentials: cfg.GoogleCredentials})
 	if err != nil {
@@ -104,6 +101,9 @@ func appRun(cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
+
+	// notification service
+	notificationService := notification.New(messagingFirebaseClient, pgClient)
 
 	// align service
 	wordAlign := align.New(cfg.WordAlignerURL)
@@ -117,10 +117,9 @@ func appRun(cfg *config.Config) error {
 		pgClient,
 		wordAlign,
 		translateService,
-		rabbit,
 		cfg.MaxRequestCount,
 		cfg.WaitMilliseconds,
-		messagingFirebaseClient,
+		notificationSignal,
 	)
 
 	// book service
@@ -151,6 +150,10 @@ func appRun(cfg *config.Config) error {
 	// websocket
 	websocket.NewAndStart()
 
+	// signals
+	notificationSignal.AddListener(notificationService.ProcessNotification)
+
+	// http
 	router := http.Router(cfg.JWTSecret)
 
 	go func() {
@@ -167,9 +170,6 @@ func appRun(cfg *config.Config) error {
 
 	_ = router.Shutdown(context.Background())
 	pgClient.Close()
-	if err = rabbit.Close(); err != nil {
-		slog.Error(err.Error())
-	}
 
 	return nil
 }
