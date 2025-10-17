@@ -59,7 +59,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 				},
 			})
 			if err != nil {
-				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type))
+				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
 			}
 		}
 
@@ -84,7 +84,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 				},
 			})
 			if err != nil {
-				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type))
+				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
 			}
 		}
 
@@ -111,7 +111,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 				},
 			})
 			if err != nil {
-				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type))
+				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
 			}
 		}
 

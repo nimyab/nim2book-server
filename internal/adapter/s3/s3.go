@@ -129,3 +129,22 @@ func (s *S3) Delete(path string) error {
 
 	return nil
 }
+
+func (s *S3) Check(path string) error {
+	const operation = "s3.Check"
+
+	decodedPath, err := url.PathUnescape(path)
+	if err != nil {
+		return fmt.Errorf("%s: %w", operation, err)
+	}
+	_, err = s.s3Client.HeadObject(&s3.HeadObjectInput{
+		Bucket: aws.String(s.bucketName),
+		Key:    aws.String(decodedPath),
+	})
+
+	if err != nil {
+		return fmt.Errorf("%s: %w, path - %s", operation, err, path)
+	}
+
+	return nil
+}

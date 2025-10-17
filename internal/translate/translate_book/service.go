@@ -22,12 +22,12 @@ import (
 	"github.com/nimyab/nim2book-back/pkg/contains_letters"
 	"github.com/nimyab/nim2book-back/pkg/logger"
 	"github.com/nimyab/nim2book-back/pkg/parsers/epub_parser"
-	"github.com/timsims/pamphlet"
 	"golang.org/x/sync/errgroup"
 )
 
 type S3 interface {
 	Upload(path string, data []byte) error
+	Check(path string) error
 }
 
 type Postgres interface {
@@ -61,8 +61,10 @@ type Service struct {
 }
 
 type translatedChapterResult struct {
-	Chapter *domain.ChapterAlignNode
-	Error   error
+	Chapter      *domain.ChapterAlignNode
+	ChapterOrder int
+	Path         string
+	Error        error
 }
 
 var (
@@ -136,8 +138,17 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 		return nil, errors.New("failed to find book")
 	}
 
+	translatedData := &translateStruct{
+		Book:      parsedBook,
+		Chapters:  chapters,
+		CoverData: coverData,
+		UserId:    userId,
+		From:      input.From,
+		To:        input.To,
+	}
+
 	go func() {
-		err := s.startTranslate(userId, chapters, coverData, parsedBook, input)
+		err := s.startTranslate(translatedData)
 		if err != nil {
 			switch {
 			case errors.Is(err, ErrFailedSaveToStorage):
@@ -180,11 +191,7 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 }
 
 func (s *Service) startTranslate(
-	userId domain.Id,
-	chapters []epub_parser.FormattedChapter,
-	coverData []byte,
-	book *pamphlet.Book,
-	input *Input,
+	data *translateStruct,
 ) error {
 	const operation = "translate_book.startTranslate"
 
@@ -203,56 +210,65 @@ func (s *Service) startTranslate(
 	defer cancel()
 
 	// use buffer chan to saveChapterToS3 non block translateChapters goroutine
-	resultChan := make(chan translatedChapterResult, len(chapters))
+	resultChan := make(chan translatedChapterResult, len(data.Chapters))
 
-	go s.translateChapters(ctx, resultChan, chapters, book, input.From, input.To)
+	go s.translateChapters(ctx, resultChan, data)
 
-	paths := make([]string, 0, len(chapters))
+	paths := make([]string, 0, len(data.Chapters))
 	for result := range resultChan {
 		if result.Error != nil {
 			logger.Error(
-				fmt.Sprintf("failed to translate chapter, title: %s, author: %s", book.Title, book.Author),
+				fmt.Sprintf("failed to translate chapter, title: %s, author: %s", data.Book.Title, data.Book.Author),
 				result.Error,
 				operation,
 			)
 			return ErrFailedTranslateChapter
 		}
-		if result.Chapter == nil {
+		if result.Chapter == nil && result.Path == "" {
 			logger.Error(
-				fmt.Sprintf("translated chapter is nil, title: %s, author: %s", book.Title, book.Author),
+				fmt.Sprintf("translated chapter is nil, title: %s, author: %s", data.Book.Title, data.Book.Author),
 				result.Error,
 				operation,
 			)
 			return ErrFailedTranslateChapter
 		}
-		path, err := s.saveChapterToS3(result.Chapter, book.Title)
-		if err != nil {
-			logger.Error(
-				fmt.Sprintf("failed to save to s3 chapter %d order, title: %s, author: %s", result.Chapter.Order, book.Title, book.Author),
-				err,
-				operation,
-			)
-			return ErrFailedSaveToStorage
+
+		var path string
+		if result.Path != "" {
+			path = result.Path
+		} else {
+			var err error
+			path, err = s.saveChapterToS3(result.Chapter, data.Book.Title)
+			if err != nil {
+				logger.Error(
+					fmt.Sprintf("failed to save to s3 chapter %d order, title: %s, author: %s", result.Chapter.Order, data.Book.Title, data.Book.Author),
+					err,
+					operation,
+				)
+				return ErrFailedSaveToStorage
+			}
 		}
+
 		paths = append(paths, path)
+		slog.Info(fmt.Sprintf("paths is %v now", paths), slog.String("operation", operation))
 
 		// отправляем уведомления о переведенной главе
 		s.notificationSignal.Emit(ctx, &domain.Notification{
-			UserId: userId,
+			UserId: data.UserId,
 			Type:   domain.NotificationChapterTranslateSucceed,
 			Data: &domain.NotificationChapterTranslateSucceedData{
-				Author:            book.Author,
+				Author:            data.Book.Author,
 				ChapterPath:       path,
-				Title:             book.Title,
-				ChapterOrder:      result.Chapter.Order,
-				TotalChapterCount: len(book.Chapters),
+				Title:             data.Book.Title,
+				ChapterOrder:      result.ChapterOrder,
+				TotalChapterCount: len(data.Book.Chapters),
 			},
 		})
 	}
 
 	var cover *string = nil
-	if coverData != nil {
-		coverPath, err := s.saveCoverToS3(coverData, book.Title)
+	if data.CoverData != nil {
+		coverPath, err := s.saveCoverToS3(data.CoverData, data.Book.Title)
 		if err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation))
 		} else {
@@ -261,15 +277,15 @@ func (s *Service) startTranslate(
 	}
 
 	newBook := &domain.Book{
-		Author:       book.Author,
-		Title:        book.Title,
+		Author:       data.Book.Author,
+		Title:        data.Book.Title,
 		ChapterPaths: paths,
 		Cover:        cover,
 	}
 	newBook, err := s.pg.CreateBook(context.Background(), newBook)
 	if err != nil {
 		logger.Error(
-			fmt.Sprintf("failed to save book to database, title: %s, author: %s", book.Title, book.Author),
+			fmt.Sprintf("failed to save book to database, title: %s, author: %s", data.Book.Title, data.Book.Author),
 			err,
 			operation,
 		)
@@ -278,7 +294,7 @@ func (s *Service) startTranslate(
 
 	// уведомление что книга создана
 	s.notificationSignal.Emit(ctx, &domain.Notification{
-		UserId: userId,
+		UserId: data.UserId,
 		Type:   domain.NotificationBookTranslated,
 		Data: &domain.NotificationBookTranslatedData{
 			Book: newBook,
@@ -291,21 +307,33 @@ func (s *Service) startTranslate(
 func (s *Service) translateChapters(
 	ctx context.Context,
 	resultChan chan<- translatedChapterResult,
-	chapters []epub_parser.FormattedChapter,
-	book *pamphlet.Book,
-	from domain.SupportedLang,
-	to domain.SupportedLang,
+	data *translateStruct,
 ) {
 	const operation = "translate_book.Service.translateChapters"
 
 	defer close(resultChan)
 
-	for i, chapter := range chapters {
+	for i, chapter := range data.Chapters {
+		// chapter order будем считать как i, если брать значения из chapter.Order, то могут быть проблемы с порядком глав
+		// в книге главы могут не содержать какой-то письменный контент и мы такие главы пропускаем при парсинге, а значит порядок глав будет нарушен
+
 		select {
 		case <-ctx.Done():
 			slog.Debug("context cancelled", slog.String("operation", operation))
 			return
 		default:
+		}
+
+		path := s.checkChapterInStorage(i, data.Book.Title)
+		if path != "" {
+			slog.Info(fmt.Sprintf("chapter %d already exist", i), slog.String("operation", operation), slog.String("path", path))
+			resultChan <- translatedChapterResult{
+				Path:         path,
+				ChapterOrder: i,
+				Chapter:      nil,
+				Error:        nil,
+			}
+			continue
 		}
 
 		startTime := time.Now()
@@ -318,7 +346,7 @@ func (s *Service) translateChapters(
 		for idx, paragraph := range chapter.Paragraphs {
 			idx, paragraph := idx, paragraph
 			g.Go(func() error {
-				alignedParagraph, err := s.translateAndAlignParagraph(paragraph, from, to)
+				alignedParagraph, err := s.translateAndAlignParagraph(paragraph, data.From, data.To)
 				if err != nil {
 					return err
 				}
@@ -329,8 +357,9 @@ func (s *Service) translateChapters(
 		if err := g.Wait(); err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation))
 			resultChan <- translatedChapterResult{
-				Chapter: nil,
-				Error:   ErrFailedTranslateChapter,
+				Chapter:      nil,
+				Error:        ErrFailedTranslateChapter,
+				ChapterOrder: i,
 			}
 			return
 		}
@@ -339,14 +368,15 @@ func (s *Service) translateChapters(
 		if len(chapter.Title) > 0 {
 			translatedTitleOutput, err := s.translator.Translate(&translate.Input{
 				Q:      chapter.Title,
-				Source: from,
-				Target: to,
+				Source: data.From,
+				Target: data.To,
 			})
 			if err != nil {
 				slog.Error(err.Error(), slog.String("operation", operation))
 				resultChan <- translatedChapterResult{
-					Chapter: nil,
-					Error:   ErrFailedTranslateChapter,
+					ChapterOrder: i,
+					Chapter:      nil,
+					Error:        ErrFailedTranslateChapter,
 				}
 				return
 			}
@@ -364,16 +394,17 @@ func (s *Service) translateChapters(
 		}
 
 		resultChan <- translatedChapterResult{
-			Chapter: &chapterNode,
-			Error:   nil,
+			ChapterOrder: i,
+			Chapter:      &chapterNode,
+			Error:        nil,
 		}
 
 		duration := time.Since(startTime)
 		slog.Info(
 			fmt.Sprintf("translated chapter %d", chapterNode.Order),
 			slog.String("duration", duration.String()),
-			slog.String("title", book.Title),
-			slog.String("author", book.Author),
+			slog.String("title", data.Book.Title),
+			slog.String("author", data.Book.Author),
 		)
 	}
 
@@ -478,4 +509,18 @@ func (s *Service) saveCoverToS3(coverData []byte, bookTitle string) (string, err
 	}
 
 	return path, nil
+}
+
+func (s *Service) checkChapterInStorage(chapterOrder int, bookTitle string) string {
+	const operation = "translate_book.Service.checkChapterPath"
+
+	path := fmt.Sprintf("book/%s/%d.json", strings.ReplaceAll(bookTitle, " ", "_"), chapterOrder)
+	slog.Info(path, slog.String("operation", operation))
+
+	if err := s.s3.Check(path); err != nil {
+		slog.Error(err.Error(), slog.String("operation", operation))
+		return ""
+	}
+
+	return path
 }
