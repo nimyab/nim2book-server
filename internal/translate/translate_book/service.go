@@ -339,21 +339,47 @@ func (s *Service) translateChapters(
 		startTime := time.Now()
 
 		translatedChapter := make([]domain.ParagraphAlignNode, len(chapter.Paragraphs))
+
+		g, ctxErrGroup := errgroup.WithContext(ctx)
 		// set limit to prevent ddos translator and word aligner services
-		g := new(errgroup.Group)
 		g.SetLimit(s.maxRequestCount)
 
 		for idx, paragraph := range chapter.Paragraphs {
 			idx, paragraph := idx, paragraph
 			g.Go(func() error {
+				select {
+				case <-ctxErrGroup.Done():
+					return ctxErrGroup.Err()
+				default:
+				}
+
+				startTranslateParagraphTime := time.Now()
+				slog.Info(
+					"start translate paragraph",
+					slog.Int("paragraph length", len([]rune(paragraph))),
+					slog.Int("chapter order", i),
+					slog.Int("paragraph index", idx),
+					slog.String("operation", operation),
+				)
+
 				alignedParagraph, err := s.translateAndAlignParagraph(paragraph, data.From, data.To)
 				if err != nil {
 					return err
 				}
 				translatedChapter[idx] = alignedParagraph
+
+				slog.Info(
+					"translated paragraph",
+					slog.Int("chapter order", i),
+					slog.Int("paragraph index", idx),
+					slog.String("duration", time.Since(startTranslateParagraphTime).String()),
+					slog.String("operation", operation),
+				)
+
 				return nil
 			})
 		}
+
 		if err := g.Wait(); err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation))
 			resultChan <- translatedChapterResult{

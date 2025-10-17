@@ -12,6 +12,7 @@ import (
 
 type Postgres interface {
 	GetFcmTokensByUserId(ctx context.Context, userId domain.Id) ([]domain.FcmToken, error)
+	DeleteFcmToken(ctx context.Context, token string, userId domain.Id) error
 }
 
 type Service struct {
@@ -60,6 +61,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 			})
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
+				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
 			}
 		}
 
@@ -85,6 +87,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 			})
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
+				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
 			}
 		}
 
@@ -112,6 +115,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 			})
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
+				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
 			}
 		}
 
