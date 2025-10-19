@@ -50,13 +50,14 @@ func (db *Postgres) CreateDictionaryData(
 	}
 	defer tx.Rollback(ctx)
 
-	sql := `select id from dictionary where text = $1 and lang = $2`
-	err = tx.QueryRow(ctx, sql, text, lang).Scan()
-	if !errors.Is(err, pgx.ErrNoRows) {
-		return false, ErrDictionaryDataAlreadyExists
-	}
+	sql := `select exists(select id from dictionary where text = $1 and lang = $2);`
+	var exists bool
+	err = tx.QueryRow(ctx, sql, text, lang).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("%s: %w", operation, err)
+	}
+	if exists {
+		return false, ErrDictionaryDataAlreadyExists
 	}
 
 	data, err := json.Marshal(dictData)

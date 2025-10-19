@@ -59,17 +59,18 @@ func (s *Service) Lookup(input *Input) (*Output, error) {
 	byteData, err := s.redis.Get(context.Background(), fmt.Sprintf("%s:%s", input.Text, input.Lang))
 	if err != nil {
 		logger.Error("failed to get from redis", err, operation)
-	}
-	err = json.Unmarshal(byteData, output)
-	if err != nil {
-		logger.Error("failed to unmarshal json", err, operation)
 	} else {
-		return output, nil
+		err = json.Unmarshal(byteData, output)
+		if err != nil {
+			logger.Error("failed to unmarshal json", err, operation)
+		} else {
+			return output, nil
+		}
 	}
 
 	dictData, err := s.pg.GetDictionaryData(context.Background(), input.Text, input.Lang)
 	if err != nil {
-		logger.Error("failed to get from redis", err, operation)
+		logger.Error("failed to get from postgres", err, operation)
 	}
 	if dictData != nil {
 		byteData, err = json.Marshal(dictData)
@@ -119,6 +120,9 @@ func (s *Service) Lookup(input *Input) (*Output, error) {
 
 	if _, err = s.pg.CreateDictionaryData(context.Background(), input.Text, input.Lang, output); err != nil {
 		logger.Error("failed to save dictionary data to postgres", err, operation)
+	}
+	if err = s.redis.Save(context.Background(), fmt.Sprintf("%s:%s", input.Text, input.Lang), body, RedisCacheTTL); err != nil {
+		logger.Error("failed to save dictionary data to redis", err, operation)
 	}
 
 	return output, nil
