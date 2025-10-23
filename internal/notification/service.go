@@ -46,10 +46,11 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 		data, ok := d.Data.(*domain.NotificationBookTranslatedData)
 		if !ok {
 			slog.Error(fmt.Sprintf("%s: %s", operation, "error data mapping"), slog.Any("data", d.Data), slog.Any("type", d.Type))
+			return
 		}
 
 		for _, fcmToken := range fcmTokens {
-			_, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
+			info, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
 					Title: fmt.Sprintf("Перевод книги завершился"),
@@ -59,6 +60,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 					"bookId": data.Book.Id.String(),
 				},
 			})
+			slog.Info("test notification", slog.String("fcmToken", fcmToken.Token), slog.String("info", info))
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
 				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
@@ -75,16 +77,18 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 		data, ok := d.Data.(*domain.NotificationErrorData)
 		if !ok {
 			slog.Error(fmt.Sprintf("%s: %s", operation, "error data mapping"), slog.Any("data", d.Data), slog.Any("type", d.Type))
+			return
 		}
 
 		for _, fcmToken := range fcmTokens {
-			_, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
+			info, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
 					Title: fmt.Sprintf("Перевод книги прервался"),
 					Body:  fmt.Sprintf("%s\nКнига: %s - %s", data.ErrorMessage, data.Author, data.Title),
 				},
 			})
+			slog.Info("test notification", slog.String("fcmToken", fcmToken.Token), slog.String("info", info))
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
 				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
@@ -103,16 +107,18 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 		data, ok := d.Data.(*domain.NotificationChapterTranslateSucceedData)
 		if !ok {
 			slog.Error(fmt.Sprintf("%s: %s", operation, "error data mapping"), slog.Any("data", d.Data), slog.Any("type", d.Type))
+			return
 		}
 
 		for _, fcmToken := range fcmTokens {
-			_, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
+			info, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
 					Title: fmt.Sprintf("Переведена глава %d", data.ChapterOrder),
 					Body:  fmt.Sprintf("Книга: %s - %s.\nПозже отправим уведомление о следующих главах", data.Author, data.Title),
 				},
 			})
+			slog.Info("test notification", slog.String("fcmToken", fcmToken.Token), slog.String("info", info))
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
 				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
@@ -129,6 +135,27 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 				"totalChapterCount": data.TotalChapterCount,
 			},
 		})
+	case domain.NotificationTest:
+		data, ok := d.Data.(*domain.NotificationTestData)
+		if !ok {
+			slog.Error(fmt.Sprintf("%s: %s", operation, "error data mapping"), slog.Any("data", d.Data), slog.Any("type", d.Type))
+			return
+		}
+
+		for _, fcmToken := range fcmTokens {
+			info, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
+				Token: fcmToken.Token,
+				Notification: &messaging.Notification{
+					Title: data.Title,
+					Body:  data.Body,
+				},
+			})
+			slog.Info("test notification", slog.String("fcmToken", fcmToken.Token), slog.String("info", info))
+			if err != nil {
+				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
+				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
+			}
+		}
 	default:
 		slog.Error("unknown notification type", slog.Any("type", d.Type))
 	}

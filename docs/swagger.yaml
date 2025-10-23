@@ -243,6 +243,13 @@ definitions:
       user:
         $ref: '#/definitions/domain.User'
     type: object
+  notification.Input:
+    properties:
+      body:
+        type: string
+      title:
+        type: string
+    type: object
   refresh.Input:
     properties:
       refreshToken:
@@ -561,6 +568,29 @@ paths:
       summary: Get file data
       tags:
       - file
+  /notification/test:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/notification.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Notification test
+      tags:
+      - notification
   /translate/book:
     post:
       consumes:

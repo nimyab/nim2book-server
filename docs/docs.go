@@ -439,6 +439,44 @@ const docTemplate = `{
                 }
             }
         },
+        "/notification/test": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notification"
+                ],
+                "summary": "Notification test",
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/notification.Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/translate/book": {
             "post": {
                 "security": [
@@ -886,6 +924,17 @@ const docTemplate = `{
             "properties": {
                 "user": {
                     "$ref": "#/definitions/domain.User"
+                }
+            }
+        },
+        "notification.Input": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
                 }
             }
         },
