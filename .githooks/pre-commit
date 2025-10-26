@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Pre-commit hook: запуск go fmt для всех Go файлов
+
+echo "start pre-commit"
+
+# Форматируем все Go файлы
+gofmt_output=$(gofmt -l .)
+
+if [ -n "$gofmt_output" ]; then
+    echo "❌ Найдены файлы, которые нужно отформатировать:"
+    echo "$gofmt_output"
+    echo ""
+    echo "Запуск go fmt..."
+    go fmt ./...
+    
+    echo ""
+    echo "✅ Файлы отформатированы. Пожалуйста, добавьте их через 'git add' и повторите коммит."
+    exit 1
+else
+    echo "✅ Все файлы правильно отформатированы"
+fi
+
+exit 0

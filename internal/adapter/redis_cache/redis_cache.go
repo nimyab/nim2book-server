@@ -61,7 +61,7 @@ func (r *RedisCache) Delete(ctx context.Context, key string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", operation, err)
 	}
-	
+
 	return nil
 }
 
