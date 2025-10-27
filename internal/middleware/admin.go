@@ -12,7 +12,7 @@ func AdminRole() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			payload := jwt.GetUserPayload(c)
-			slog.Info("payload", payload)
+			slog.Info("payload", slog.Any("payload", payload))
 
 			if !payload.IsAdmin {
 				return echo.NewHTTPError(http.StatusForbidden)

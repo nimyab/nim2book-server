@@ -21,7 +21,7 @@ func GetUserPayload(c echo.Context) domain.JwtPayload {
 
 func ParseToken(token, secret string) (domain.JwtPayload, error) {
 	claims := &CustomClaims{}
-	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (any, error) {
 		return []byte(secret), nil
 	})
 

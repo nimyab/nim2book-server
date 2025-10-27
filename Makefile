@@ -25,3 +25,9 @@ migrate-up:
 
 migrate-down:
 	goose -dir postgres/migrations postgres "$(POSTGRES_URL)" down
+
+test:
+	go test -v ./...
+
+test-coverage:
+	go test -coverprofile=coverage.out ./...

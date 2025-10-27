@@ -12,9 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"firebase.google.com/go/v4/messaging"
 	"github.com/google/uuid"
-	"github.com/maniartech/signals"
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/libretranslate/translate"
@@ -44,9 +42,13 @@ type Translator interface {
 	Translate(input *translate.Input) (*translate.Output, error)
 }
 
+type NotificationSender interface {
+	Emit(ctx context.Context, notification *domain.Notification)
+}
+
 type Service struct {
-	maxRequestCount  int
-	waitMilliseconds time.Duration
+	maxRequestCount int
+	waitDuration    time.Duration
 
 	mu                          sync.Mutex
 	currentCountBookTranslating int
@@ -56,8 +58,7 @@ type Service struct {
 	wordAligner WordAligner
 	translator  Translator
 
-	messagingFirebaseClient *messaging.Client
-	notificationSignal      *signals.AsyncSignal[*domain.Notification]
+	notificationSignal NotificationSender
 }
 
 type translatedChapterResult struct {
@@ -81,8 +82,8 @@ func New(
 	wordAligner WordAligner,
 	translator Translator,
 	maxRequestCount int,
-	waitMilliseconds time.Duration,
-	notificationSignal *signals.AsyncSignal[*domain.Notification],
+	waitDuration time.Duration,
+	notificationSignal NotificationSender,
 ) *Service {
 	service = &Service{
 		s3:                          s3,
@@ -90,7 +91,7 @@ func New(
 		wordAligner:                 wordAligner,
 		translator:                  translator,
 		maxRequestCount:             maxRequestCount,
-		waitMilliseconds:            waitMilliseconds,
+		waitDuration:                waitDuration,
 		currentCountBookTranslating: 0,
 		notificationSignal:          notificationSignal,
 	}
@@ -462,14 +463,14 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 		}
 		return alignedParagraph, nil
 	}
-	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.waitMilliseconds)
+	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.waitDuration)
 
 	// выравнивание слов (самописный выравниватель на змеинном, можно в docker-compose найти образ)
 	alignOutput, err := s.wordAligner.Align(&align.Input{
 		SourceText: paragraph,
 		TargetText: translateOutput.TranslatedText,
 	})
-	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.waitMilliseconds)
+	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.waitDuration)
 
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
