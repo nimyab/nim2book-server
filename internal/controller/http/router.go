@@ -22,6 +22,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/notification"
 	"github.com/nimyab/nim2book-back/internal/translate/translate_book"
 	"github.com/nimyab/nim2book-back/internal/user/me"
+	"github.com/nimyab/nim2book-back/internal/user/metadata"
 	"github.com/nimyab/nim2book-back/pkg/validator"
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
@@ -60,6 +61,7 @@ func Router(secretKey string) *echo.Echo {
 		apiV1.POST("/auth/refresh", refresh.HTTPv1)
 
 		apiV1.GET("/user/me", me.HTTPv1, jwtMiddleware)
+		apiV1.PUT("/user/metadata", metadata.HTTPv1, jwtMiddleware)
 
 		apiV1.POST("/dictionary/lookup", lookup.HTTPv1)
 

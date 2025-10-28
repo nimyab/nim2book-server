@@ -22,6 +22,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/file/file_public"
 	"github.com/nimyab/nim2book-back/internal/notification"
 	"github.com/nimyab/nim2book-back/internal/user/me"
+	"github.com/nimyab/nim2book-back/internal/user/metadata"
 
 	"github.com/nimyab/nim2book-back/config"
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
@@ -136,6 +137,7 @@ func appRun(cfg *config.Config) error {
 
 	// user service
 	me.New(pgClient)
+	metadata.New(pgClient)
 
 	// dictionary service
 	lookup.New(pgClient, redisCacheClient, cfg.YandexDictionaryKey, cfg.YandexDictionaryURL)

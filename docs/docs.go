@@ -550,6 +550,41 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/user/metadata": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Update user metadata",
+                "parameters": [
+                    {
+                        "description": "Input data",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/metadata.Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/metadata.Output"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -780,6 +815,10 @@ const docTemplate = `{
                 },
                 "isVIP": {
                     "type": "boolean"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
                 }
             }
         },
@@ -920,6 +959,26 @@ const docTemplate = `{
             }
         },
         "me.Output": {
+            "type": "object",
+            "properties": {
+                "user": {
+                    "$ref": "#/definitions/domain.User"
+                }
+            }
+        },
+        "metadata.Input": {
+            "type": "object",
+            "required": [
+                "metadata"
+            ],
+            "properties": {
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
+        "metadata.Output": {
             "type": "object",
             "properties": {
                 "user": {

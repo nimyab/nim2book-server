@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -44,14 +45,21 @@ func (db *Postgres) CreateUserByEmailAndPassword(ctx context.Context, data *doma
 	}
 
 	// создаем user
-	sql = `insert into users (email_password_account_id) values (@epaId) returning id, is_admin, is_vip;`
+	sql = `insert into users (email_password_account_id) values (@epaId) returning id, is_admin, is_vip, metadata;`
 	args = pgx.NamedArgs{"epaId": data.Id}
 	user := &domain.User{}
-	err = tx.QueryRow(ctx, sql, args).Scan(&user.Id, &user.IsAdmin, &user.IsVIP)
+	var metadata []byte
+	err = tx.QueryRow(ctx, sql, args).Scan(&user.Id, &user.IsAdmin, &user.IsVIP, &metadata)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 	user.EmailPasswordAccount = data
+
+	if len(metadata) > 0 {
+		if err := json.Unmarshal(metadata, &user.Metadata); err != nil {
+			return nil, fmt.Errorf("%s: failed to unmarshal metadata: %w", operation, err)
+		}
+	}
 
 	err = tx.Commit(ctx)
 	if err != nil {
@@ -96,14 +104,21 @@ func (db *Postgres) CreateUserByGoogle(ctx context.Context, data *domain.GoogleA
 	}
 
 	// создаем user
-	sql = `insert into users (google_account_sub) values (@googleSub) returning id, is_admin, is_vip`
+	sql = `insert into users (google_account_sub) values (@googleSub) returning id, is_admin, is_vip, metadata;`
 	args = pgx.NamedArgs{"googleSub": data.Sub}
 	user := &domain.User{}
-	err = tx.QueryRow(ctx, sql, args).Scan(&user.Id, &user.IsAdmin, &user.IsVIP)
+	var metadata []byte
+	err = tx.QueryRow(ctx, sql, args).Scan(&user.Id, &user.IsAdmin, &user.IsVIP, &metadata)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 	user.GoogleAccount = data
+
+	if len(metadata) > 0 {
+		if err := json.Unmarshal(metadata, &user.Metadata); err != nil {
+			return nil, fmt.Errorf("%s: failed to unmarshal metadata: %w", operation, err)
+		}
+	}
 
 	err = tx.Commit(ctx)
 	if err != nil {
@@ -116,7 +131,7 @@ func (db *Postgres) CreateUserByGoogle(ctx context.Context, data *domain.GoogleA
 func (db *Postgres) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	const operation = "postgres.GetUserByEmail"
 
-	sql := `select u.id, u.is_admin, u.is_vip,
+	sql := `select u.id, u.is_admin, u.is_vip, u.metadata,
        				e.id, e.email, e.password_hash
 			from users as u
 			left join email_password_accounts as e on e.id = u.email_password_account_id
@@ -128,12 +143,13 @@ func (db *Postgres) GetUserByEmail(ctx context.Context, email string) (*domain.U
 	var (
 		id             domain.Id
 		isAdmin, isVIP bool
+		metadata       []byte
 
 		eId                   *domain.Id
 		eEmail, ePasswordHash *string
 	)
 	err := db.Pool.QueryRow(ctx, sql, args).Scan(
-		&id, &isAdmin, &isVIP,
+		&id, &isAdmin, &isVIP, &metadata,
 		&eId, &eEmail, &ePasswordHash,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -155,13 +171,19 @@ func (db *Postgres) GetUserByEmail(ctx context.Context, email string) (*domain.U
 		GoogleAccount: nil,
 	}
 
+	if len(metadata) > 0 {
+		if err := json.Unmarshal(metadata, &user.Metadata); err != nil {
+			return nil, fmt.Errorf("%s: failed to unmarshal metadata: %w", operation, err)
+		}
+	}
+
 	return user, nil
 }
 
 func (db *Postgres) GetUserByGoogleSub(ctx context.Context, sub string) (*domain.User, error) {
 	const operation = "postgres.GetUserByGoogleSub"
 
-	sql := `select u.id, u.is_admin, u.is_vip,
+	sql := `select u.id, u.is_admin, u.is_vip, u.metadata,
        				g.sub, g.email, g.email_verified, g.name, g.picture
 			from users as u
 			left join google_accounts as g on g.sub = u.google_account_sub
@@ -171,13 +193,14 @@ func (db *Postgres) GetUserByGoogleSub(ctx context.Context, sub string) (*domain
 	var (
 		id             domain.Id
 		isAdmin, isVIP bool
+		metadata       []byte
 
 		gSub, gEmail, gName *string
 		gEmailVerified      *bool
 		gPicture            *string
 	)
 	err := db.Pool.QueryRow(ctx, sql, args).Scan(
-		&id, &isAdmin, &isVIP,
+		&id, &isAdmin, &isVIP, &metadata,
 		&gSub, &gEmail, &gEmailVerified, &gName, &gPicture,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -201,13 +224,19 @@ func (db *Postgres) GetUserByGoogleSub(ctx context.Context, sub string) (*domain
 		EmailPasswordAccount: nil,
 	}
 
+	if len(metadata) > 0 {
+		if err := json.Unmarshal(metadata, &user.Metadata); err != nil {
+			return nil, fmt.Errorf("%s: failed to unmarshal metadata: %w", operation, err)
+		}
+	}
+
 	return user, nil
 }
 
 func (db *Postgres) GetUserById(ctx context.Context, userId domain.Id) (*domain.User, error) {
 	const operation = "postgres.GetUserById"
 
-	sql := `select u.id, u.is_admin, u.is_vip,
+	sql := `select u.id, u.is_admin, u.is_vip, u.metadata,
        			g.email, g.email_verified, g.name, g.picture, g.sub,
        			e.id, e.email, e.password_hash
 			from users as u 
@@ -219,6 +248,7 @@ func (db *Postgres) GetUserById(ctx context.Context, userId domain.Id) (*domain.
 	var (
 		id             domain.Id
 		isAdmin, isVIP bool
+		metadata       []byte // JSONB хранится как []byte
 
 		gSub, gEmail, gName *string
 		gEmailVerified      *bool
@@ -229,7 +259,7 @@ func (db *Postgres) GetUserById(ctx context.Context, userId domain.Id) (*domain.
 	)
 
 	err := db.Pool.QueryRow(ctx, sql, args).Scan(
-		&id, &isAdmin, &isVIP,
+		&id, &isAdmin, &isVIP, &metadata,
 		&gEmail, &gEmailVerified, &gName, &gPicture, &gSub,
 		&eId, &eEmail, &ePasswordHash,
 	)
@@ -245,6 +275,13 @@ func (db *Postgres) GetUserById(ctx context.Context, userId domain.Id) (*domain.
 		IsAdmin: isAdmin,
 		IsVIP:   isVIP,
 	}
+
+	if len(metadata) > 0 {
+		if err := json.Unmarshal(metadata, &user.Metadata); err != nil {
+			return nil, fmt.Errorf("%s: failed to unmarshal metadata: %w", operation, err)
+		}
+	}
+
 	if gSub != nil {
 		user.GoogleAccount = &domain.GoogleAccount{
 			Sub:           *gSub,
@@ -263,4 +300,50 @@ func (db *Postgres) GetUserById(ctx context.Context, userId domain.Id) (*domain.
 	}
 
 	return user, nil
+}
+
+func (db *Postgres) UpdateMetadata(ctx context.Context, newMetadata map[string]any, userId domain.Id) (*domain.User, error) {
+	const operation = "postgres.UpdateMetadata"
+
+	metadataBytes, err := json.Marshal(newMetadata)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to marshal metadata: %w", operation, err)
+	}
+
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+	defer tx.Rollback(ctx)
+
+	sql := `select exists(select id from users where id = $1);`
+	var exists bool
+	err = tx.QueryRow(ctx, sql, userId).Scan(&exists)
+	if !exists {
+		return nil, ErrUserNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+
+	sql = `update users set metadata = @metadata where id = @userId;`
+	args := pgx.NamedArgs{
+		"metadata": metadataBytes,
+		"userId":   userId,
+	}
+	_, err = tx.Exec(ctx, sql, args)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+
+	updatedUser, err := db.GetUserById(ctx, userId)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+
+	return updatedUser, nil
 }

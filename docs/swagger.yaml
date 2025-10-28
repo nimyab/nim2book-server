@@ -148,6 +148,9 @@ definitions:
         type: boolean
       isVIP:
         type: boolean
+      metadata:
+        additionalProperties: {}
+        type: object
     type: object
   domain.WordAlignNode:
     properties:
@@ -239,6 +242,19 @@ definitions:
     - def
     type: object
   me.Output:
+    properties:
+      user:
+        $ref: '#/definitions/domain.User'
+    type: object
+  metadata.Input:
+    properties:
+      metadata:
+        additionalProperties: {}
+        type: object
+    required:
+    - metadata
+    type: object
+  metadata.Output:
     properties:
       user:
         $ref: '#/definitions/domain.User'
@@ -635,6 +651,27 @@ paths:
       security:
       - BearerAuth: []
       summary: Get user info
+      tags:
+      - user
+  /user/metadata:
+    put:
+      parameters:
+      - description: Input data
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/metadata.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/metadata.Output'
+      security:
+      - BearerAuth: []
+      summary: Update user metadata
       tags:
       - user
 securityDefinitions:
