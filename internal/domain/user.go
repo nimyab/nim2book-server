@@ -6,6 +6,6 @@ type User struct {
 	IsVIP                bool                  `json:"isVIP" db:"is_vip"`
 	GoogleAccount        *GoogleAccount        `json:"googleAccount,omitempty"`
 	EmailPasswordAccount *EmailPasswordAccount `json:"emailPasswordAccount,omitempty"`
-	Metadata             map[string]any        `json:"metadata"`
+	Metadata             JsonB                 `json:"metadata"`
 	FcmToken             *FcmToken             `json:"-"`
 }

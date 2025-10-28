@@ -736,6 +736,10 @@
                 }
             }
         },
+        "domain.JsonB": {
+            "type": "object",
+            "additionalProperties": {}
+        },
         "domain.Mean": {
             "type": "object",
             "required": [
@@ -809,8 +813,7 @@
                     "type": "boolean"
                 },
                 "metadata": {
-                    "type": "object",
-                    "additionalProperties": {}
+                    "$ref": "#/definitions/domain.JsonB"
                 }
             }
         },
@@ -965,8 +968,7 @@
             ],
             "properties": {
                 "metadata": {
-                    "type": "object",
-                    "additionalProperties": {}
+                    "$ref": "#/definitions/domain.JsonB"
                 }
             }
         },

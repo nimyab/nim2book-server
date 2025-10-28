@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/pkg/transaction"
 )
 
 var (
@@ -34,37 +35,29 @@ func (db *Postgres) GetFcmTokensByUserId(ctx context.Context, userId domain.Id) 
 func (db *Postgres) AddFcmToken(ctx context.Context, data *domain.FcmToken) (*domain.FcmToken, error) {
 	const operation = "postgres.AddFcmToken"
 
-	tx, err := db.Pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", operation, err)
-	}
-	defer tx.Rollback(ctx)
+	return transaction.TxWithData(ctx, db.Pool, func(tx pgx.Tx) (*domain.FcmToken, error) {
+		sql := `select * from fcm_tokens where token = $1`
+		err := tx.QueryRow(ctx, sql, data.Token).Scan()
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("%s: %w", operation, err)
+		}
+		if err == nil {
+			return nil, ErrFcmTokenAlreadyAdd
+		}
 
-	sql := `select * from fcm_tokens where token = $1`
-	err = tx.QueryRow(ctx, sql, data.Token).Scan()
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return nil, fmt.Errorf("%s: %w", operation, err)
-	}
-	if err == nil {
-		return nil, ErrFcmTokenAlreadyAdd
-	}
+		sql = `insert into fcm_tokens (token, user_id) values (@token, @userId) returning token, user_id, create_at`
+		args := pgx.NamedArgs{
+			"token":  data.Token,
+			"userId": data.UserId,
+		}
+		var token domain.FcmToken
+		err = tx.QueryRow(ctx, sql, args).Scan(&token.Token, &token.UserId, &token.CreateAt)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", operation, err)
+		}
 
-	sql = `insert into fcm_tokens (token, user_id) values (@token, @userId) returning token, user_id, create_at`
-	args := pgx.NamedArgs{
-		"token":  data.Token,
-		"userId": data.UserId,
-	}
-	var token domain.FcmToken
-	err = tx.QueryRow(ctx, sql, args).Scan(&token.Token, &token.UserId, &token.CreateAt)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", operation, err)
-	}
-
-	if err = tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("%s: %w", operation, err)
-	}
-
-	return &token, nil
+		return &token, nil
+	})
 }
 
 func (db *Postgres) DeleteFcmToken(ctx context.Context, token string, userId domain.Id) error {

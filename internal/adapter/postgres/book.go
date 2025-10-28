@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/pkg/transaction"
 )
 
 var (
@@ -44,35 +45,27 @@ func (db *Postgres) GetBookByAuthorAndTitle(ctx context.Context, author, title s
 func (db *Postgres) CreateBook(ctx context.Context, book *domain.Book) (*domain.Book, error) {
 	const operation = "postgres.CreateBook"
 
-	tx, err := db.Pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("%s: unable to begin transaction: %w", operation, err)
-	}
-	defer tx.Rollback(ctx)
+	return transaction.TxWithData(ctx, db.Pool, func(tx pgx.Tx) (*domain.Book, error) {
+		sql := `select * from books where author = $1 and title = $2`
+		existedBook := new(domain.Book)
+		err := tx.QueryRow(ctx, sql, book.Author, book.Title).Scan(existedBook)
+		if err == nil {
+			return existedBook, ErrBookAlreadyExists
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("%s: %w", operation, err)
+		}
 
-	sql := `select * from books where author = $1 and title = $2`
-	existedBook := new(domain.Book)
-	err = tx.QueryRow(ctx, sql, book.Author, book.Title).Scan(existedBook)
-	if err == nil {
-		return existedBook, ErrBookAlreadyExists
-	}
-	if !errors.Is(err, pgx.ErrNoRows) {
-		return nil, fmt.Errorf("%s: %w", operation, err)
-	}
+		sql = `insert into books (title, author, chapter_paths, cover) values ($1, $2, $3, $4) returning id`
+		var id domain.Id
+		err = tx.QueryRow(ctx, sql, book.Title, book.Author, book.ChapterPaths, book.Cover).Scan(&id)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", operation, err)
+		}
 
-	sql = `insert into books (title, author, chapter_paths, cover) values ($1, $2, $3, $4) returning id`
-	var id domain.Id
-	err = tx.QueryRow(ctx, sql, book.Title, book.Author, book.ChapterPaths, book.Cover).Scan(&id)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", operation, err)
-	}
-
-	if err = tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("%s: %w", operation, err)
-	}
-
-	book.Id = id
-	return book, nil
+		book.Id = id
+		return book, nil
+	})
 }
 
 func (db *Postgres) GetBook(ctx context.Context, id domain.Id) (*domain.Book, error) {
@@ -133,31 +126,23 @@ func (db *Postgres) GetBooks(ctx context.Context, query GetBooksQuery) ([]domain
 func (db *Postgres) UpdateBook(ctx context.Context, book *domain.Book) error {
 	const operation = "postgres.UpdateBook"
 
-	tx, err := db.Pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("%s: unable to begin transaction: %w", operation, err)
-	}
-	defer tx.Rollback(ctx)
-
-	sql := `update books
+	return transaction.Tx(ctx, db.Pool, func(tx pgx.Tx) error {
+		sql := `update books
 			set title = @title, author = @author, cover = @cover
 			where id = @id`
 
-	args := pgx.NamedArgs{
-		"title":  book.Title,
-		"author": book.Author,
-		"cover":  book.Cover,
-		"id":     book.Id,
-	}
+		args := pgx.NamedArgs{
+			"title":  book.Title,
+			"author": book.Author,
+			"cover":  book.Cover,
+			"id":     book.Id,
+		}
 
-	_, err = tx.Exec(ctx, sql, args)
-	if err != nil {
-		return fmt.Errorf("%s: %w", operation, err)
-	}
+		_, err := tx.Exec(ctx, sql, args)
+		if err != nil {
+			return fmt.Errorf("%s: %w", operation, err)
+		}
 
-	if err = tx.Commit(ctx); err != nil {
-		return fmt.Errorf("%s: %w", operation, err)
-	}
-
-	return nil
+		return nil
+	})
 }

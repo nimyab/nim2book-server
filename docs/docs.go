@@ -744,6 +744,10 @@ const docTemplate = `{
                 }
             }
         },
+        "domain.JsonB": {
+            "type": "object",
+            "additionalProperties": {}
+        },
         "domain.Mean": {
             "type": "object",
             "required": [
@@ -817,8 +821,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "metadata": {
-                    "type": "object",
-                    "additionalProperties": {}
+                    "$ref": "#/definitions/domain.JsonB"
                 }
             }
         },
@@ -973,8 +976,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "metadata": {
-                    "type": "object",
-                    "additionalProperties": {}
+                    "$ref": "#/definitions/domain.JsonB"
                 }
             }
         },

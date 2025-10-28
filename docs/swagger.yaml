@@ -101,6 +101,9 @@ definitions:
       sub:
         type: string
     type: object
+  domain.JsonB:
+    additionalProperties: {}
+    type: object
   domain.Mean:
     properties:
       text:
@@ -149,8 +152,7 @@ definitions:
       isVIP:
         type: boolean
       metadata:
-        additionalProperties: {}
-        type: object
+        $ref: '#/definitions/domain.JsonB'
     type: object
   domain.WordAlignNode:
     properties:
@@ -249,8 +251,7 @@ definitions:
   metadata.Input:
     properties:
       metadata:
-        additionalProperties: {}
-        type: object
+        $ref: '#/definitions/domain.JsonB'
     required:
     - metadata
     type: object

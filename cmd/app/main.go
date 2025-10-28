@@ -173,5 +173,7 @@ func appRun(cfg *config.Config) error {
 	_ = router.Shutdown(context.Background())
 	pgClient.Close()
 
+	slog.Info("Graceful shutdown!")
+
 	return nil
 }
