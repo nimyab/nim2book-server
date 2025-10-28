@@ -18,6 +18,7 @@ cd nim2book-server
 ```bash
 go install github.com/pressly/goose/v3/cmd/goose@latest
 go install github.com/swaggo/swag/cmd/swag@latest
+go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 go mod download
 ```
 
@@ -48,6 +49,6 @@ make build
 
 После запуска приложения, Swagger UI доступен по адресу:
 
-```
+```http
 http://localhost:5050/swagger/
 ```

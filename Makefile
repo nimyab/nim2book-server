@@ -26,6 +26,9 @@ migrate-up:
 migrate-down:
 	goose -dir postgres/migrations postgres "$(POSTGRES_URL)" down
 
+sql-generate:
+	sqlc generate
+
 test:
 	go test -v ./...
 
