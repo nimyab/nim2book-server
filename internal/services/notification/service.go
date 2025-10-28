@@ -53,7 +53,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 			info, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
-					Title: fmt.Sprintf("Перевод книги завершился"),
+					Title: "Перевод книги завершился",
 					Body:  fmt.Sprintf("Книга: %s - %s была переведена, теперь ее можно скачать из библиотеки книг", data.Book.Author, data.Book.Title),
 				},
 				Data: map[string]string{
@@ -84,7 +84,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 			info, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
-					Title: fmt.Sprintf("Перевод книги прервался"),
+					Title: "Перевод книги прервался",
 					Body:  fmt.Sprintf("%s\nКнига: %s - %s", data.ErrorMessage, data.Author, data.Title),
 				},
 			})

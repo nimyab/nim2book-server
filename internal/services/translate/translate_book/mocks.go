@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/internal/libretranslate/translate"
-	"github.com/nimyab/nim2book-back/internal/word_aligner/align"
+	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
+	"github.com/nimyab/nim2book-back/internal/services/word_aligner/align"
 	"github.com/stretchr/testify/mock"
 )
 
