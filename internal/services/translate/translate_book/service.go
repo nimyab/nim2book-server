@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/services/word_aligner/align"
@@ -134,7 +134,7 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 	if existedBook != nil {
 		return &Output{Book: existedBook}, nil
 	}
-	if err != nil && !errors.Is(err, postgres.ErrBookNotFound) {
+	if err != nil && !errors.Is(err, postgres_sqlc.ErrBookNotFound) {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, errors.New("failed to find book")
 	}

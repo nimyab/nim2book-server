@@ -9,6 +9,7 @@ import (
 
 	"github.com/maniartech/signals"
 	"github.com/nimyab/nim2book-back/internal/adapter/firebase"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/services/auth/google_login"
@@ -31,7 +32,6 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/word_aligner/align"
 
 	"github.com/nimyab/nim2book-back/config"
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
 	"github.com/nimyab/nim2book-back/internal/adapter/redis_cache"
 	"github.com/nimyab/nim2book-back/internal/adapter/s3"
 	"github.com/nimyab/nim2book-back/internal/controller/http"
@@ -66,9 +66,10 @@ func appRun(cfg *config.Config) error {
 	notificationSignal := signals.New[*domain.Notification]()
 
 	// Postgres
-	pgClient, err := postgres.New(context.Background(), &postgres.Config{
-		PostgresURL: cfg.PostgresURL,
-	})
+	pgClient, err := postgres_sqlc.New(
+		context.Background(),
+		&postgres_sqlc.Config{PostgresURL: cfg.PostgresURL},
+	)
 	if err != nil {
 		return err
 	}

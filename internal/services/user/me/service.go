@@ -5,7 +5,7 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
@@ -35,7 +35,7 @@ func (s *Service) Me(input *Input) (*Output, error) {
 	const operation = "user.me.Me"
 
 	user, err := s.pg.GetUserById(context.Background(), input.UserId)
-	if errors.Is(err, postgres.ErrUserNotFound) {
+	if errors.Is(err, postgres_sqlc.ErrUserNotFound) {
 		return nil, ErrUserNotFound
 	}
 	if err != nil {

@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/jwt"
 	"google.golang.org/api/idtoken"
@@ -73,12 +73,12 @@ func (s *Service) GoogleLogin(input *Input) (*Output, error) {
 	}
 
 	user, err := s.pg.GetUserByGoogleSub(context.Background(), googleUser.Sub)
-	if err != nil && !errors.Is(err, postgres.ErrUserNotFound) {
+	if err != nil && !errors.Is(err, postgres_sqlc.ErrUserNotFound) {
 		slog.Error(err.Error(), slog.String("operation", operation), slog.Any("googleUser", googleUser))
 		return nil, ErrInternal
 	}
 	// елси такого пользователя нет, то создаем его
-	if errors.Is(err, postgres.ErrUserNotFound) {
+	if errors.Is(err, postgres_sqlc.ErrUserNotFound) {
 		user, err = s.pg.CreateUserByGoogle(context.Background(), googleUser)
 		if err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation), slog.Any("googleUser", googleUser))

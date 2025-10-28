@@ -4,12 +4,12 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
 type Postgres interface {
-	GetBooks(ctx context.Context, query postgres.GetBooksQuery) ([]domain.Book, error)
+	GetBooks(ctx context.Context, query postgres_sqlc.GetBooksQuery) ([]domain.Book, error)
 }
 
 type Service struct {
@@ -28,7 +28,7 @@ func New(pg Postgres) *Service {
 func (s *Service) GetBooks(input *Input) (*Output, error) {
 	const operation = "book.get_books.GetBooks"
 
-	books, err := s.pg.GetBooks(context.Background(), postgres.GetBooksQuery{
+	books, err := s.pg.GetBooks(context.Background(), postgres_sqlc.GetBooksQuery{
 		Author: input.Author,
 		Title:  input.Title,
 		Page:   input.Page,

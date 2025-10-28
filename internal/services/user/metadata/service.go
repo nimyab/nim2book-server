@@ -5,7 +5,7 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
@@ -35,7 +35,7 @@ func (s *Service) UpdateMetadata(input *Input) (*Output, error) {
 	const operation = "user.metadata.UpdateMetadata"
 
 	user, err := s.pg.UpdateMetadata(context.Background(), input.Metadata, input.UserId)
-	if errors.Is(err, postgres.ErrUserNotFound) {
+	if errors.Is(err, postgres_sqlc.ErrUserNotFound) {
 		return nil, ErrUserNotFound
 	}
 	if err != nil {

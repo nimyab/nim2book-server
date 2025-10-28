@@ -5,7 +5,7 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -40,7 +40,7 @@ func (s *Service) Register(input *Input) (*Output, error) {
 	if user != nil {
 		return nil, ErrUserAlreadyExist
 	}
-	if err != nil && !errors.Is(postgres.ErrUserNotFound, err) {
+	if err != nil && !errors.Is(postgres_sqlc.ErrUserNotFound, err) {
 		return nil, err
 	}
 

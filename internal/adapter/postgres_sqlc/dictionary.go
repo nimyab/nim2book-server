@@ -1,4 +1,4 @@
-package postgres
+package postgres_sqlc
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/sqlc"
 )
 
 var (
@@ -16,12 +17,12 @@ var (
 )
 
 func (db *Postgres) GetDictionaryData(ctx context.Context, text, lang string) (*domain.DictionaryData, error) {
-	const operation = "postgres.GetDictionaryData"
+	const operation = "postgres_sqlc.GetDictionaryData"
 
-	sql := `select content from dictionary where text = $1 and lang = $2`
-
-	var content []byte
-	err := db.Pool.QueryRow(ctx, sql, text, lang).Scan(&content)
+	content, err := db.Queries.GetDictionaryData(ctx, sqlc.GetDictionaryDataParams{
+		Text: text,
+		Lang: lang,
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrDictionaryDataNotFound
 	}
@@ -42,7 +43,7 @@ func (db *Postgres) CreateDictionaryData(
 	text, lang string,
 	dictData *domain.DictionaryData,
 ) (bool, error) {
-	const operation = "postgres.CreateDictionaryData"
+	const operation = "postgres_sqlc.CreateDictionaryData"
 
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
@@ -50,9 +51,13 @@ func (db *Postgres) CreateDictionaryData(
 	}
 	defer tx.Rollback(ctx)
 
-	sql := `select exists(select id from dictionary where text = $1 and lang = $2);`
-	var exists bool
-	err = tx.QueryRow(ctx, sql, text, lang).Scan(&exists)
+	queries := db.Queries.WithTx(tx)
+
+	// Проверяем существует ли уже запись
+	exists, err := queries.DictionaryDataExists(ctx, sqlc.DictionaryDataExistsParams{
+		Text: text,
+		Lang: lang,
+	})
 	if err != nil {
 		return false, fmt.Errorf("%s: %w", operation, err)
 	}
@@ -60,12 +65,18 @@ func (db *Postgres) CreateDictionaryData(
 		return false, ErrDictionaryDataAlreadyExists
 	}
 
+	// Сериализуем данные
 	data, err := json.Marshal(dictData)
 	if err != nil {
 		return false, fmt.Errorf("%s: %w", operation, err)
 	}
-	sql = `insert into dictionary (text, lang, content) values ($1, $2, $3)`
-	_, err = tx.Exec(ctx, sql, text, lang, data)
+
+	// Создаем запись
+	err = queries.CreateDictionaryData(ctx, sqlc.CreateDictionaryDataParams{
+		Text:    text,
+		Lang:    lang,
+		Content: data,
+	})
 	if err != nil {
 		return false, fmt.Errorf("%s: %w", operation, err)
 	}

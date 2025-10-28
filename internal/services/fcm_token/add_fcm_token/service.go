@@ -5,7 +5,7 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
@@ -41,7 +41,7 @@ func (s *Service) AddFcmToken(input *Input, userId domain.Id) (*Output, error) {
 	_, err := s.pg.AddFcmToken(context.Background(), fcmTokenData)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation), slog.Any("fcmTokenData", fcmTokenData))
-		if errors.Is(err, postgres.ErrFcmTokenAlreadyAdd) {
+		if errors.Is(err, postgres_sqlc.ErrFcmTokenAlreadyAdd) {
 			return nil, ErrTokenAlreadyAdd
 		}
 		return nil, ErrInternal

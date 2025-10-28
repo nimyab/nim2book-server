@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/jwt"
 	"golang.org/x/crypto/bcrypt"
@@ -44,7 +44,7 @@ func (s *Service) Login(input *Input) (*Output, error) {
 	const operation = "auth.login.Login"
 
 	user, err := s.pg.GetUserByEmail(context.Background(), input.Email)
-	if errors.Is(postgres.ErrUserNotFound, err) {
+	if errors.Is(postgres_sqlc.ErrUserNotFound, err) {
 		return nil, err
 	}
 	if err != nil {
