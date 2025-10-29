@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/transaction"
 	"github.com/nimyab/nim2book-back/sqlc"
@@ -17,22 +16,6 @@ var (
 	ErrUserNotFound      = errors.New("user not found")
 	ErrUserAlreadyExists = errors.New("user already exists")
 )
-
-// userRow - общий интерфейс для всех GetUser* строк
-type userRow struct {
-	ID                  pgtype.UUID
-	IsAdmin             bool
-	IsVip               pgtype.Bool
-	Metadata            []byte
-	GoogleEmail         pgtype.Text
-	GoogleEmailVerified pgtype.Bool
-	GoogleName          pgtype.Text
-	GooglePicture       pgtype.Text
-	GoogleSub           pgtype.Text
-	EmailPasswordID     pgtype.UUID
-	EmailPasswordEmail  pgtype.Text
-	PasswordHash        pgtype.Text
-}
 
 func (db *Postgres) CreateUserByEmailAndPassword(ctx context.Context, data *domain.EmailPasswordAccount) (*domain.User, error) {
 	const operation = "postgres_sqlc.CreateUserByEmailAndPassword"
@@ -148,20 +131,7 @@ func (db *Postgres) GetUserByEmail(ctx context.Context, email string) (*domain.U
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 
-	return userRowToUser(userRow{
-		ID:                  row.ID,
-		IsAdmin:             row.IsAdmin,
-		IsVip:               row.IsVip,
-		Metadata:            row.Metadata,
-		GoogleEmail:         row.GoogleEmail,
-		GoogleEmailVerified: row.GoogleEmailVerified,
-		GoogleName:          row.GoogleName,
-		GooglePicture:       row.GooglePicture,
-		GoogleSub:           row.GoogleSub,
-		EmailPasswordID:     row.EmailPasswordID,
-		EmailPasswordEmail:  row.EmailPasswordEmail,
-		PasswordHash:        row.PasswordHash,
-	})
+	return userRowToUser(row)
 }
 
 func (db *Postgres) GetUserByGoogleSub(ctx context.Context, sub string) (*domain.User, error) {
@@ -177,20 +147,7 @@ func (db *Postgres) GetUserByGoogleSub(ctx context.Context, sub string) (*domain
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 
-	return userRowToUser(userRow{
-		ID:                  row.ID,
-		IsAdmin:             row.IsAdmin,
-		IsVip:               row.IsVip,
-		Metadata:            row.Metadata,
-		GoogleEmail:         row.GoogleEmail,
-		GoogleEmailVerified: row.GoogleEmailVerified,
-		GoogleName:          row.GoogleName,
-		GooglePicture:       row.GooglePicture,
-		GoogleSub:           row.GoogleSub,
-		EmailPasswordID:     row.EmailPasswordID,
-		EmailPasswordEmail:  row.EmailPasswordEmail,
-		PasswordHash:        row.PasswordHash,
-	})
+	return userRowToUser(row)
 }
 
 func (db *Postgres) GetUserById(ctx context.Context, userId domain.Id) (*domain.User, error) {
@@ -206,20 +163,7 @@ func (db *Postgres) GetUserById(ctx context.Context, userId domain.Id) (*domain.
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 
-	return userRowToUser(userRow{
-		ID:                  row.ID,
-		IsAdmin:             row.IsAdmin,
-		IsVip:               row.IsVip,
-		Metadata:            row.Metadata,
-		GoogleEmail:         row.GoogleEmail,
-		GoogleEmailVerified: row.GoogleEmailVerified,
-		GoogleName:          row.GoogleName,
-		GooglePicture:       row.GooglePicture,
-		GoogleSub:           row.GoogleSub,
-		EmailPasswordID:     row.EmailPasswordID,
-		EmailPasswordEmail:  row.EmailPasswordEmail,
-		PasswordHash:        row.PasswordHash,
-	})
+	return userRowToUser(row)
 }
 
 func (db *Postgres) GetUser(ctx context.Context, user *domain.User) (*domain.User, error) {
@@ -251,20 +195,7 @@ func (db *Postgres) GetUser(ctx context.Context, user *domain.User) (*domain.Use
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 
-	return userRowToUser(userRow{
-		ID:                  row.ID,
-		IsAdmin:             row.IsAdmin,
-		IsVip:               row.IsVip,
-		Metadata:            row.Metadata,
-		GoogleEmail:         row.GoogleEmail,
-		GoogleEmailVerified: row.GoogleEmailVerified,
-		GoogleName:          row.GoogleName,
-		GooglePicture:       row.GooglePicture,
-		GoogleSub:           row.GoogleSub,
-		EmailPasswordID:     row.EmailPasswordID,
-		EmailPasswordEmail:  row.EmailPasswordEmail,
-		PasswordHash:        row.PasswordHash,
-	})
+	return userRowToUser(row)
 }
 
 func (db *Postgres) UpdateMetadata(ctx context.Context, newMetadata domain.JsonB, userId domain.Id) (*domain.User, error) {
@@ -299,7 +230,7 @@ func (db *Postgres) UpdateMetadata(ctx context.Context, newMetadata domain.JsonB
 }
 
 // userRowToUser конвертирует результат SQL запроса в domain.User
-func userRowToUser(row userRow) (*domain.User, error) {
+func userRowToUser(row sqlc.GetUserRow) (*domain.User, error) {
 	user := &domain.User{
 		Id:      uuidFromPgtype(row.ID),
 		IsAdmin: row.IsAdmin,

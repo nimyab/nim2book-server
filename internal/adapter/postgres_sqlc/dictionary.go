@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/pkg/transaction"
 	"github.com/nimyab/nim2book-back/sqlc"
 )
 
@@ -45,45 +46,40 @@ func (db *Postgres) CreateDictionaryData(
 ) (bool, error) {
 	const operation = "postgres_sqlc.CreateDictionaryData"
 
-	tx, err := db.Pool.Begin(ctx)
-	if err != nil {
-		return false, fmt.Errorf("%s: %w", operation, err)
-	}
-	defer tx.Rollback(ctx)
+	return transaction.TxWithData(ctx, db.Pool, func(tx pgx.Tx) (bool, error) {
+		queries := db.Queries.WithTx(tx)
 
-	queries := db.Queries.WithTx(tx)
+		// Проверяем существует ли уже запись
+		exists, err := queries.DictionaryDataExists(ctx, sqlc.DictionaryDataExistsParams{
+			Text: text,
+			Lang: lang,
+		})
+		if err != nil {
+			return false, fmt.Errorf("%s: %w", operation, err)
+		}
+		if exists {
+			return false, ErrDictionaryDataAlreadyExists
+		}
 
-	// Проверяем существует ли уже запись
-	exists, err := queries.DictionaryDataExists(ctx, sqlc.DictionaryDataExistsParams{
-		Text: text,
-		Lang: lang,
+		data, err := json.Marshal(dictData)
+		if err != nil {
+			return false, fmt.Errorf("%s: %w", operation, err)
+		}
+
+		// Создаем запись
+		err = queries.CreateDictionaryData(ctx, sqlc.CreateDictionaryDataParams{
+			Text:    text,
+			Lang:    lang,
+			Content: data,
+		})
+		if err != nil {
+			return false, fmt.Errorf("%s: %w", operation, err)
+		}
+
+		if err = tx.Commit(ctx); err != nil {
+			return false, fmt.Errorf("%s: %w", operation, err)
+		}
+
+		return true, nil
 	})
-	if err != nil {
-		return false, fmt.Errorf("%s: %w", operation, err)
-	}
-	if exists {
-		return false, ErrDictionaryDataAlreadyExists
-	}
-
-	// Сериализуем данные
-	data, err := json.Marshal(dictData)
-	if err != nil {
-		return false, fmt.Errorf("%s: %w", operation, err)
-	}
-
-	// Создаем запись
-	err = queries.CreateDictionaryData(ctx, sqlc.CreateDictionaryDataParams{
-		Text:    text,
-		Lang:    lang,
-		Content: data,
-	})
-	if err != nil {
-		return false, fmt.Errorf("%s: %w", operation, err)
-	}
-
-	if err = tx.Commit(ctx); err != nil {
-		return false, fmt.Errorf("%s: %w", operation, err)
-	}
-
-	return true, nil
 }
