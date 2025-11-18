@@ -60,11 +60,11 @@ services:
       - app-network
 
   word-aligner:
-    image: nimyab/word-aligner:latest
+    image: nimyab/word-aligner-v2:latest
     container_name: word-aligner
     restart: unless-stopped
     ports:
-      - '5001:8000'
+      - '5001:50051'
     tty: true
     networks:
       - app-network

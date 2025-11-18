@@ -17,6 +17,8 @@ type Service struct {
 
 var service *Service
 
+// New creates a new instance of the Word Aligner service client.
+// Deprecated: use Grpc client instead
 func New(wordAlignerURL string) *Service {
 	service = &Service{
 		URL: wordAlignerURL,

@@ -20,6 +20,7 @@ import (
 	"github.com/nimyab/nim2book-back/pkg/contains_letters"
 	"github.com/nimyab/nim2book-back/pkg/logger"
 	"github.com/nimyab/nim2book-back/pkg/parsers/epub_parser"
+	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -55,7 +56,7 @@ type Service struct {
 
 	s3          S3
 	pg          Postgres
-	wordAligner WordAligner
+	wordAligner pb.AlignmentServiceClient
 	translator  Translator
 
 	notificationSignal NotificationSender
@@ -79,7 +80,7 @@ var service *Service
 func New(
 	s3 S3,
 	pg Postgres,
-	wordAligner WordAligner,
+	wordAligner pb.AlignmentServiceClient,
 	translator Translator,
 	maxRequestCount int,
 	waitDuration time.Duration,
@@ -451,7 +452,7 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 		return domain.ParagraphAlignNode{}, errors.New("failed to startTranslate paragraph")
 	}
 
-	// case: 500 error on alignment if paragraph has no letters.
+	// case: error on alignment if paragraph has no letters.
 	if !contains_letters.ContainsLetters(paragraph) || !contains_letters.ContainsLetters(translateOutput.TranslatedText) {
 		alignedParagraph := domain.ParagraphAlignNode{
 			OriginalParagraph:   paragraph,
@@ -466,14 +467,19 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.waitDuration)
 
 	// выравнивание слов (самописный выравниватель на змеинном, можно в docker-compose найти образ)
-	alignOutput, err := s.wordAligner.Align(&align.Input{
+	alignOutput, err := s.wordAligner.Align(context.Background(), &pb.AlignRequest{
 		SourceText: paragraph,
 		TargetText: translateOutput.TranslatedText,
 	})
 	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.waitDuration)
 
 	if err != nil {
-		slog.Error(err.Error(), slog.String("operation", operation))
+		slog.Error(
+			err.Error(),
+			slog.String("operation", operation),
+			slog.String("source text", paragraph),
+			slog.String("target text", translateOutput.TranslatedText),
+		)
 		return domain.ParagraphAlignNode{}, errors.New("failed to align words")
 	}
 
@@ -481,11 +487,12 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 	// пример: у нас есть тект "the boy" и переведен как "мальчик", слова "the" и "boy" будут ссылаться на слово "мальчик", нас это устраивает, но если будет наоборот
 	// то есть если у нас будет одно слово на англ и два на русском, то нас это не будет устраивать, так как появляются проблемы на фронте в отображении слов, слова просто повторяются
 	// p.s. можно подумать почему в русском не будут повторяться, все просто, в русском мы показываем весь пораграф, а не разбиваем его на слова, а выбранное слово выделяем по индексам
+	// p.p.s в новом выравнивателе таких проблем нет, но на всякий случай оставил эту проверку
 	alignWords := make([]domain.WordAlignNode, 0, len(alignOutput.Alignments))
 	for _, alignment := range alignOutput.Alignments {
 		alignWord := domain.WordAlignNode{
-			IndexesOriginalWord:   alignment.SourceIndexes,
-			IndexesTranslatedWord: alignment.TargetIndexes,
+			IndexesOriginalWord:   [2]int{int(alignment.SrcStart), int(alignment.SrcEnd)},
+			IndexesTranslatedWord: [2]int{int(alignment.TargetStart), int(alignment.TargetEnd)},
 		}
 		exist := false
 		for _, addedAlignWord := range alignWords {

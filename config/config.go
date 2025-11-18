@@ -21,12 +21,13 @@ type Config struct {
 	YandexDictionaryKey string `env:"YANDEX_DICTIONARY_KEY"`
 	YandexDictionaryURL string `env:"YANDEX_DICTIONARY_URL"`
 
-	MaxRequestCount  int           `env:"MAX_REQUEST_COUNT" envDefault:"1"`
-	WaitMilliseconds time.Duration `env:"WAIT_MILLISECONDS" envDefault:"1000"`
+	MaxRequestCount  int           `env:"MAX_REQUEST_COUNT"`
+	WaitMilliseconds time.Duration `env:"WAIT_MILLISECONDS"`
 
 	LibreTranslateURL string `env:"LIBRE_TRANSLATE_URL"`
 
-	WordAlignerURL string `env:"WORD_ALIGNER_URL"`
+	WordAlignerURLRest  string `env:"WORD_ALIGNER_URL_REST"`
+	WordAlignerAddrGrpc string `env:"WORD_ALIGNER_ADDR_GRPC"`
 
 	RedisURL string `env:"REDIS_URL"`
 
@@ -52,7 +53,7 @@ func init() {
 	maxRequestCount, _ := strconv.Atoi(os.Getenv("MAX_REQUEST_COUNT"))
 	jwtAccessTime, _ := strconv.Atoi(os.Getenv("JWT_ACCESS_TIME"))
 	jwtRefreshTime, _ := strconv.Atoi(os.Getenv("JWT_REFRESH_TIME"))
-	waitMilliseconds, _ := strconv.Atoi(os.Getenv("WAIT_SECONDS"))
+	waitMilliseconds, _ := strconv.Atoi(os.Getenv("WAIT_MILLISECONDS"))
 
 	appConfig = &Config{
 		Env:                 os.Getenv("ENV"),
@@ -62,7 +63,8 @@ func init() {
 		MaxRequestCount:     maxRequestCount,
 		WaitMilliseconds:    time.Duration(waitMilliseconds) * time.Millisecond,
 		LibreTranslateURL:   os.Getenv("LIBRE_TRANSLATE_URL"),
-		WordAlignerURL:      os.Getenv("WORD_ALIGNER_URL"),
+		WordAlignerURLRest:  os.Getenv("WORD_ALIGNER_URL"),
+		WordAlignerAddrGrpc: os.Getenv("WORD_ALIGNER_ADDR_GRPC"),
 		RedisURL:            os.Getenv("REDIS_URL"),
 		PostgresURL:         os.Getenv("POSTGRES_URL"),
 		S3RootUser:          os.Getenv("S3_ROOT_USER"),

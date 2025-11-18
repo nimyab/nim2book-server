@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package alignment;
+
+option go_package = "github.com/nimyab/nim2book-back/proto/word_aligner";
+
+service AlignmentService {
+  rpc Align (AlignRequest) returns (AlignResponse);
+}
+
+message AlignRequest {
+  string source_text = 1;
+  string target_text = 2;
+}
+
+message AlignmentResult {
+  string src_word = 1;
+  string target_word = 2;
+  int32 src_start = 3;
+  int32 src_end = 4;
+  int32 target_start = 5;
+  int32 target_end = 6;
+}
+
+message AlignResponse {
+  repeated AlignmentResult alignments = 1;
+}

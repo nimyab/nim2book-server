@@ -8,8 +8,12 @@ import (
 	"syscall"
 
 	"github.com/maniartech/signals"
+	"github.com/nimyab/nim2book-back/config"
 	"github.com/nimyab/nim2book-back/internal/adapter/firebase"
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
+	"github.com/nimyab/nim2book-back/internal/adapter/redis_cache"
+	"github.com/nimyab/nim2book-back/internal/adapter/s3"
+	"github.com/nimyab/nim2book-back/internal/controller/http"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/services/auth/google_login"
@@ -29,12 +33,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/translate/translate_book"
 	"github.com/nimyab/nim2book-back/internal/services/user/me"
 	"github.com/nimyab/nim2book-back/internal/services/user/metadata"
-	"github.com/nimyab/nim2book-back/internal/services/word_aligner/align"
-
-	"github.com/nimyab/nim2book-back/config"
-	"github.com/nimyab/nim2book-back/internal/adapter/redis_cache"
-	"github.com/nimyab/nim2book-back/internal/adapter/s3"
-	"github.com/nimyab/nim2book-back/internal/controller/http"
+	"github.com/nimyab/nim2book-back/internal/services/word_aligner"
 	"github.com/nimyab/nim2book-back/pkg/logger"
 )
 
@@ -108,7 +107,10 @@ func appRun(cfg *config.Config) error {
 	notificationService := notification.New(messagingFirebaseClient, pgClient)
 
 	// align service
-	wordAlign := align.New(cfg.WordAlignerURL)
+	wordAlignerClient, err := word_aligner.NewClient(&word_aligner.ClientConfig{Address: cfg.WordAlignerAddrGrpc})
+	if err != nil {
+		return err
+	}
 
 	// libretranslate service
 	translateService := translate.New(cfg.LibreTranslateURL)
@@ -117,7 +119,7 @@ func appRun(cfg *config.Config) error {
 	translate_book.New(
 		s3Client,
 		pgClient,
-		wordAlign,
+		wordAlignerClient,
 		translateService,
 		cfg.MaxRequestCount,
 		cfg.WaitMilliseconds,
