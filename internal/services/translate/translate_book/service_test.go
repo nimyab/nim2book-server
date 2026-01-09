@@ -7,7 +7,7 @@ import (
 
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
-	"github.com/nimyab/nim2book-back/internal/services/word_aligner/align"
+	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -20,7 +20,7 @@ func TestService_translateAndAlignParagraph(t *testing.T) {
 		to             domain.SupportedLang
 		translatorResp *translate.Output
 		translatorErr  error
-		alignerResp    *align.Output
+		alignerResp    *pb.AlignResponse
 		alignerErr     error
 		wantErr        bool
 	}{
@@ -33,19 +33,23 @@ func TestService_translateAndAlignParagraph(t *testing.T) {
 				TranslatedText: "Привет мир",
 			},
 			translatorErr: nil,
-			alignerResp: &align.Output{
-				Alignments: []align.Alignments{
+			alignerResp: &pb.AlignResponse{
+				Alignments: []*pb.AlignmentResult{
 					{
-						SourceWord:    "Hello",
-						TargetWord:    "Привет",
-						SourceIndexes: [2]int{0, 4},
-						TargetIndexes: [2]int{0, 5},
+						SrcWord:     "Hello",
+						TargetWord:  "Привет",
+						SrcStart:    0,
+						SrcEnd:      4,
+						TargetStart: 0,
+						TargetEnd:   5,
 					},
 					{
-						SourceWord:    "world",
-						TargetWord:    "мир",
-						SourceIndexes: [2]int{6, 10},
-						TargetIndexes: [2]int{7, 9},
+						SrcWord:     "world",
+						TargetWord:  "мир",
+						SrcStart:    6,
+						SrcEnd:      10,
+						TargetStart: 7,
+						TargetEnd:   9,
 					},
 				},
 			},
@@ -111,9 +115,9 @@ func TestService_translateAndAlignParagraph(t *testing.T) {
 			})).Return(tt.translatorResp, tt.translatorErr)
 
 			if tt.translatorErr == nil && tt.paragraph != "123 456" {
-				mockWordAligner.On("Align", mock.MatchedBy(func(input *align.Input) bool {
-					return input.SourceText == tt.paragraph
-				})).Return(tt.alignerResp, tt.alignerErr)
+				mockWordAligner.On("Align", mock.Anything, mock.MatchedBy(func(req *pb.AlignRequest) bool {
+					return req.SourceText == tt.paragraph
+				}), mock.Anything).Return(tt.alignerResp, tt.alignerErr)
 			}
 
 			result, err := s.translateAndAlignParagraph(tt.paragraph, tt.from, tt.to)

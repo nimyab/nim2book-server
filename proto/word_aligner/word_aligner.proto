@@ -5,7 +5,7 @@ package alignment;
 option go_package = "github.com/nimyab/nim2book-back/proto/word_aligner";
 
 service AlignmentService {
-  rpc Align (AlignRequest) returns (AlignResponse);
+  rpc Align(AlignRequest) returns (AlignResponse);
 }
 
 message AlignRequest {

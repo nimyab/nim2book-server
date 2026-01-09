@@ -5,8 +5,9 @@ import (
 
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
-	"github.com/nimyab/nim2book-back/internal/services/word_aligner/align"
+	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc"
 )
 
 // MockS3 is a mock implementation of S3 interface
@@ -53,17 +54,17 @@ func (m *MockPostgres) GetFcmTokensByUserId(ctx context.Context, userId domain.I
 	return args.Get(0).([]domain.FcmToken), args.Error(1)
 }
 
-// MockWordAligner is a mock implementation of WordAligner interface
+// MockWordAligner is a mock implementation of AlignmentServiceClient interface
 type MockWordAligner struct {
 	mock.Mock
 }
 
-func (m *MockWordAligner) Align(input *align.Input) (*align.Output, error) {
-	args := m.Called(input)
+func (m *MockWordAligner) Align(ctx context.Context, in *pb.AlignRequest, opts ...grpc.CallOption) (*pb.AlignResponse, error) {
+	args := m.Called(ctx, in, opts)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*align.Output), args.Error(1)
+	return args.Get(0).(*pb.AlignResponse), args.Error(1)
 }
 
 // MockTranslator is a mock implementation of Translator interface
