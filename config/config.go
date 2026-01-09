@@ -33,11 +33,12 @@ type Config struct {
 
 	PostgresURL string `env:"POSTGRES_URL"`
 
-	S3RootUser     string `env:"S3_ROOT_USER"`
-	S3RootPassword string `env:"S3_ROOT_PASSWORD"`
-	S3URL          string `env:"S3_URL"`
-	S3BucketName   string `env:"S3_BUCKET_NAME"`
-	S3Region       string `env:"S3_REGION"`
+	MinioRootUser     string `env:"MINIO_ROOT_USER"`
+	MinioRootPassword string `env:"MINIO_ROOT_PASSWORD"`
+	MinioURL          string `env:"MINIO_URL"`
+	MinioBucketName   string `env:"MINIO_BUCKET_NAME"`
+	MinioRegion       string `env:"MINIO_REGION"`
+	MinioUseSSL       bool   `env:"MINIO_USE_SSL"`
 
 	JWTSecret      string        `env:"JWT_SECRET"`
 	JWTAccessTime  time.Duration `env:"JWT_ACCESS_TIME" envDefault:"15"`
@@ -67,11 +68,12 @@ func init() {
 		WordAlignerAddrGrpc: os.Getenv("WORD_ALIGNER_ADDR_GRPC"),
 		RedisURL:            os.Getenv("REDIS_URL"),
 		PostgresURL:         os.Getenv("POSTGRES_URL"),
-		S3RootUser:          os.Getenv("S3_ROOT_USER"),
-		S3RootPassword:      os.Getenv("S3_ROOT_PASSWORD"),
-		S3URL:               os.Getenv("S3_URL"),
-		S3BucketName:        os.Getenv("S3_BUCKET_NAME"),
-		S3Region:            os.Getenv("S3_REGION"),
+		MinioRootUser:       os.Getenv("MINIO_ROOT_USER"),
+		MinioRootPassword:   os.Getenv("MINIO_ROOT_PASSWORD"),
+		MinioURL:            os.Getenv("MINIO_URL"),
+		MinioBucketName:     os.Getenv("MINIO_BUCKET_NAME"),
+		MinioRegion:         os.Getenv("MINIO_REGION"),
+		MinioUseSSL:         os.Getenv("MINIO_USE_SSL") == "true",
 		JWTSecret:           os.Getenv("JWT_SECRET"),
 		JWTAccessTime:       time.Duration(jwtAccessTime) * time.Minute,
 		JWTRefreshTime:      time.Duration(jwtRefreshTime) * time.Hour * 24,

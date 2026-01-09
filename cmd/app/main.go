@@ -10,9 +10,9 @@ import (
 	"github.com/maniartech/signals"
 	"github.com/nimyab/nim2book-back/config"
 	"github.com/nimyab/nim2book-back/internal/adapter/firebase"
+	"github.com/nimyab/nim2book-back/internal/adapter/minio"
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/adapter/redis_cache"
-	"github.com/nimyab/nim2book-back/internal/adapter/s3"
 	"github.com/nimyab/nim2book-back/internal/controller/http"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/domain"
@@ -73,13 +73,14 @@ func appRun(cfg *config.Config) error {
 		return err
 	}
 
-	// S3 storage
-	s3Client, err := s3.New(&s3.Config{
-		S3URL:          cfg.S3URL,
-		S3RootUser:     cfg.S3RootUser,
-		S3RootPassword: cfg.S3RootPassword,
-		S3BucketName:   cfg.S3BucketName,
-		S3Region:       cfg.S3Region,
+	// MinIO storage
+	minioClient, err := minio.New(context.Background(), &minio.Config{
+		MinioURL:          cfg.MinioURL,
+		MinioRootUser:     cfg.MinioRootUser,
+		MinioRootPassword: cfg.MinioRootPassword,
+		MinioBucketName:   cfg.MinioBucketName,
+		MinioRegion:       cfg.MinioRegion,
+		MinioUseSSL:       cfg.MinioUseSSL,
 	})
 	if err != nil {
 		return err
@@ -117,7 +118,7 @@ func appRun(cfg *config.Config) error {
 
 	// translate service
 	translate_book.New(
-		s3Client,
+		minioClient,
 		pgClient,
 		wordAlignerClient,
 		translateService,
@@ -127,10 +128,10 @@ func appRun(cfg *config.Config) error {
 	)
 
 	// book service
-	get_chapter.New(s3Client)
+	get_chapter.New(minioClient)
 	get_books.New(pgClient)
 	get_book.New(pgClient)
-	update_book.New(pgClient, s3Client)
+	update_book.New(pgClient, minioClient)
 
 	// auth service
 	register.New(pgClient)
@@ -146,7 +147,7 @@ func appRun(cfg *config.Config) error {
 	lookup.New(pgClient, redisCacheClient, cfg.YandexDictionaryKey, cfg.YandexDictionaryURL)
 
 	// file services
-	file_public.New(s3Client)
+	file_public.New(minioClient)
 
 	// fcm_token services
 	add_fcm_token.New(pgClient)

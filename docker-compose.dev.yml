@@ -1,80 +1,80 @@
-version: '3.8'
+version: "3.8"
 
 name: nim2book-server
 
 services:
-  libretranslate:
-    image: libretranslate/libretranslate:latest
-    container_name: libretranslate
-    restart: unless-stopped
-    ports:
-      - '5000:5000'
-    tty: true
-    environment:
-      - LT_UPDATE_MODELS=true
-      - LT_LOAD_ONLY=en,ru
-    networks:
-      - app-network
+    libretranslate:
+        image: libretranslate/libretranslate:latest
+        container_name: libretranslate
+        restart: unless-stopped
+        ports:
+            - "5000:5000"
+        tty: true
+        environment:
+            - LT_UPDATE_MODELS=true
+            - LT_LOAD_ONLY=en,ru
+        networks:
+            - app-network
 
-  redis:
-    image: redis:latest
-    container_name: redis_cache
-    restart: unless-stopped
-    ports:
-      - '6379:6379'
-    tty: true
-    networks:
-      - app-network
+    redis:
+        image: redis:latest
+        container_name: redis_cache
+        restart: unless-stopped
+        ports:
+            - "6379:6379"
+        tty: true
+        networks:
+            - app-network
 
-  postgres:
-    image: postgres:alpine
-    container_name: postgres
-    restart: unless-stopped
-    ports:
-      - '5432:5432'
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    tty: true
-    networks:
-      - app-network
+    postgres:
+        image: postgres:alpine
+        container_name: postgres
+        restart: unless-stopped
+        ports:
+            - "5432:5432"
+        environment:
+            - POSTGRES_USER=${POSTGRES_USER}
+            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+            - POSTGRES_DB=${POSTGRES_DB}
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        tty: true
+        networks:
+            - app-network
 
-  minio:
-    image: minio/minio:latest
-    container_name: minio
-    restart: unless-stopped
-    ports:
-      - '9000:9000'
-      - '9001:9001'
-    environment:
-      - MINIO_ROOT_USER=${S3_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${S3_ROOT_PASSWORD}
-    command: server /data --console-address ":9001"
-    volumes:
-      - minio_data:/data
-    tty: true
-    networks:
-      - app-network
+    minio:
+        image: minio/minio:latest
+        container_name: minio
+        restart: unless-stopped
+        ports:
+            - "9000:9000"
+            - "9001:9001"
+        environment:
+            - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+            - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+        command: server /data --console-address ":9001"
+        volumes:
+            - minio_data:/data
+        tty: true
+        networks:
+            - app-network
 
-  word-aligner:
-    image: nimyab/word-aligner-v2:latest
-    container_name: word-aligner
-    restart: unless-stopped
-    ports:
-      - '5001:50051'
-    tty: true
-    networks:
-      - app-network
+    word-aligner:
+        image: nimyab/word-aligner-v2:latest
+        container_name: word-aligner
+        restart: unless-stopped
+        ports:
+            - "5001:50051"
+        tty: true
+        networks:
+            - app-network
 
 networks:
-  app-network:
-    driver: bridge
+    app-network:
+        driver: bridge
 
 volumes:
-  postgres_data:
-    driver: local
-  minio_data:
-    driver: local
+    postgres_data:
+        driver: local
+    minio_data:
+        driver: local
