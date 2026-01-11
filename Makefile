@@ -1,39 +1,56 @@
-.PHONY: swagger dev build docker_dev
+.PHONY: swagger dev build docker_dev install-tools sql-gen test test-coverage
 
 include .env
 
+# Install development tools
 install-tools:
 	go install github.com/swaggo/swag/cmd/swag@latest
 	go install github.com/pressly/goose/v3/cmd/goose@latest
 	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 
+# Swagger documentation generation
 swagger:
 	swag init -g cmd/app/main.go
 
+# Development server
 dev: swagger
 	go run cmd/app/main.go
 
+# Build the application
 build: swagger
 	go build -o bin/app cmd/app/main.go
 
+# Docker commands
 docker-up:
 	docker-compose -f docker-compose.dev.yml up -d
 
 docker-down:
 	docker-compose -f docker-compose.dev.yml down
 
+# Goose migration commands
 migrate-create:
-	goose -dir postgres/migrations create $(NAME) sql
+	goose -dir db/migrations create $(NAME) sql
 
 migrate-up:
-	goose -dir postgres/migrations postgres "$(POSTGRES_URL)" up
+	goose -dir db/migrations postgres "$(POSTGRES_URL)" up
 
 migrate-down:
-	goose -dir postgres/migrations postgres "$(POSTGRES_URL)" down
+	goose -dir db/migrations postgres "$(POSTGRES_URL)" down
 
-sql-generate:
+# SQLC commands
+# Generate Go code from SQL queries
+sql-gen:
 	sqlc generate
 
+# Verify sqlc configuration and queries
+sql-verify:
+	sqlc verify
+
+# Compile queries to check for errors
+sql-compile:
+	sqlc compile
+
+# Testing commands
 test:
 	go test -v ./...
 

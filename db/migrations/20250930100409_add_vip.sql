@@ -1,7 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
 alter table users
-    add column is_vip boolean default false;
+    add column is_vip boolean default false not null;
 -- +goose StatementEnd
 
 -- +goose Down

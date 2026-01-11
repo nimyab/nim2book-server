@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/nimyab/nim2book-back/db/sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/transaction"
-	"github.com/nimyab/nim2book-back/sqlc"
 )
 
 var (
@@ -18,7 +18,7 @@ var (
 func (db *Postgres) GetFcmTokensByUserId(ctx context.Context, userId domain.Id) ([]domain.FcmToken, error) {
 	const operation = "postgres_sqlc.GetFcmTokensByUserId"
 
-	tokens, err := db.Queries.GetFcmTokensByUserId(ctx, uuidToPgtype(userId))
+	tokens, err := db.Queries.GetFcmTokensByUserId(ctx, userId)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
@@ -49,7 +49,7 @@ func (db *Postgres) AddFcmToken(ctx context.Context, data *domain.FcmToken) (*do
 		// Добавляем токен
 		token, err := queries.AddFcmToken(ctx, sqlc.AddFcmTokenParams{
 			Token:  data.Token,
-			UserID: uuidToPgtype(data.UserId),
+			UserID: data.UserId,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", operation, err)
@@ -65,7 +65,7 @@ func (db *Postgres) DeleteFcmToken(ctx context.Context, token string, userId dom
 
 	err := db.Queries.DeleteFcmToken(ctx, sqlc.DeleteFcmTokenParams{
 		Token:  token,
-		UserID: uuidToPgtype(userId),
+		UserID: userId,
 	})
 	if err != nil {
 		return fmt.Errorf("%s: %w", operation, err)
@@ -78,7 +78,7 @@ func (db *Postgres) DeleteFcmToken(ctx context.Context, token string, userId dom
 func fcmTokenFromSqlc(token sqlc.FcmToken) domain.FcmToken {
 	return domain.FcmToken{
 		Token:    token.Token,
-		UserId:   uuidFromPgtype(token.UserID),
+		UserId:   token.UserID,
 		CreateAt: token.CreateAt.Time,
 	}
 }

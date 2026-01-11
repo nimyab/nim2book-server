@@ -5,33 +5,35 @@
 package sqlc
 
 import (
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
 type Book struct {
-	ID           pgtype.UUID
+	ID           domain.Id
 	Title        string
 	Author       string
 	ChapterPaths []string
-	Cover        pgtype.Text
+	Cover        *string
 }
 
 type Dictionary struct {
-	ID      pgtype.UUID
+	ID      domain.Id
 	Text    string
 	Lang    string
 	Content []byte
 }
 
 type EmailPasswordAccount struct {
-	ID           pgtype.UUID
+	ID           domain.Id
 	Email        string
 	PasswordHash string
 }
 
 type FcmToken struct {
 	Token    string
-	UserID   pgtype.UUID
+	UserID   uuid.UUID
 	CreateAt pgtype.Timestamptz
 }
 
@@ -40,14 +42,14 @@ type GoogleAccount struct {
 	Email         string
 	EmailVerified bool
 	Name          string
-	Picture       pgtype.Text
+	Picture       *string
 }
 
 type User struct {
-	ID                     pgtype.UUID
+	ID                     domain.Id
 	IsAdmin                bool
-	IsVip                  pgtype.Bool
+	IsVip                  bool
 	Metadata               []byte
-	GoogleAccountSub       pgtype.Text
-	EmailPasswordAccountID pgtype.UUID
+	GoogleAccountSub       *string
+	EmailPasswordAccountID uuid.UUID
 }

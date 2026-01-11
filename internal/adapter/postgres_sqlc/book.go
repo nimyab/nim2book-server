@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/nimyab/nim2book-back/db/sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/transaction"
-	"github.com/nimyab/nim2book-back/sqlc"
 )
 
 var (
@@ -66,13 +66,13 @@ func (db *Postgres) CreateBook(ctx context.Context, book *domain.Book) (*domain.
 			Title:        book.Title,
 			Author:       book.Author,
 			ChapterPaths: book.ChapterPaths,
-			Cover:        textToPgtype(book.Cover),
+			Cover:        book.Cover,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", operation, err)
 		}
 
-		book.Id = uuidFromPgtype(id)
+		book.Id = id
 		return book, nil
 	})
 }
@@ -80,7 +80,7 @@ func (db *Postgres) CreateBook(ctx context.Context, book *domain.Book) (*domain.
 func (db *Postgres) GetBook(ctx context.Context, id domain.Id) (*domain.Book, error) {
 	const operation = "postgres_sqlc.GetBook"
 
-	book, err := db.Queries.GetBookById(ctx, uuidToPgtype(id))
+	book, err := db.Queries.GetBookById(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrBookNotFound
 	}
@@ -95,10 +95,10 @@ func (db *Postgres) GetBooks(ctx context.Context, query GetBooksQuery) ([]domain
 	const operation = "postgres_sqlc.GetBooks"
 
 	books, err := db.Queries.GetBooks(ctx, sqlc.GetBooksParams{
-		Column1: stringToPgtype(query.Author),
-		Column2: stringToPgtype(query.Title),
-		Limit:   int32(step),
-		Offset:  int32((query.Page - 1) * step),
+		Author: &query.Author,
+		Title:  &query.Title,
+		Limit:  int32(step),
+		Offset: int32((query.Page - 1) * step),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
@@ -121,8 +121,8 @@ func (db *Postgres) UpdateBook(ctx context.Context, book *domain.Book) error {
 		err := queries.UpdateBook(ctx, sqlc.UpdateBookParams{
 			Title:  book.Title,
 			Author: book.Author,
-			Cover:  textToPgtype(book.Cover),
-			ID:     uuidToPgtype(book.Id),
+			Cover:  book.Cover,
+			ID:     book.Id,
 		})
 		if err != nil {
 			return fmt.Errorf("%s: %w", operation, err)
@@ -135,10 +135,10 @@ func (db *Postgres) UpdateBook(ctx context.Context, book *domain.Book) error {
 // Конвертирует sqlc.Book в domain.Book
 func bookFromSqlc(book sqlc.Book) *domain.Book {
 	return &domain.Book{
-		Id:           uuidFromPgtype(book.ID),
+		Id:           book.ID,
 		Title:        book.Title,
 		Author:       book.Author,
 		ChapterPaths: book.ChapterPaths,
-		Cover:        pgtypeToText(book.Cover),
+		Cover:        book.Cover,
 	}
 }

@@ -7,9 +7,9 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/nimyab/nim2book-back/db/sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/transaction"
-	"github.com/nimyab/nim2book-back/sqlc"
 )
 
 var (
@@ -41,7 +41,7 @@ func (db *Postgres) CreateUserByEmailAndPassword(ctx context.Context, data *doma
 			return nil, fmt.Errorf("%s: %w", operation, err)
 		}
 
-		data.Id = uuidFromPgtype(epaId)
+		data.Id = epaId
 
 		// Создаем user
 		userRow, err := queries.CreateUserByEmailPasswordAccountId(ctx, epaId)
@@ -50,9 +50,9 @@ func (db *Postgres) CreateUserByEmailAndPassword(ctx context.Context, data *doma
 		}
 
 		user := &domain.User{
-			Id:                   uuidFromPgtype(userRow.ID),
+			Id:                   userRow.ID,
 			IsAdmin:              userRow.IsAdmin,
-			IsVIP:                userRow.IsVip.Bool,
+			IsVIP:                userRow.IsVip,
 			EmailPasswordAccount: data,
 		}
 
@@ -74,7 +74,7 @@ func (db *Postgres) CreateUserByGoogle(ctx context.Context, data *domain.GoogleA
 
 		// Проверяем существует ли уже user с таким Google Sub
 		_, err := queries.GetUser(ctx, sqlc.GetUserParams{
-			GoogleSub: stringToPgtype(data.Sub),
+			GoogleSub: &data.Sub,
 		})
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("%s: %w", operation, err)
@@ -89,22 +89,22 @@ func (db *Postgres) CreateUserByGoogle(ctx context.Context, data *domain.GoogleA
 			Email:         data.Email,
 			EmailVerified: data.EmailVerified,
 			Name:          data.Name,
-			Picture:       textToPgtype(data.Picture),
+			Picture:       data.Picture,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", operation, err)
 		}
 
 		// Создаем user
-		userRow, err := queries.CreateUserByGoogleSub(ctx, stringToPgtype(data.Sub))
+		userRow, err := queries.CreateUserByGoogleSub(ctx, &data.Sub)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", operation, err)
 		}
 
 		user := &domain.User{
-			Id:            uuidFromPgtype(userRow.ID),
+			Id:            userRow.ID,
 			IsAdmin:       userRow.IsAdmin,
-			IsVIP:         userRow.IsVip.Bool,
+			IsVIP:         userRow.IsVip,
 			GoogleAccount: data,
 		}
 
@@ -122,7 +122,7 @@ func (db *Postgres) GetUserByEmail(ctx context.Context, email string) (*domain.U
 	const operation = "postgres_sqlc.GetUserByEmail"
 
 	row, err := db.Queries.GetUser(ctx, sqlc.GetUserParams{
-		Email: stringToPgtype(email),
+		Email: &email,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrUserNotFound
@@ -138,7 +138,7 @@ func (db *Postgres) GetUserByGoogleSub(ctx context.Context, sub string) (*domain
 	const operation = "postgres_sqlc.GetUserByGoogleSub"
 
 	row, err := db.Queries.GetUser(ctx, sqlc.GetUserParams{
-		GoogleSub: stringToPgtype(sub),
+		GoogleSub: &sub,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrUserNotFound
@@ -154,7 +154,7 @@ func (db *Postgres) GetUserById(ctx context.Context, userId domain.Id) (*domain.
 	const operation = "postgres_sqlc.GetUserById"
 
 	row, err := db.Queries.GetUser(ctx, sqlc.GetUserParams{
-		UserID: uuidToPgtype(userId),
+		UserID: userId,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrUserNotFound
@@ -174,15 +174,15 @@ func (db *Postgres) GetUser(ctx context.Context, user *domain.User) (*domain.Use
 	// Определяем по какому полю искать
 	switch {
 	case user.Id != domain.Id{}:
-		params.UserID = uuidToPgtype(user.Id)
+		params.UserID = user.Id
 	case user.GoogleAccount != nil && user.GoogleAccount.Sub != "":
-		params.GoogleSub = stringToPgtype(user.GoogleAccount.Sub)
+		params.GoogleSub = &user.GoogleAccount.Sub
 	case user.GoogleAccount != nil && user.GoogleAccount.Email != "":
-		params.GoogleEmail = stringToPgtype(user.GoogleAccount.Email)
+		params.GoogleEmail = &user.GoogleAccount.Email
 	case user.EmailPasswordAccount != nil && user.EmailPasswordAccount.Id != domain.Id{}:
-		params.EmailPasswordAccountID = uuidToPgtype(user.EmailPasswordAccount.Id)
+		params.EmailPasswordAccountID = user.EmailPasswordAccount.Id
 	case user.EmailPasswordAccount != nil && user.EmailPasswordAccount.Email != "":
-		params.Email = stringToPgtype(user.EmailPasswordAccount.Email)
+		params.Email = &user.EmailPasswordAccount.Email
 	default:
 		return nil, fmt.Errorf("%s: no valid identifier provided", operation)
 	}
@@ -218,7 +218,7 @@ func (db *Postgres) UpdateMetadata(ctx context.Context, newMetadata domain.JsonB
 		// Обновляем метаданные
 		err = queries.UpdateUserMetadata(ctx, sqlc.UpdateUserMetadataParams{
 			Metadata: metadataBytes,
-			ID:       uuidToPgtype(userId),
+			ID:       userId,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", operation, err)
@@ -232,34 +232,34 @@ func (db *Postgres) UpdateMetadata(ctx context.Context, newMetadata domain.JsonB
 // userRowToUser конвертирует результат SQL запроса в domain.User
 func userRowToUser(row sqlc.GetUserRow) (*domain.User, error) {
 	user := &domain.User{
-		Id:      uuidFromPgtype(row.ID),
-		IsAdmin: row.IsAdmin,
-		IsVIP:   row.IsVip.Bool,
+		Id:      row.User.ID,
+		IsAdmin: row.User.IsAdmin,
+		IsVIP:   row.User.IsVip,
 	}
 
-	if len(row.Metadata) > 0 {
-		if err := json.Unmarshal(row.Metadata, &user.Metadata); err != nil {
+	if len(row.User.Metadata) > 0 {
+		if err := json.Unmarshal(row.User.Metadata, &user.Metadata); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 		}
 	}
 
 	// Если есть Google Account
-	if row.GoogleSub.Valid {
+	if row.GoogleAccount.Sub != "" {
 		user.GoogleAccount = &domain.GoogleAccount{
-			Sub:           row.GoogleSub.String,
-			Email:         row.GoogleEmail.String,
-			EmailVerified: row.GoogleEmailVerified.Bool,
-			Name:          row.GoogleName.String,
-			Picture:       pgtypeToText(row.GooglePicture),
+			Sub:           row.GoogleAccount.Sub,
+			Email:         row.GoogleAccount.Email,
+			EmailVerified: row.GoogleAccount.EmailVerified,
+			Name:          row.GoogleAccount.Name,
+			Picture:       row.GoogleAccount.Picture,
 		}
 	}
 
 	// Если есть Email/Password Account
-	if row.EmailPasswordID.Valid {
+	if row.EmailPasswordAccount.ID.String() != "" {
 		user.EmailPasswordAccount = &domain.EmailPasswordAccount{
-			Id:           uuidFromPgtype(row.EmailPasswordID),
-			Email:        row.EmailPasswordEmail.String,
-			PasswordHash: row.PasswordHash.String,
+			Id:           row.EmailPasswordAccount.ID,
+			Email:        row.EmailPasswordAccount.Email,
+			PasswordHash: row.EmailPasswordAccount.PasswordHash,
 		}
 	}
 

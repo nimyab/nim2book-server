@@ -1,6 +1,8 @@
 # Nim2Book Server
 
-## 🚀 Установка и запуск
+Backend сервер для Nim2Book - платформы для чтения книг с интегрированным переводчиком.
+
+## 🚀 Быстрый старт
 
 ### 1. Клонирование репозитория
 
@@ -11,18 +13,28 @@ cd nim2book-server
 
 ### 2. Настройка окружения
 
-Создайте файл `.env` в корне проекта и скопируйте данные из `.env.example`
+Создайте файл `.env` в корне проекта:
 
-### 3. Установка зависимостей
+### 3. Установка инструментов разработки
+
+Установите все необходимые инструменты одной командой:
 
 ```bash
-go install github.com/pressly/goose/v3/cmd/goose@latest
-go install github.com/swaggo/swag/cmd/swag@latest
-go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+make install-tools
+```
+
+Эта команда установит:
+- `swag` - генератор Swagger документации
+- `goose` - инструмент миграций
+- `sqlc` - генератор type-safe Go кода из SQL
+
+Альтернативно, установите зависимости Go:
+
+```bash
 go mod download
 ```
 
-### 4. Запуск через Docker
+### 4. Запуск базы данных
 
 ```bash
 make docker-up
@@ -30,11 +42,21 @@ make docker-up
 
 ### 5. Применение миграций
 
+**Использование Goose**
+
 ```bash
 make migrate-up
 ```
 
-### 6. Запуск приложения
+### 6. Генерация кода
+
+Сгенерируйте Go код из SQL запросов:
+
+```bash
+make sql-gen
+```
+
+### 7. Запуск приложения
 
 ```bash
 # Режим разработки (с автогенерацией Swagger)
@@ -45,10 +67,53 @@ make build
 ./bin/app
 ```
 
-## 📚 API Документация
+### SQLC - Генерация type-safe кода
+
+1. Создайте SQL запросы в `db/sqlc/queries/`
+2. Сгенерируйте Go код:
+   ```bash
+   make sql-gen
+   ```
+
+## 📋 Доступные команды
+
+Для полного списка команд:
+
+```bash
+make help
+```
+
+### Основные команды:
+
+**Разработка:**
+- `make dev` - запуск dev сервера
+- `make build` - сборка приложения
+- `make swagger` - генерация Swagger документации
+
+**Docker:**
+- `make docker-up` - запуск контейнеров
+- `make docker-down` - остановка контейнеров
+
+**Goose миграции:**
+- `make migrate-create NAME=<name>` - создать новую миграцию
+- `make migrate-up` - применить все миграции
+- `make migrate-down` - откатить миграции
+
+**SQLC:**
+- `make sql-gen` - генерация Go кода
+- `make sql-verify` - проверка конфигурации
+- `make sql-compile` - компиляция SQL запросов
+
+**Тестирование:**
+- `make test` - запуск тестов
+- `make test-coverage` - тесты с покрытием
+
+## 📚 Документация
+
+### API Документация
 
 После запуска приложения, Swagger UI доступен по адресу:
 
-```http
+```
 http://localhost:5050/swagger/
 ```

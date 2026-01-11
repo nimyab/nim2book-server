@@ -7,9 +7,9 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/nimyab/nim2book-back/db/sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/transaction"
-	"github.com/nimyab/nim2book-back/sqlc"
 )
 
 var (
