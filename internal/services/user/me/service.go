@@ -9,12 +9,13 @@ import (
 	"github.com/nimyab/nim2book-back/internal/repositories"
 )
 
-type UserRepo interface {
+// UserRepository defines the interface for user repository operations needed by this service
+type UserRepository interface {
 	GetUserById(ctx context.Context, userId models.ID) (*models.User, error)
 }
 
 type Service struct {
-	userRepo *repositories.UserRepository
+	userRepo UserRepository
 }
 
 var service *Service
@@ -24,7 +25,7 @@ var (
 	ErrUserNotFound = errors.New("user not found")
 )
 
-func New(userRepo *repositories.UserRepository) *Service {
+func New(userRepo UserRepository) *Service {
 	service = &Service{
 		userRepo: userRepo,
 	}

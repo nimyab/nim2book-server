@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/nimyab/nim2book-back/internal/repositories"
+	"github.com/nimyab/nim2book-back/internal/models"
 )
 
 var (
@@ -26,14 +26,20 @@ type S3 interface {
 	Upload(path string, data []byte) error
 }
 
+// BookRepository defines the interface for book repository operations needed by this service
+type BookRepository interface {
+	GetBookById(ctx context.Context, id uuid.UUID) (*models.Book, error)
+	UpdateBook(ctx context.Context, id uuid.UUID, title, author string, cover *string) error
+}
+
 type Service struct {
-	bookRepo *repositories.BookRepository
+	bookRepo BookRepository
 	s3       S3
 }
 
 var service *Service
 
-func New(bookRepo *repositories.BookRepository, s3 S3) *Service {
+func New(bookRepo BookRepository, s3 S3) *Service {
 	service = &Service{
 		bookRepo: bookRepo,
 		s3:       s3,

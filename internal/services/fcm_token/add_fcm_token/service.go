@@ -5,16 +5,18 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/models"
 	"github.com/nimyab/nim2book-back/internal/repositories"
 )
 
-type FcmTokenRepo interface {
-	AddFcmToken(ctx context.Context, data *models.FcmToken) (*models.FcmToken, error)
+// FcmTokenRepository defines the interface for fcm token repository operations needed by this service
+type FcmTokenRepository interface {
+	AddFcmToken(ctx context.Context, token string, userId uuid.UUID) (*models.FcmToken, error)
 }
 
 type Service struct {
-	fcmTokenRepo *repositories.FcmTokenRepository
+	fcmTokenRepo FcmTokenRepository
 }
 
 var service *Service
@@ -24,7 +26,7 @@ var (
 	ErrTokenAlreadyAdd = errors.New("token already add")
 )
 
-func New(fcmTokenRepo *repositories.FcmTokenRepository) *Service {
+func New(fcmTokenRepo FcmTokenRepository) *Service {
 	service = &Service{
 		fcmTokenRepo: fcmTokenRepo,
 	}

@@ -1,4 +1,4 @@
-.PHONY: swagger dev build docker_dev install-tools sql-gen test test-coverage
+.PHONY: swagger dev build docker_dev install-tools sql-gen test test-coverage test-integration test-up test-down test-clean
 
 include .env
 
@@ -56,3 +56,27 @@ test:
 
 test-coverage:
 	go test -coverprofile=coverage.out ./...
+
+# Integration testing commands
+test-up:
+	docker-compose -f docker-compose.test.yml up -d
+	@echo "Waiting for services to be ready..."
+	@timeout /t 5 /nobreak > NUL 2>&1 || ping -n 6 127.0.0.1 > NUL
+	@docker-compose -f docker-compose.test.yml ps --filter "status=running" | findstr "postgres-test" > NUL || echo PostgreSQL starting...
+	@timeout /t 10 /nobreak > NUL 2>&1 || ping -n 11 127.0.0.1 > NUL
+	@echo "Services should be ready now"
+
+test-down:
+	docker-compose -f docker-compose.test.yml down
+
+test-clean:
+	docker-compose -f docker-compose.test.yml down -v
+
+test-integration: test-up
+	@echo "Running integration tests..."
+	go test -v ./internal/tests/integration/... -timeout 5m
+	@$(MAKE) test-down
+
+test-integration-keep: test-up
+	@echo "Running integration tests (keeping containers running)..."
+	go test -v ./internal/tests/integration/... -timeout 5m
