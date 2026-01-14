@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/models"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestJWT(t *testing.T) {
-	payload := domain.JwtPayload{
+	payload := models.JwtPayload{
 		Id:      uuid.New(),
 		IsAdmin: true,
 		IsVIP:   false,

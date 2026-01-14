@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/nimyab/nim2book-back/config"
-	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/models"
 	"github.com/nimyab/nim2book-back/pkg/jwt"
 	"github.com/nimyab/nim2book-back/pkg/logger"
 )
@@ -30,7 +30,7 @@ var (
 )
 
 type SocketConn struct {
-	userId      domain.Id
+	userId      models.ID
 	conn        *websocket.Conn
 	messageChan chan *Message
 	close       chan int

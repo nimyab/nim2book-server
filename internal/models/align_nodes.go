@@ -1,4 +1,4 @@
-package domain
+package models
 
 type ChapterAlignNode struct {
 	Id              string               `json:"id"`

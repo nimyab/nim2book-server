@@ -5,35 +5,35 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
-	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/models"
 )
 
 type CustomClaims struct {
 	jwt.RegisteredClaims
-	domain.JwtPayload
+	models.JwtPayload
 }
 
-func GetUserPayload(c echo.Context) domain.JwtPayload {
+func GetUserPayload(c echo.Context) models.JwtPayload {
 	user := c.Get("user").(*jwt.Token)
 	claims := user.Claims.(*CustomClaims)
 	return claims.JwtPayload
 }
 
-func ParseToken(token, secret string) (domain.JwtPayload, error) {
+func ParseToken(token, secret string) (models.JwtPayload, error) {
 	claims := &CustomClaims{}
 	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (any, error) {
 		return []byte(secret), nil
 	})
 
 	if err != nil {
-		return domain.JwtPayload{}, err
+		return models.JwtPayload{}, err
 	}
 
 	return claims.JwtPayload, nil
 }
 
 func GenerateTokens(
-	payload domain.JwtPayload,
+	payload models.JwtPayload,
 	secret string,
 	accessTime,
 	refreshTime time.Duration,

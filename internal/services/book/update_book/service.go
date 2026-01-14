@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/repositories"
 )
 
 var (
@@ -26,22 +26,17 @@ type S3 interface {
 	Upload(path string, data []byte) error
 }
 
-type Postgres interface {
-	GetBook(ctx context.Context, id domain.Id) (*domain.Book, error)
-	UpdateBook(ctx context.Context, book *domain.Book) error
-}
-
 type Service struct {
-	pg Postgres
-	s3 S3
+	bookRepo *repositories.BookRepository
+	s3       S3
 }
 
 var service *Service
 
-func New(pg Postgres, s3 S3) *Service {
+func New(bookRepo *repositories.BookRepository, s3 S3) *Service {
 	service = &Service{
-		pg: pg,
-		s3: s3,
+		bookRepo: bookRepo,
+		s3:       s3,
 	}
 	return service
 }
@@ -49,7 +44,7 @@ func New(pg Postgres, s3 S3) *Service {
 func (s *Service) UpdateBook(input *Input, cover *multipart.FileHeader) (*Output, error) {
 	const operation = "book.update_book.UpdateBook"
 
-	book, err := s.pg.GetBook(context.Background(), input.Id)
+	book, err := s.bookRepo.GetBookById(context.Background(), input.Id)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrBookNotFound
@@ -91,7 +86,7 @@ func (s *Service) UpdateBook(input *Input, cover *multipart.FileHeader) (*Output
 		book.Author = *input.Author
 	}
 
-	if err = s.pg.UpdateBook(context.Background(), book); err != nil {
+	if err = s.bookRepo.UpdateBook(context.Background(), book.ID, book.Title, book.Author, book.Cover); err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternalServer
 	}

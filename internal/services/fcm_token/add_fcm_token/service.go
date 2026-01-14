@@ -5,16 +5,16 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
-	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/models"
+	"github.com/nimyab/nim2book-back/internal/repositories"
 )
 
-type Postgres interface {
-	AddFcmToken(ctx context.Context, data *domain.FcmToken) (*domain.FcmToken, error)
+type FcmTokenRepo interface {
+	AddFcmToken(ctx context.Context, data *models.FcmToken) (*models.FcmToken, error)
 }
 
 type Service struct {
-	pg Postgres
+	fcmTokenRepo *repositories.FcmTokenRepository
 }
 
 var service *Service
@@ -24,24 +24,20 @@ var (
 	ErrTokenAlreadyAdd = errors.New("token already add")
 )
 
-func New(pg Postgres) *Service {
+func New(fcmTokenRepo *repositories.FcmTokenRepository) *Service {
 	service = &Service{
-		pg: pg,
+		fcmTokenRepo: fcmTokenRepo,
 	}
 	return service
 }
 
-func (s *Service) AddFcmToken(input *Input, userId domain.Id) (*Output, error) {
+func (s *Service) AddFcmToken(input *Input, userId models.ID) (*Output, error) {
 	const operation = "fcm_token.add_fcm_token.AddFcmToken"
 
-	fcmTokenData := &domain.FcmToken{
-		Token:  input.FcmToken,
-		UserId: userId,
-	}
-	_, err := s.pg.AddFcmToken(context.Background(), fcmTokenData)
+	_, err := s.fcmTokenRepo.AddFcmToken(context.Background(), input.FcmToken, userId)
 	if err != nil {
-		slog.Error(err.Error(), slog.String("operation", operation), slog.Any("fcmTokenData", fcmTokenData))
-		if errors.Is(err, postgres_sqlc.ErrFcmTokenAlreadyAdd) {
+		slog.Error(err.Error(), slog.String("operation", operation), slog.String("token", input.FcmToken))
+		if errors.Is(err, repositories.ErrFcmTokenAlreadyAdd) {
 			return nil, ErrTokenAlreadyAdd
 		}
 		return nil, ErrInternal

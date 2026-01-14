@@ -4,23 +4,19 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
-	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/models"
+	"github.com/nimyab/nim2book-back/internal/repositories"
 )
 
-type Postgres interface {
-	GetBooks(ctx context.Context, query postgres_sqlc.GetBooksQuery) ([]domain.Book, error)
-}
-
 type Service struct {
-	pg Postgres
+	bookRepo *repositories.BookRepository
 }
 
 var service *Service
 
-func New(pg Postgres) *Service {
+func New(bookRepo *repositories.BookRepository) *Service {
 	service = &Service{
-		pg: pg,
+		bookRepo: bookRepo,
 	}
 	return service
 }
@@ -28,15 +24,16 @@ func New(pg Postgres) *Service {
 func (s *Service) GetBooks(input *Input) (*Output, error) {
 	const operation = "book.get_books.GetBooks"
 
-	books, err := s.pg.GetBooks(context.Background(), postgres_sqlc.GetBooksQuery{
-		Author: input.Author,
-		Title:  input.Title,
-		Page:   input.Page,
-	})
+	books, err := s.bookRepo.GetBooks(context.Background(), input.Author, input.Title, input.Page)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, err
 	}
 
-	return &Output{Books: books}, nil
+	result := make([]models.Book, len(books))
+	for i, book := range books {
+		result[i] = *book
+	}
+
+	return &Output{Books: result}, nil
 }

@@ -1,12 +1,12 @@
 package metadata
 
-import "github.com/nimyab/nim2book-back/internal/domain"
+import "github.com/nimyab/nim2book-back/internal/models"
 
 type Input struct {
-	UserId   domain.Id    `json:"-" validate:"required"`
-	Metadata domain.JsonB `json:"metadata" validate:"required"`
+	UserId   models.ID    `json:"-" validate:"required"`
+	Metadata models.JSONB `json:"metadata" validate:"required"`
 }
 
 type Output struct {
-	User *domain.User `json:"user"`
+	User *models.User `json:"user"`
 }

@@ -1,4 +1,4 @@
-package domain
+package models
 
 type NotificationType string
 
@@ -33,7 +33,7 @@ type NotificationTestData struct {
 }
 
 type Notification struct {
-	UserId Id               `json:"user_id"`
+	UserId ID               `json:"user_id"`
 	Type   NotificationType `json:"type"`
 	Data   any              `json:"data"`
 }

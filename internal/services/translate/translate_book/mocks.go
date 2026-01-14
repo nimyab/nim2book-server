@@ -3,7 +3,7 @@ package translate_book
 import (
 	"context"
 
-	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/models"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
 	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
 	"github.com/stretchr/testify/mock"
@@ -30,28 +30,28 @@ type MockPostgres struct {
 	mock.Mock
 }
 
-func (m *MockPostgres) GetBookByAuthorAndTitle(ctx context.Context, author, title string) (*domain.Book, error) {
+func (m *MockPostgres) GetBookByAuthorAndTitle(ctx context.Context, author, title string) (*models.Book, error) {
 	args := m.Called(ctx, author, title)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*domain.Book), args.Error(1)
+	return args.Get(0).(*models.Book), args.Error(1)
 }
 
-func (m *MockPostgres) CreateBook(ctx context.Context, book *domain.Book) (*domain.Book, error) {
+func (m *MockPostgres) CreateBook(ctx context.Context, book *models.Book) (*models.Book, error) {
 	args := m.Called(ctx, book)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*domain.Book), args.Error(1)
+	return args.Get(0).(*models.Book), args.Error(1)
 }
 
-func (m *MockPostgres) GetFcmTokensByUserId(ctx context.Context, userId domain.Id) ([]domain.FcmToken, error) {
+func (m *MockPostgres) GetFcmTokensByUserId(ctx context.Context, userId models.ID) ([]models.FcmToken, error) {
 	args := m.Called(ctx, userId)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]domain.FcmToken), args.Error(1)
+	return args.Get(0).([]models.FcmToken), args.Error(1)
 }
 
 // MockWordAligner is a mock implementation of AlignmentServiceClient interface
@@ -85,6 +85,6 @@ type MockNotificationSender struct {
 	mock.Mock
 }
 
-func (m *MockNotificationSender) Emit(ctx context.Context, notification *domain.Notification) {
+func (m *MockNotificationSender) Emit(ctx context.Context, notification models.Notification) {
 	m.Called(ctx, notification)
 }

@@ -227,7 +227,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.ChapterAlignNode"
+                            "$ref": "#/definitions/models.ChapterAlignNode"
                         }
                     }
                 }
@@ -615,238 +615,11 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.Book": {
-            "type": "object",
-            "properties": {
-                "author": {
-                    "type": "string"
-                },
-                "chapterPaths": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "cover": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.ChapterAlignNode": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.ParagraphAlignNode"
-                    }
-                },
-                "id": {
-                    "type": "string"
-                },
-                "order": {
-                    "type": "integer"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "translatedTitle": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.Definition": {
-            "type": "object",
-            "required": [
-                "text",
-                "tr"
-            ],
-            "properties": {
-                "pos": {
-                    "type": "string"
-                },
-                "text": {
-                    "type": "string"
-                },
-                "tr": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.Translation"
-                    }
-                },
-                "ts": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.EmailPasswordAccount": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.Example": {
-            "type": "object",
-            "required": [
-                "text"
-            ],
-            "properties": {
-                "text": {
-                    "type": "string"
-                },
-                "tr": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.ExampleTranslation"
-                    }
-                }
-            }
-        },
-        "domain.ExampleTranslation": {
-            "type": "object",
-            "required": [
-                "text"
-            ],
-            "properties": {
-                "text": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.GoogleAccount": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "emailVerified": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "picture": {
-                    "type": "string"
-                },
-                "sub": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.JsonB": {
-            "type": "object",
-            "additionalProperties": {}
-        },
-        "domain.Mean": {
-            "type": "object",
-            "required": [
-                "text"
-            ],
-            "properties": {
-                "text": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.ParagraphAlignNode": {
-            "type": "object",
-            "properties": {
-                "aw": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.WordAlignNode"
-                    }
-                },
-                "op": {
-                    "type": "string"
-                },
-                "tp": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.Translation": {
-            "type": "object",
-            "required": [
-                "text"
-            ],
-            "properties": {
-                "ex": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.Example"
-                    }
-                },
-                "mean": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.Mean"
-                    }
-                },
-                "pos": {
-                    "type": "string"
-                },
-                "text": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.User": {
-            "type": "object",
-            "properties": {
-                "emailPasswordAccount": {
-                    "$ref": "#/definitions/domain.EmailPasswordAccount"
-                },
-                "googleAccount": {
-                    "$ref": "#/definitions/domain.GoogleAccount"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "isAdmin": {
-                    "type": "boolean"
-                },
-                "isVIP": {
-                    "type": "boolean"
-                },
-                "metadata": {
-                    "$ref": "#/definitions/domain.JsonB"
-                }
-            }
-        },
-        "domain.WordAlignNode": {
-            "type": "object",
-            "properties": {
-                "iow": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "itw": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                }
-            }
-        },
         "get_book.Output": {
             "type": "object",
             "properties": {
                 "book": {
-                    "$ref": "#/definitions/domain.Book"
+                    "$ref": "#/definitions/models.Book"
                 }
             }
         },
@@ -856,7 +629,7 @@ const docTemplate = `{
                 "books": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/domain.Book"
+                        "$ref": "#/definitions/models.Book"
                     }
                 }
             }
@@ -882,7 +655,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/domain.User"
+                    "$ref": "#/definitions/models.User"
                 }
             }
         },
@@ -912,7 +685,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/domain.User"
+                    "$ref": "#/definitions/models.User"
                 }
             }
         },
@@ -952,7 +725,7 @@ const docTemplate = `{
                 "def": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/domain.Definition"
+                        "$ref": "#/definitions/models.Definition"
                     }
                 },
                 "head": {
@@ -965,7 +738,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "user": {
-                    "$ref": "#/definitions/domain.User"
+                    "$ref": "#/definitions/models.User"
                 }
             }
         },
@@ -976,7 +749,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "metadata": {
-                    "$ref": "#/definitions/domain.JsonB"
+                    "$ref": "#/definitions/models.JSONB"
                 }
             }
         },
@@ -984,7 +757,261 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "user": {
-                    "$ref": "#/definitions/domain.User"
+                    "$ref": "#/definitions/models.User"
+                }
+            }
+        },
+        "models.Book": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "type": "string"
+                },
+                "chapterPaths": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "cover": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ChapterAlignNode": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ParagraphAlignNode"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "translatedTitle": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Definition": {
+            "type": "object",
+            "required": [
+                "text",
+                "tr"
+            ],
+            "properties": {
+                "pos": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "tr": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Translation"
+                    }
+                },
+                "ts": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.EmailPasswordAccount": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "user": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.User"
+                        }
+                    ]
+                }
+            }
+        },
+        "models.Example": {
+            "type": "object",
+            "required": [
+                "text"
+            ],
+            "properties": {
+                "text": {
+                    "type": "string"
+                },
+                "tr": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ExampleTranslation"
+                    }
+                }
+            }
+        },
+        "models.ExampleTranslation": {
+            "type": "object",
+            "required": [
+                "text"
+            ],
+            "properties": {
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.GoogleAccount": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "emailVerified": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "picture": {
+                    "type": "string"
+                },
+                "sub": {
+                    "type": "string"
+                },
+                "user": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.User"
+                        }
+                    ]
+                }
+            }
+        },
+        "models.JSONB": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "models.Mean": {
+            "type": "object",
+            "required": [
+                "text"
+            ],
+            "properties": {
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ParagraphAlignNode": {
+            "type": "object",
+            "properties": {
+                "aw": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.WordAlignNode"
+                    }
+                },
+                "op": {
+                    "type": "string"
+                },
+                "tp": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Translation": {
+            "type": "object",
+            "required": [
+                "text"
+            ],
+            "properties": {
+                "ex": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Example"
+                    }
+                },
+                "mean": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Mean"
+                    }
+                },
+                "pos": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.User": {
+            "type": "object",
+            "properties": {
+                "emailPasswordAccount": {
+                    "$ref": "#/definitions/models.EmailPasswordAccount"
+                },
+                "emailPasswordAccountId": {
+                    "type": "string"
+                },
+                "googleAccount": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.GoogleAccount"
+                        }
+                    ]
+                },
+                "googleAccountSub": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "isAdmin": {
+                    "type": "boolean"
+                },
+                "isVip": {
+                    "type": "boolean"
+                },
+                "metadata": {
+                    "$ref": "#/definitions/models.JSONB"
+                }
+            }
+        },
+        "models.WordAlignNode": {
+            "type": "object",
+            "properties": {
+                "iow": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "itw": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 }
             }
         },
@@ -1049,7 +1076,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "book": {
-                    "$ref": "#/definitions/domain.Book"
+                    "$ref": "#/definitions/models.Book"
                 },
                 "messageAboutTranslate": {
                     "type": "string"
@@ -1060,7 +1087,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "book": {
-                    "$ref": "#/definitions/domain.Book"
+                    "$ref": "#/definitions/models.Book"
                 }
             }
         }

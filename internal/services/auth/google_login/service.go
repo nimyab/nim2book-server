@@ -6,19 +6,14 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
-	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/models"
+	"github.com/nimyab/nim2book-back/internal/repositories"
 	"github.com/nimyab/nim2book-back/pkg/jwt"
 	"google.golang.org/api/idtoken"
 )
 
-type Postgres interface {
-	GetUserByGoogleSub(ctx context.Context, sub string) (*domain.User, error)
-	CreateUserByGoogle(ctx context.Context, data *domain.GoogleAccount) (*domain.User, error)
-}
-
 type Service struct {
-	pg             Postgres
+	userRepo       *repositories.UserRepository
 	secret         string
 	googleClientId string
 	accessTime     time.Duration
@@ -33,9 +28,9 @@ var (
 	ErrInvalidGoogleData = errors.New("invalid google data")
 )
 
-func New(pg Postgres, googleClientId string, secret string, accessTime, refreshTime time.Duration) *Service {
+func New(userRepo *repositories.UserRepository, googleClientId string, secret string, accessTime, refreshTime time.Duration) *Service {
 	service = &Service{
-		pg:             pg,
+		userRepo:       userRepo,
 		secret:         secret,
 		accessTime:     accessTime,
 		refreshTime:    refreshTime,
@@ -64,7 +59,7 @@ func (s *Service) GoogleLogin(input *Input) (*Output, error) {
 		picture = &pic
 	}
 
-	googleUser := &domain.GoogleAccount{
+	googleUser := &models.GoogleAccount{
 		Email:         email,
 		EmailVerified: emailVerified,
 		Sub:           sub,
@@ -72,14 +67,14 @@ func (s *Service) GoogleLogin(input *Input) (*Output, error) {
 		Picture:       picture,
 	}
 
-	user, err := s.pg.GetUserByGoogleSub(context.Background(), googleUser.Sub)
-	if err != nil && !errors.Is(err, postgres_sqlc.ErrUserNotFound) {
+	user, err := s.userRepo.GetUserByGoogleSub(context.Background(), googleUser.Sub)
+	if err != nil && !errors.Is(err, repositories.ErrUserNotFound) {
 		slog.Error(err.Error(), slog.String("operation", operation), slog.Any("googleUser", googleUser))
 		return nil, ErrInternal
 	}
 	// елси такого пользователя нет, то создаем его
-	if errors.Is(err, postgres_sqlc.ErrUserNotFound) {
-		user, err = s.pg.CreateUserByGoogle(context.Background(), googleUser)
+	if errors.Is(err, repositories.ErrUserNotFound) {
+		user, err = s.userRepo.CreateUserByGoogle(context.Background(), googleUser)
 		if err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation), slog.Any("googleUser", googleUser))
 			return nil, ErrInternal
@@ -87,10 +82,10 @@ func (s *Service) GoogleLogin(input *Input) (*Output, error) {
 	}
 
 	accessToken, refreshToken, err := jwt.GenerateTokens(
-		domain.JwtPayload{
-			Id:      user.Id,
+		models.JwtPayload{
+			Id:      user.ID,
 			IsAdmin: user.IsAdmin,
-			IsVIP:   user.IsVIP,
+			IsVIP:   user.IsVip,
 		},
 		s.secret,
 		s.accessTime,
