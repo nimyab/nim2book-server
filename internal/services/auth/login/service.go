@@ -6,14 +6,18 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/nimyab/nim2book-back/internal/models"
-	"github.com/nimyab/nim2book-back/internal/repositories"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
+	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
 
+type Postgres interface {
+	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
+}
+
 type Service struct {
-	userRepo    *repositories.UserRepository
+	pg          Postgres
 	secret      string
 	accessTime  time.Duration
 	refreshTime time.Duration
@@ -26,9 +30,9 @@ var (
 	ErrPasswordDoNotMatch = errors.New("passwords do not match")
 )
 
-func New(userRepo *repositories.UserRepository, secret string, accessTime, refreshTime time.Duration) *Service {
+func New(pg Postgres, secret string, accessTime, refreshTime time.Duration) *Service {
 	service = &Service{
-		userRepo:    userRepo,
+		pg:          pg,
 		secret:      secret,
 		accessTime:  accessTime,
 		refreshTime: refreshTime,
@@ -39,8 +43,8 @@ func New(userRepo *repositories.UserRepository, secret string, accessTime, refre
 func (s *Service) Login(input *Input) (*Output, error) {
 	const operation = "auth.login.Login"
 
-	user, err := s.userRepo.GetUserByEmail(context.Background(), input.Email)
-	if errors.Is(repositories.ErrUserNotFound, err) {
+	user, err := s.pg.GetUserByEmail(context.Background(), input.Email)
+	if errors.Is(postgres_sqlc.ErrUserNotFound, err) {
 		return nil, err
 	}
 	if err != nil {
@@ -59,10 +63,10 @@ func (s *Service) Login(input *Input) (*Output, error) {
 	}
 
 	accessToken, refreshToken, err := jwt.GenerateTokens(
-		models.JwtPayload{
-			Id:      user.ID,
+		domain.JwtPayload{
+			Id:      user.Id,
 			IsAdmin: user.IsAdmin,
-			IsVIP:   user.IsVip,
+			IsVIP:   user.IsVIP,
 		},
 		s.secret,
 		s.accessTime,

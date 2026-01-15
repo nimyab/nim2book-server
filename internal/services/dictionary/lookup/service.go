@@ -10,10 +10,14 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v4"
-	"github.com/nimyab/nim2book-back/internal/models"
-	"github.com/nimyab/nim2book-back/internal/repositories"
+	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/logger"
 )
+
+type Postgres interface {
+	CreateDictionaryData(ctx context.Context, text, lang string, dictData *domain.DictionaryData) (bool, error)
+	GetDictionaryData(ctx context.Context, text, lang string) (*domain.DictionaryData, error)
+}
 
 type Redis interface {
 	Save(ctx context.Context, key string, value []byte, expiration time.Duration) error
@@ -21,7 +25,7 @@ type Redis interface {
 }
 
 type Service struct {
-	dictRepo      *repositories.DictionaryRepository
+	pg            Postgres
 	redis         Redis
 	yandexDictKey string
 	yandexDictURL string
@@ -29,9 +33,9 @@ type Service struct {
 
 var service *Service
 
-func New(dictRepo *repositories.DictionaryRepository, redis Redis, yandexDictKey, yandexDictURL string) *Service {
+func New(pg Postgres, redis Redis, yandexDictKey, yandexDictURL string) *Service {
 	service = &Service{
-		dictRepo:      dictRepo,
+		pg:            pg,
 		redis:         redis,
 		yandexDictKey: yandexDictKey,
 		yandexDictURL: yandexDictURL,
@@ -50,38 +54,35 @@ const (
 func (s *Service) Lookup(input *Input) (*Output, error) {
 	const operation = "lookup.Lookup"
 
-	ctx := context.Background()
-	output := new(models.DictionaryData)
+	output := new(domain.DictionaryData)
 
-	// Try to get from cache first
-	byteData, err := s.redis.Get(ctx, fmt.Sprintf("%s:%s", input.Text, input.Lang))
-	if err == nil {
+	byteData, err := s.redis.Get(context.Background(), fmt.Sprintf("%s:%s", input.Text, input.Lang))
+	if err != nil {
+		logger.Error("failed to get from redis", err, operation)
+	} else {
 		err = json.Unmarshal(byteData, output)
-		if err == nil {
+		if err != nil {
+			logger.Error("failed to unmarshal json", err, operation)
+		} else {
 			return output, nil
 		}
-		logger.Error("failed to unmarshal from redis", err, operation)
 	}
 
-	// Try to get from database
-	dict, err := s.dictRepo.GetDictionaryData(ctx, input.Text, input.Lang)
-	if err == nil && dict != nil {
-		// Parse dictionary content
-		dictData, err := s.dictRepo.ParseContent(dict)
+	dictData, err := s.pg.GetDictionaryData(context.Background(), input.Text, input.Lang)
+	if err != nil {
+		logger.Error("failed to get from postgres", err, operation)
+	}
+	if dictData != nil {
+		byteData, err = json.Marshal(dictData)
 		if err != nil {
-			logger.Error("failed to parse dictionary content", err, operation)
+			logger.Error("failed to marshal json", err, operation)
 		} else {
-			// Save to cache
-			byteData, err = json.Marshal(dictData)
-			if err != nil {
-				logger.Error("failed to marshal json", err, operation)
-			} else {
-				if err = s.redis.Save(context.Background(), fmt.Sprintf("%s:%s", input.Text, input.Lang), byteData, RedisCacheTTL); err != nil {
-					logger.Error("failed to save dictionary data to redis", err, operation)
-				}
+			if err = s.redis.Save(context.Background(), fmt.Sprintf("%s:%s", input.Text, input.Lang), byteData, RedisCacheTTL); err != nil {
+				logger.Error("failed to save dictionary data to redis", err, operation)
 			}
-			return dictData, nil
 		}
+
+		return dictData, nil
 	}
 
 	resp, err := retry.DoWithData(func() (*http.Response, error) {
@@ -117,14 +118,8 @@ func (s *Service) Lookup(input *Input) (*Output, error) {
 		return nil, ErrInternal
 	}
 
-	// Save to database
-	content, err := json.Marshal(output)
-	if err != nil {
-		logger.Error("failed to marshal dictionary data", err, operation)
-	} else {
-		if _, err = s.dictRepo.CreateDictionaryData(context.Background(), input.Text, input.Lang, content); err != nil {
-			logger.Error("failed to save dictionary data to postgres", err, operation)
-		}
+	if _, err = s.pg.CreateDictionaryData(context.Background(), input.Text, input.Lang, output); err != nil {
+		logger.Error("failed to save dictionary data to postgres", err, operation)
 	}
 	if err = s.redis.Save(context.Background(), fmt.Sprintf("%s:%s", input.Text, input.Lang), body, RedisCacheTTL); err != nil {
 		logger.Error("failed to save dictionary data to redis", err, operation)

@@ -13,9 +13,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nimyab/nim2book-back/internal/models"
-	"github.com/nimyab/nim2book-back/internal/repositories"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
+	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
+	"github.com/nimyab/nim2book-back/internal/services/word_aligner/align"
 	"github.com/nimyab/nim2book-back/pkg/contains_letters"
 	"github.com/nimyab/nim2book-back/pkg/logger"
 	"github.com/nimyab/nim2book-back/pkg/parsers/epub_parser"
@@ -28,17 +29,22 @@ type S3 interface {
 	Check(path string) error
 }
 
+type Postgres interface {
+	GetBookByAuthorAndTitle(ctx context.Context, author, title string) (*domain.Book, error)
+	CreateBook(ctx context.Context, book *domain.Book) (*domain.Book, error)
+	GetFcmTokensByUserId(ctx context.Context, userId domain.Id) ([]domain.FcmToken, error)
+}
+
+type WordAligner interface {
+	Align(input *align.Input) (*align.Output, error)
+}
+
 type Translator interface {
 	Translate(input *translate.Input) (*translate.Output, error)
 }
 
 type NotificationSender interface {
-	Emit(ctx context.Context, notification models.Notification)
-}
-
-type BookRepository interface {
-	GetBookByAuthorAndTitle(context.Context, string, string) (*models.Book, error)
-	CreateBook(context.Context, *models.Book) (*models.Book, error)
+	Emit(ctx context.Context, notification *domain.Notification)
 }
 
 type Service struct {
@@ -49,7 +55,7 @@ type Service struct {
 	currentCountBookTranslating int
 
 	s3          S3
-	bookRepo    BookRepository
+	pg          Postgres
 	wordAligner pb.AlignmentServiceClient
 	translator  Translator
 
@@ -57,7 +63,7 @@ type Service struct {
 }
 
 type translatedChapterResult struct {
-	Chapter      *models.ChapterAlignNode
+	Chapter      *domain.ChapterAlignNode
 	ChapterOrder int
 	Path         string
 	Error        error
@@ -73,7 +79,7 @@ var service *Service
 
 func New(
 	s3 S3,
-	bookRepo BookRepository,
+	pg Postgres,
 	wordAligner pb.AlignmentServiceClient,
 	translator Translator,
 	maxRequestCount int,
@@ -82,7 +88,7 @@ func New(
 ) *Service {
 	service = &Service{
 		s3:                          s3,
-		bookRepo:                    bookRepo,
+		pg:                          pg,
 		wordAligner:                 wordAligner,
 		translator:                  translator,
 		maxRequestCount:             maxRequestCount,
@@ -93,7 +99,7 @@ func New(
 	return service
 }
 
-func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId models.ID) (*Output, error) {
+func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId domain.Id) (*Output, error) {
 	const operation = "translate_book.Service.TranslateBook"
 
 	file, err := book.Open()
@@ -125,11 +131,11 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 		slog.String("title", parsedBook.Title),
 	)
 
-	existedBook, err := s.bookRepo.GetBookByAuthorAndTitle(context.Background(), parsedBook.Author, parsedBook.Title)
+	existedBook, err := s.pg.GetBookByAuthorAndTitle(context.Background(), parsedBook.Author, parsedBook.Title)
 	if existedBook != nil {
 		return &Output{Book: existedBook}, nil
 	}
-	if err != nil && !errors.Is(err, repositories.ErrBookNotFound) {
+	if err != nil && !errors.Is(err, postgres_sqlc.ErrBookNotFound) {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, errors.New("failed to find book")
 	}
@@ -148,30 +154,30 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 		if err != nil {
 			switch {
 			case errors.Is(err, ErrFailedSaveToStorage):
-				s.notificationSignal.Emit(context.Background(), models.Notification{
+				s.notificationSignal.Emit(context.Background(), &domain.Notification{
 					UserId: userId,
-					Type:   models.NotificationError,
-					Data: &models.NotificationErrorData{
+					Type:   domain.NotificationError,
+					Data: &domain.NotificationErrorData{
 						Title:        parsedBook.Title,
 						Author:       parsedBook.Author,
 						ErrorMessage: "Произошла ошибка во время сохранения главы, попробуйте перевести книгу позже.",
 					},
 				})
 			case errors.Is(err, ErrFailedTranslateChapter):
-				s.notificationSignal.Emit(context.Background(), models.Notification{
+				s.notificationSignal.Emit(context.Background(), &domain.Notification{
 					UserId: userId,
-					Type:   models.NotificationError,
-					Data: &models.NotificationErrorData{
+					Type:   domain.NotificationError,
+					Data: &domain.NotificationErrorData{
 						Author:       parsedBook.Author,
 						Title:        parsedBook.Title,
 						ErrorMessage: "Произошла ошибка во время перевода главы, попробуйте перевести книгу позже.",
 					},
 				})
 			case errors.Is(err, ErrFailedSaveBookToDatabase):
-				s.notificationSignal.Emit(context.Background(), models.Notification{
-					Type:   models.NotificationError,
+				s.notificationSignal.Emit(context.Background(), &domain.Notification{
+					Type:   domain.NotificationError,
 					UserId: userId,
-					Data: &models.NotificationErrorData{
+					Data: &domain.NotificationErrorData{
 						Title:        parsedBook.Title,
 						Author:       parsedBook.Author,
 						ErrorMessage: "Произошла ошибка во время сохранения книги, попробуйте перевести книгу позже, извините за неудобства.",
@@ -249,10 +255,10 @@ func (s *Service) startTranslate(
 		slog.Info(fmt.Sprintf("paths is %v now", paths), slog.String("operation", operation))
 
 		// отправляем уведомления о переведенной главе
-		s.notificationSignal.Emit(ctx, models.Notification{
+		s.notificationSignal.Emit(ctx, &domain.Notification{
 			UserId: data.UserId,
-			Type:   models.NotificationChapterTranslateSucceed,
-			Data: &models.NotificationChapterTranslateSucceedData{
+			Type:   domain.NotificationChapterTranslateSucceed,
+			Data: &domain.NotificationChapterTranslateSucceedData{
 				Author:            data.Book.Author,
 				ChapterPath:       path,
 				Title:             data.Book.Title,
@@ -272,13 +278,13 @@ func (s *Service) startTranslate(
 		}
 	}
 
-	newBook := &models.Book{
+	newBook := &domain.Book{
 		Author:       data.Book.Author,
 		Title:        data.Book.Title,
-		ChapterPaths: models.StringArray(paths),
+		ChapterPaths: paths,
 		Cover:        cover,
 	}
-	newBook, err := s.bookRepo.CreateBook(context.Background(), newBook)
+	newBook, err := s.pg.CreateBook(context.Background(), newBook)
 	if err != nil {
 		logger.Error(
 			fmt.Sprintf("failed to save book to database, title: %s, author: %s", data.Book.Title, data.Book.Author),
@@ -289,10 +295,10 @@ func (s *Service) startTranslate(
 	}
 
 	// уведомление что книга создана
-	s.notificationSignal.Emit(ctx, models.Notification{
+	s.notificationSignal.Emit(ctx, &domain.Notification{
 		UserId: data.UserId,
-		Type:   models.NotificationBookTranslated,
-		Data: &models.NotificationBookTranslatedData{
+		Type:   domain.NotificationBookTranslated,
+		Data: &domain.NotificationBookTranslatedData{
 			Book: newBook,
 		},
 	})
@@ -334,7 +340,7 @@ func (s *Service) translateChapters(
 
 		startTime := time.Now()
 
-		translatedChapter := make([]models.ParagraphAlignNode, len(chapter.Paragraphs))
+		translatedChapter := make([]domain.ParagraphAlignNode, len(chapter.Paragraphs))
 
 		g, ctxErrGroup := errgroup.WithContext(ctx)
 		// set limit to prevent ddos translator and word aligner services
@@ -407,7 +413,7 @@ func (s *Service) translateChapters(
 			translatedTitle = ""
 		}
 
-		chapterNode := models.ChapterAlignNode{
+		chapterNode := domain.ChapterAlignNode{
 			Id:              chapter.ID,
 			Content:         translatedChapter,
 			Order:           i,
@@ -432,7 +438,7 @@ func (s *Service) translateChapters(
 
 }
 
-func (s *Service) translateAndAlignParagraph(paragraph string, from models.SupportedLang, to models.SupportedLang) (models.ParagraphAlignNode, error) {
+func (s *Service) translateAndAlignParagraph(paragraph string, from domain.SupportedLang, to domain.SupportedLang) (domain.ParagraphAlignNode, error) {
 	const operation = "translate_book.Service.translateAndAlignParagraph"
 
 	// перевод параграфа (использую libretranslate, которую развернул на серваке у себя)
@@ -443,15 +449,15 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from models.Suppo
 	})
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
-		return models.ParagraphAlignNode{}, errors.New("failed to startTranslate paragraph")
+		return domain.ParagraphAlignNode{}, errors.New("failed to startTranslate paragraph")
 	}
 
 	// case: error on alignment if paragraph has no letters.
 	if !contains_letters.ContainsLetters(paragraph) || !contains_letters.ContainsLetters(translateOutput.TranslatedText) {
-		alignedParagraph := models.ParagraphAlignNode{
+		alignedParagraph := domain.ParagraphAlignNode{
 			OriginalParagraph:   paragraph,
 			TranslatedParagraph: translateOutput.TranslatedText,
-			AlignmentWords: []models.WordAlignNode{{
+			AlignmentWords: []domain.WordAlignNode{{
 				IndexesOriginalWord:   [2]int{0, len([]rune(paragraph)) - 1},
 				IndexesTranslatedWord: [2]int{0, len([]rune(translateOutput.TranslatedText)) - 1},
 			}},
@@ -474,7 +480,7 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from models.Suppo
 			slog.String("source text", paragraph),
 			slog.String("target text", translateOutput.TranslatedText),
 		)
-		return models.ParagraphAlignNode{}, errors.New("failed to align words")
+		return domain.ParagraphAlignNode{}, errors.New("failed to align words")
 	}
 
 	// в массив alignWords добавляем только уникальные слова, уникальность проверяем по исходному тексту
@@ -482,9 +488,9 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from models.Suppo
 	// то есть если у нас будет одно слово на англ и два на русском, то нас это не будет устраивать, так как появляются проблемы на фронте в отображении слов, слова просто повторяются
 	// p.s. можно подумать почему в русском не будут повторяться, все просто, в русском мы показываем весь пораграф, а не разбиваем его на слова, а выбранное слово выделяем по индексам
 	// p.p.s в новом выравнивателе таких проблем нет, но на всякий случай оставил эту проверку
-	alignWords := make([]models.WordAlignNode, 0, len(alignOutput.Alignments))
+	alignWords := make([]domain.WordAlignNode, 0, len(alignOutput.Alignments))
 	for _, alignment := range alignOutput.Alignments {
-		alignWord := models.WordAlignNode{
+		alignWord := domain.WordAlignNode{
 			IndexesOriginalWord:   [2]int{int(alignment.SrcStart), int(alignment.SrcEnd)},
 			IndexesTranslatedWord: [2]int{int(alignment.TargetStart), int(alignment.TargetEnd)},
 		}
@@ -501,7 +507,7 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from models.Suppo
 		}
 	}
 
-	alignedParagraph := models.ParagraphAlignNode{
+	alignedParagraph := domain.ParagraphAlignNode{
 		OriginalParagraph:   paragraph,
 		TranslatedParagraph: translateOutput.TranslatedText,
 		AlignmentWords:      alignWords,
@@ -510,7 +516,7 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from models.Suppo
 	return alignedParagraph, nil
 }
 
-func (s *Service) saveChapterToS3(chapter *models.ChapterAlignNode, bookTitle string) (string, error) {
+func (s *Service) saveChapterToS3(chapter *domain.ChapterAlignNode, bookTitle string) (string, error) {
 	const operation = "translate_book.Service.saveChapterToS3"
 
 	path := fmt.Sprintf("book/%s/%d.json", strings.ReplaceAll(bookTitle, " ", "_"), chapter.Order)

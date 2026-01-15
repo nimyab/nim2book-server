@@ -1,4 +1,4 @@
-package models
+package domain
 
 type DictionaryData struct {
 	Head        map[string]any `json:"head,omitempty"`

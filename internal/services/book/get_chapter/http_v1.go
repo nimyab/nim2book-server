@@ -12,7 +12,7 @@ import (
 // @Tags	book
 // @Produce	application/json
 // @Param	path	path	string	true	"Chapter path"
-// @Success	200		{object}	models.ChapterAlignNode
+// @Success	200		{object}	domain.ChapterAlignNode
 // @Router	/book/get-chapter/{path}	[get]
 func HTTPv1(c echo.Context) error {
 	var input = new(Input)

@@ -5,9 +5,15 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/repositories"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
+	"github.com/nimyab/nim2book-back/internal/domain"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type Postgres interface {
+	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
+	CreateUserByEmailAndPassword(ctx context.Context, data *domain.EmailPasswordAccount) (*domain.User, error)
+}
 
 var (
 	ErrUserAlreadyExist = errors.New("user already exists")
@@ -15,14 +21,14 @@ var (
 )
 
 type Service struct {
-	userRepo *repositories.UserRepository
+	pg Postgres
 }
 
 var service *Service
 
-func New(userRepo *repositories.UserRepository) *Service {
+func New(pg Postgres) *Service {
 	service = &Service{
-		userRepo: userRepo,
+		pg: pg,
 	}
 	return service
 }
@@ -30,11 +36,11 @@ func New(userRepo *repositories.UserRepository) *Service {
 func (s *Service) Register(input *Input) (*Output, error) {
 	const operation = "auth.register.Register"
 
-	user, err := s.userRepo.GetUserByEmail(context.Background(), input.Email)
+	user, err := s.pg.GetUserByEmail(context.Background(), input.Email)
 	if user != nil {
 		return nil, ErrUserAlreadyExist
 	}
-	if err != nil && !errors.Is(repositories.ErrUserNotFound, err) {
+	if err != nil && !errors.Is(postgres_sqlc.ErrUserNotFound, err) {
 		return nil, err
 	}
 
@@ -48,7 +54,11 @@ func (s *Service) Register(input *Input) (*Output, error) {
 		return nil, ErrInternal
 	}
 
-	user, err = s.userRepo.CreateUserByEmailAndPassword(context.Background(), input.Email, string(passwordHashBytes))
+	newUser := &domain.EmailPasswordAccount{
+		Email:        input.Email,
+		PasswordHash: string(passwordHashBytes),
+	}
+	user, err = s.pg.CreateUserByEmailAndPassword(context.Background(), newUser)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternal

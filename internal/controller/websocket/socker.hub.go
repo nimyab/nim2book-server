@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/nimyab/nim2book-back/internal/models"
+	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/validator"
 )
 
@@ -20,7 +20,7 @@ type SocketHub struct {
 
 	validator Validator
 
-	clients map[models.ID]*SocketConn
+	clients map[domain.Id]*SocketConn
 	mu      sync.RWMutex
 }
 
@@ -39,7 +39,7 @@ func NewAndStart() *SocketHub {
 	return socketHub
 }
 
-func SendMessage(userId models.ID, msg *Message) {
+func SendMessage(userId domain.Id, msg *Message) {
 	const operation = "websocket.SendMessage"
 
 	socketHub.mu.RLock()

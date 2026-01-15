@@ -7,12 +7,16 @@ import (
 
 	"firebase.google.com/go/v4/messaging"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
-	"github.com/nimyab/nim2book-back/internal/models"
-	"github.com/nimyab/nim2book-back/internal/repositories"
+	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
+type Postgres interface {
+	GetFcmTokensByUserId(ctx context.Context, userId domain.Id) ([]domain.FcmToken, error)
+	DeleteFcmToken(ctx context.Context, token string, userId domain.Id) error
+}
+
 type Service struct {
-	fcmTokenRepo            *repositories.FcmTokenRepository
+	pg                      Postgres
 	messagingFirebaseClient *messaging.Client
 }
 
@@ -20,26 +24,26 @@ var service *Service
 
 func New(
 	messagingFirebaseClient *messaging.Client,
-	fcmTokenRepo *repositories.FcmTokenRepository,
+	pg Postgres,
 ) *Service {
 	service = &Service{
-		fcmTokenRepo:            fcmTokenRepo,
+		pg:                      pg,
 		messagingFirebaseClient: messagingFirebaseClient,
 	}
 	return service
 }
 
-func (s *Service) ProcessNotification(ctx context.Context, d models.Notification) {
+func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notification) {
 	const operation = "notification.ProcessNotification"
 
-	fcmTokens, err := s.fcmTokenRepo.GetFcmTokensByUserId(ctx, d.UserId)
+	fcmTokens, err := s.pg.GetFcmTokensByUserId(ctx, d.UserId)
 	if err != nil {
 		slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId))
 	}
 
 	switch d.Type {
-	case models.NotificationBookTranslated:
-		data, ok := d.Data.(*models.NotificationBookTranslatedData)
+	case domain.NotificationBookTranslated:
+		data, ok := d.Data.(*domain.NotificationBookTranslatedData)
 		if !ok {
 			slog.Error(fmt.Sprintf("%s: %s", operation, "error data mapping"), slog.Any("data", d.Data), slog.Any("type", d.Type))
 			return
@@ -53,13 +57,13 @@ func (s *Service) ProcessNotification(ctx context.Context, d models.Notification
 					Body:  fmt.Sprintf("Книга: %s - %s была переведена, теперь ее можно скачать из библиотеки книг", data.Book.Author, data.Book.Title),
 				},
 				Data: map[string]string{
-					"bookId": data.Book.ID.String(),
+					"bookId": data.Book.Id.String(),
 				},
 			})
 			slog.Info("test notification", slog.String("fcmToken", fcmToken.Token), slog.String("info", info))
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
-				_ = s.fcmTokenRepo.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
+				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
 			}
 		}
 
@@ -69,8 +73,8 @@ func (s *Service) ProcessNotification(ctx context.Context, d models.Notification
 				"book": data.Book,
 			},
 		})
-	case models.NotificationError:
-		data, ok := d.Data.(*models.NotificationErrorData)
+	case domain.NotificationError:
+		data, ok := d.Data.(*domain.NotificationErrorData)
 		if !ok {
 			slog.Error(fmt.Sprintf("%s: %s", operation, "error data mapping"), slog.Any("data", d.Data), slog.Any("type", d.Type))
 			return
@@ -87,7 +91,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d models.Notification
 			slog.Info("test notification", slog.String("fcmToken", fcmToken.Token), slog.String("info", info))
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
-				_ = s.fcmTokenRepo.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
+				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
 			}
 		}
 
@@ -99,8 +103,8 @@ func (s *Service) ProcessNotification(ctx context.Context, d models.Notification
 				"error":  data.ErrorMessage,
 			},
 		})
-	case models.NotificationChapterTranslateSucceed:
-		data, ok := d.Data.(*models.NotificationChapterTranslateSucceedData)
+	case domain.NotificationChapterTranslateSucceed:
+		data, ok := d.Data.(*domain.NotificationChapterTranslateSucceedData)
 		if !ok {
 			slog.Error(fmt.Sprintf("%s: %s", operation, "error data mapping"), slog.Any("data", d.Data), slog.Any("type", d.Type))
 			return
@@ -117,7 +121,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d models.Notification
 			slog.Info("test notification", slog.String("fcmToken", fcmToken.Token), slog.String("info", info))
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
-				_ = s.fcmTokenRepo.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
+				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
 			}
 		}
 
@@ -131,8 +135,8 @@ func (s *Service) ProcessNotification(ctx context.Context, d models.Notification
 				"totalChapterCount": data.TotalChapterCount,
 			},
 		})
-	case models.NotificationTest:
-		data, ok := d.Data.(*models.NotificationTestData)
+	case domain.NotificationTest:
+		data, ok := d.Data.(*domain.NotificationTestData)
 		if !ok {
 			slog.Error(fmt.Sprintf("%s: %s", operation, "error data mapping"), slog.Any("data", d.Data), slog.Any("type", d.Type))
 			return
@@ -149,7 +153,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d models.Notification
 			slog.Info("test notification", slog.String("fcmToken", fcmToken.Token), slog.String("info", info))
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
-				_ = s.fcmTokenRepo.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
+				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
 			}
 		}
 	default:

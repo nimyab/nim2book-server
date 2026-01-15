@@ -5,16 +5,15 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/models"
-	"github.com/nimyab/nim2book-back/internal/repositories"
+	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
-type FcmTokenRepo interface {
-	DeleteFcmToken(ctx context.Context, token string, userId models.ID) error
+type Postgres interface {
+	DeleteFcmToken(ctx context.Context, token string, userId domain.Id) error
 }
 
 type Service struct {
-	fcmTokenRepo *repositories.FcmTokenRepository
+	pg Postgres
 }
 
 var service *Service
@@ -23,17 +22,17 @@ var (
 	ErrInternal = errors.New("internal error")
 )
 
-func New(fcmTokenRepo *repositories.FcmTokenRepository) *Service {
+func New(pg Postgres) *Service {
 	service = &Service{
-		fcmTokenRepo: fcmTokenRepo,
+		pg: pg,
 	}
 	return service
 }
 
-func (s *Service) DeleteFcmToken(input *Input, userId models.ID) (*Output, error) {
+func (s *Service) DeleteFcmToken(input *Input, userId domain.Id) (*Output, error) {
 	const operation = "fcm_token.add_fcm_token.AddFcmToken"
 
-	err := s.fcmTokenRepo.DeleteFcmToken(context.Background(), input.FcmToken, userId)
+	err := s.pg.DeleteFcmToken(context.Background(), input.FcmToken, userId)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation), slog.String("fcmToken", input.FcmToken))
 		return nil, ErrInternal

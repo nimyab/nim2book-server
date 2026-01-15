@@ -1,7 +1,7 @@
-package models
+package domain
 
 type JwtPayload struct {
-	Id      ID   `json:"id"`
+	Id      Id   `json:"id"`
 	IsAdmin bool `json:"isAdmin"`
 	IsVIP   bool `json:"isVIP"`
 }

@@ -1,6 +1,6 @@
 package get_books
 
-import "github.com/nimyab/nim2book-back/internal/models"
+import "github.com/nimyab/nim2book-back/internal/domain"
 
 type Input struct {
 	Author string `query:"author" validate:"omitempty"`
@@ -9,5 +9,5 @@ type Input struct {
 }
 
 type Output struct {
-	Books []models.Book `json:"books"`
+	Books []domain.Book `json:"books"`
 }

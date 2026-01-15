@@ -5,16 +5,16 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/models"
-	"github.com/nimyab/nim2book-back/internal/repositories"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
+	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
-type UserRepo interface {
-	GetUserById(ctx context.Context, userId models.ID) (*models.User, error)
+type Postgres interface {
+	GetUserById(ctx context.Context, userId domain.Id) (*domain.User, error)
 }
 
 type Service struct {
-	userRepo *repositories.UserRepository
+	pg Postgres
 }
 
 var service *Service
@@ -24,9 +24,9 @@ var (
 	ErrUserNotFound = errors.New("user not found")
 )
 
-func New(userRepo *repositories.UserRepository) *Service {
+func New(pg Postgres) *Service {
 	service = &Service{
-		userRepo: userRepo,
+		pg: pg,
 	}
 	return service
 }
@@ -34,8 +34,8 @@ func New(userRepo *repositories.UserRepository) *Service {
 func (s *Service) Me(input *Input) (*Output, error) {
 	const operation = "user.me.Me"
 
-	user, err := s.userRepo.GetUserById(context.Background(), input.UserId)
-	if errors.Is(err, repositories.ErrUserNotFound) {
+	user, err := s.pg.GetUserById(context.Background(), input.UserId)
+	if errors.Is(err, postgres_sqlc.ErrUserNotFound) {
 		return nil, ErrUserNotFound
 	}
 	if err != nil {

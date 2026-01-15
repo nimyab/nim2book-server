@@ -1,6 +1,6 @@
 package lookup
 
-import "github.com/nimyab/nim2book-back/internal/models"
+import "github.com/nimyab/nim2book-back/internal/domain"
 
 type Input struct {
 	Text string `json:"text" validate:"required"`
@@ -8,4 +8,4 @@ type Input struct {
 	UI   string `json:"ui" validate:"required"`
 }
 
-type Output = models.DictionaryData
+type Output = domain.DictionaryData

@@ -11,12 +11,11 @@ import (
 	"github.com/nimyab/nim2book-back/config"
 	"github.com/nimyab/nim2book-back/internal/adapter/firebase"
 	"github.com/nimyab/nim2book-back/internal/adapter/minio"
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_gorm"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/adapter/redis_cache"
 	"github.com/nimyab/nim2book-back/internal/controller/http"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
-	"github.com/nimyab/nim2book-back/internal/models"
-	"github.com/nimyab/nim2book-back/internal/repositories"
+	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/services/auth/google_login"
 	"github.com/nimyab/nim2book-back/internal/services/auth/login"
 	"github.com/nimyab/nim2book-back/internal/services/auth/refresh"
@@ -63,12 +62,12 @@ func main() {
 
 func appRun(cfg *config.Config) error {
 	// register signals for messaging
-	notificationSignal := signals.New[models.Notification]()
+	notificationSignal := signals.New[*domain.Notification]()
 
 	// Postgres
-	pgClient, err := postgres_gorm.New(
+	pgClient, err := postgres_sqlc.New(
 		context.Background(),
-		&postgres_gorm.Config{PostgresURL: cfg.PostgresURL},
+		&postgres_sqlc.Config{PostgresURL: cfg.PostgresURL},
 	)
 	if err != nil {
 		return err
@@ -105,14 +104,8 @@ func appRun(cfg *config.Config) error {
 		return err
 	}
 
-	// repositories
-	userRepository := repositories.NewUserRepository(pgClient.DB)
-	bookRepository := repositories.NewBookRepository(pgClient.DB)
-	fcmTokensRepository := repositories.NewFcmTokenRepository(pgClient.DB)
-	dictionaryRepository := repositories.NewDictionaryRepository(pgClient.DB)
-
 	// notification service
-	notificationService := notification.New(messagingFirebaseClient, fcmTokensRepository)
+	notificationService := notification.New(messagingFirebaseClient, pgClient)
 
 	// align service
 	wordAlignerClient, err := word_aligner.NewClient(&word_aligner.ClientConfig{Address: cfg.WordAlignerAddrGrpc})
@@ -126,7 +119,7 @@ func appRun(cfg *config.Config) error {
 	// translate service
 	translate_book.New(
 		minioClient,
-		bookRepository,
+		pgClient,
 		wordAlignerClient,
 		translateService,
 		cfg.MaxRequestCount,
@@ -136,29 +129,29 @@ func appRun(cfg *config.Config) error {
 
 	// book service
 	get_chapter.New(minioClient)
-	get_books.New(bookRepository)
-	get_book.New(bookRepository)
-	update_book.New(bookRepository, minioClient)
+	get_books.New(pgClient)
+	get_book.New(pgClient)
+	update_book.New(pgClient, minioClient)
 
 	// auth service
-	register.New(userRepository)
-	login.New(userRepository, cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
-	google_login.New(userRepository, cfg.GoogleClientId, cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
+	register.New(pgClient)
+	login.New(pgClient, cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
+	google_login.New(pgClient, cfg.GoogleClientId, cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
 	refresh.New(cfg.JWTSecret, cfg.JWTAccessTime, cfg.JWTRefreshTime)
 
 	// user service
-	me.New(userRepository)
-	metadata.New(userRepository)
+	me.New(pgClient)
+	metadata.New(pgClient)
 
 	// dictionary service
-	lookup.New(dictionaryRepository, redisCacheClient, cfg.YandexDictionaryKey, cfg.YandexDictionaryURL)
+	lookup.New(pgClient, redisCacheClient, cfg.YandexDictionaryKey, cfg.YandexDictionaryURL)
 
 	// file services
 	file_public.New(minioClient)
 
 	// fcm_token services
-	add_fcm_token.New(fcmTokensRepository)
-	delete_fcm_token.New(fcmTokensRepository)
+	add_fcm_token.New(pgClient)
+	delete_fcm_token.New(pgClient)
 
 	// websocket
 	websocket.NewAndStart()
@@ -182,7 +175,7 @@ func appRun(cfg *config.Config) error {
 	<-sig
 
 	_ = router.Shutdown(context.Background())
-	_ = pgClient.Close()
+	pgClient.Close()
 
 	slog.Info("Graceful shutdown!")
 

@@ -1,6 +1,6 @@
 package login
 
-import "github.com/nimyab/nim2book-back/internal/models"
+import "github.com/nimyab/nim2book-back/internal/domain"
 
 type Input struct {
 	Email    string `json:"email" validate:"required,email"`
@@ -8,7 +8,7 @@ type Input struct {
 }
 
 type Output struct {
-	User         *models.User `json:"user"`
+	User         *domain.User `json:"user"`
 	AccessToken  string       `json:"accessToken"`
 	RefreshToken string       `json:"refreshToken"`
 }

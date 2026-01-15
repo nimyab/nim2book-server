@@ -1,13 +1,13 @@
 package me
 
 import (
-	"github.com/nimyab/nim2book-back/internal/models"
+	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
 type Input struct {
-	UserId models.ID `validate:"required,uuid"`
+	UserId domain.Id `validate:"required,uuid"`
 }
 
 type Output struct {
-	User *models.User `json:"user"`
+	User *domain.User `json:"user"`
 }

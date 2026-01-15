@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/nimyab/nim2book-back/internal/models"
+	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/jwt"
 )
 
@@ -33,10 +33,10 @@ func HTTPv1(c echo.Context) error {
 		})
 	}
 
-	service.ProcessNotification(context.Background(), models.Notification{
+	service.ProcessNotification(context.Background(), &domain.Notification{
 		UserId: payload.Id,
-		Type:   models.NotificationTest,
-		Data: &models.NotificationTestData{
+		Type:   domain.NotificationTest,
+		Data: &domain.NotificationTestData{
 			Title: input.Title,
 			Body:  input.Body,
 		},

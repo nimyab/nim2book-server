@@ -4,18 +4,22 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/repositories"
+	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
+type Postgres interface {
+	GetBook(ctx context.Context, id domain.Id) (*domain.Book, error)
+}
+
 type Service struct {
-	bookRepo *repositories.BookRepository
+	pg Postgres
 }
 
 var service *Service
 
-func New(bookRepo *repositories.BookRepository) *Service {
+func New(pg Postgres) *Service {
 	service = &Service{
-		bookRepo: bookRepo,
+		pg: pg,
 	}
 	return service
 }
@@ -23,7 +27,7 @@ func New(bookRepo *repositories.BookRepository) *Service {
 func (s *Service) GetBook(input *Input) (*Output, error) {
 	const operation = "book.get_book.GetBook"
 
-	book, err := s.bookRepo.GetBookById(context.Background(), input.Id)
+	book, err := s.pg.GetBook(context.Background(), input.Id)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, err

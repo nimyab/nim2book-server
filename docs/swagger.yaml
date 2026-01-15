@@ -17,16 +17,164 @@ definitions:
       success:
         type: boolean
     type: object
+  domain.Book:
+    properties:
+      author:
+        type: string
+      chapterPaths:
+        items:
+          type: string
+        type: array
+      cover:
+        type: string
+      id:
+        type: string
+      title:
+        type: string
+    type: object
+  domain.ChapterAlignNode:
+    properties:
+      content:
+        items:
+          $ref: '#/definitions/domain.ParagraphAlignNode'
+        type: array
+      id:
+        type: string
+      order:
+        type: integer
+      title:
+        type: string
+      translatedTitle:
+        type: string
+    type: object
+  domain.Definition:
+    properties:
+      pos:
+        type: string
+      text:
+        type: string
+      tr:
+        items:
+          $ref: '#/definitions/domain.Translation'
+        type: array
+      ts:
+        type: string
+    required:
+    - text
+    - tr
+    type: object
+  domain.EmailPasswordAccount:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+    type: object
+  domain.Example:
+    properties:
+      text:
+        type: string
+      tr:
+        items:
+          $ref: '#/definitions/domain.ExampleTranslation'
+        type: array
+    required:
+    - text
+    type: object
+  domain.ExampleTranslation:
+    properties:
+      text:
+        type: string
+    required:
+    - text
+    type: object
+  domain.GoogleAccount:
+    properties:
+      email:
+        type: string
+      emailVerified:
+        type: boolean
+      name:
+        type: string
+      picture:
+        type: string
+      sub:
+        type: string
+    type: object
+  domain.JsonB:
+    additionalProperties: {}
+    type: object
+  domain.Mean:
+    properties:
+      text:
+        type: string
+    required:
+    - text
+    type: object
+  domain.ParagraphAlignNode:
+    properties:
+      aw:
+        items:
+          $ref: '#/definitions/domain.WordAlignNode'
+        type: array
+      op:
+        type: string
+      tp:
+        type: string
+    type: object
+  domain.Translation:
+    properties:
+      ex:
+        items:
+          $ref: '#/definitions/domain.Example'
+        type: array
+      mean:
+        items:
+          $ref: '#/definitions/domain.Mean'
+        type: array
+      pos:
+        type: string
+      text:
+        type: string
+    required:
+    - text
+    type: object
+  domain.User:
+    properties:
+      emailPasswordAccount:
+        $ref: '#/definitions/domain.EmailPasswordAccount'
+      googleAccount:
+        $ref: '#/definitions/domain.GoogleAccount'
+      id:
+        type: string
+      isAdmin:
+        type: boolean
+      isVIP:
+        type: boolean
+      metadata:
+        $ref: '#/definitions/domain.JsonB'
+    type: object
+  domain.WordAlignNode:
+    properties:
+      iow:
+        items:
+          type: integer
+        type: array
+      itw:
+        items:
+          type: integer
+        type: array
+    type: object
   get_book.Output:
     properties:
       book:
-        $ref: '#/definitions/models.Book'
+        $ref: '#/definitions/domain.Book'
     type: object
   get_books.Output:
     properties:
       books:
         items:
-          $ref: '#/definitions/models.Book'
+          $ref: '#/definitions/domain.Book'
         type: array
     type: object
   google_login.Input:
@@ -43,7 +191,7 @@ definitions:
       refreshToken:
         type: string
       user:
-        $ref: '#/definitions/models.User'
+        $ref: '#/definitions/domain.User'
     type: object
   login.Input:
     properties:
@@ -63,7 +211,7 @@ definitions:
       refreshToken:
         type: string
       user:
-        $ref: '#/definitions/models.User'
+        $ref: '#/definitions/domain.User'
     type: object
   logout.Output:
     properties:
@@ -87,7 +235,7 @@ definitions:
     properties:
       def:
         items:
-          $ref: '#/definitions/models.Definition'
+          $ref: '#/definitions/domain.Definition'
         type: array
       head:
         additionalProperties: {}
@@ -98,181 +246,19 @@ definitions:
   me.Output:
     properties:
       user:
-        $ref: '#/definitions/models.User'
+        $ref: '#/definitions/domain.User'
     type: object
   metadata.Input:
     properties:
       metadata:
-        $ref: '#/definitions/models.JSONB'
+        $ref: '#/definitions/domain.JsonB'
     required:
     - metadata
     type: object
   metadata.Output:
     properties:
       user:
-        $ref: '#/definitions/models.User'
-    type: object
-  models.Book:
-    properties:
-      author:
-        type: string
-      chapterPaths:
-        items:
-          type: string
-        type: array
-      cover:
-        type: string
-      id:
-        type: string
-      title:
-        type: string
-    type: object
-  models.ChapterAlignNode:
-    properties:
-      content:
-        items:
-          $ref: '#/definitions/models.ParagraphAlignNode'
-        type: array
-      id:
-        type: string
-      order:
-        type: integer
-      title:
-        type: string
-      translatedTitle:
-        type: string
-    type: object
-  models.Definition:
-    properties:
-      pos:
-        type: string
-      text:
-        type: string
-      tr:
-        items:
-          $ref: '#/definitions/models.Translation'
-        type: array
-      ts:
-        type: string
-    required:
-    - text
-    - tr
-    type: object
-  models.EmailPasswordAccount:
-    properties:
-      email:
-        type: string
-      id:
-        type: string
-      user:
-        allOf:
-        - $ref: '#/definitions/models.User'
-        description: Relations
-    type: object
-  models.Example:
-    properties:
-      text:
-        type: string
-      tr:
-        items:
-          $ref: '#/definitions/models.ExampleTranslation'
-        type: array
-    required:
-    - text
-    type: object
-  models.ExampleTranslation:
-    properties:
-      text:
-        type: string
-    required:
-    - text
-    type: object
-  models.GoogleAccount:
-    properties:
-      email:
-        type: string
-      emailVerified:
-        type: boolean
-      name:
-        type: string
-      picture:
-        type: string
-      sub:
-        type: string
-      user:
-        allOf:
-        - $ref: '#/definitions/models.User'
-        description: Relations
-    type: object
-  models.JSONB:
-    additionalProperties: true
-    type: object
-  models.Mean:
-    properties:
-      text:
-        type: string
-    required:
-    - text
-    type: object
-  models.ParagraphAlignNode:
-    properties:
-      aw:
-        items:
-          $ref: '#/definitions/models.WordAlignNode'
-        type: array
-      op:
-        type: string
-      tp:
-        type: string
-    type: object
-  models.Translation:
-    properties:
-      ex:
-        items:
-          $ref: '#/definitions/models.Example'
-        type: array
-      mean:
-        items:
-          $ref: '#/definitions/models.Mean'
-        type: array
-      pos:
-        type: string
-      text:
-        type: string
-    required:
-    - text
-    type: object
-  models.User:
-    properties:
-      emailPasswordAccount:
-        $ref: '#/definitions/models.EmailPasswordAccount'
-      emailPasswordAccountId:
-        type: string
-      googleAccount:
-        allOf:
-        - $ref: '#/definitions/models.GoogleAccount'
-        description: Relations
-      googleAccountSub:
-        type: string
-      id:
-        type: string
-      isAdmin:
-        type: boolean
-      isVip:
-        type: boolean
-      metadata:
-        $ref: '#/definitions/models.JSONB'
-    type: object
-  models.WordAlignNode:
-    properties:
-      iow:
-        items:
-          type: integer
-        type: array
-      itw:
-        items:
-          type: integer
-        type: array
+        $ref: '#/definitions/domain.User'
     type: object
   notification.Input:
     properties:
@@ -314,14 +300,14 @@ definitions:
   translate_book.Output:
     properties:
       book:
-        $ref: '#/definitions/models.Book'
+        $ref: '#/definitions/domain.Book'
       messageAboutTranslate:
         type: string
     type: object
   update_book.Output:
     properties:
       book:
-        $ref: '#/definitions/models.Book'
+        $ref: '#/definitions/domain.Book'
     type: object
 externalDocs:
   description: OpenAPI
@@ -515,7 +501,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.ChapterAlignNode'
+            $ref: '#/definitions/domain.ChapterAlignNode'
       summary: Get book chapter
       tags:
       - book

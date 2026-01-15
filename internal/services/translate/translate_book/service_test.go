@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nimyab/nim2book-back/internal/models"
+	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
 	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
 	"github.com/stretchr/testify/assert"
@@ -16,8 +16,8 @@ func TestService_translateAndAlignParagraph(t *testing.T) {
 	tests := []struct {
 		name           string
 		paragraph      string
-		from           models.SupportedLang
-		to             models.SupportedLang
+		from           domain.SupportedLang
+		to             domain.SupportedLang
 		translatorResp *translate.Output
 		translatorErr  error
 		alignerResp    *pb.AlignResponse
@@ -27,8 +27,8 @@ func TestService_translateAndAlignParagraph(t *testing.T) {
 		{
 			name:      "successful translation and alignment",
 			paragraph: "Hello world",
-			from:      models.En,
-			to:        models.Ru,
+			from:      domain.En,
+			to:        domain.Ru,
 			translatorResp: &translate.Output{
 				TranslatedText: "Привет мир",
 			},
@@ -59,8 +59,8 @@ func TestService_translateAndAlignParagraph(t *testing.T) {
 		{
 			name:           "translation error",
 			paragraph:      "Hello world",
-			from:           models.En,
-			to:             models.Ru,
+			from:           domain.En,
+			to:             domain.Ru,
 			translatorResp: nil,
 			translatorErr:  errors.New("translation failed"),
 			wantErr:        true,
@@ -68,8 +68,8 @@ func TestService_translateAndAlignParagraph(t *testing.T) {
 		{
 			name:      "alignment error",
 			paragraph: "Hello world",
-			from:      models.En,
-			to:        models.Ru,
+			from:      domain.En,
+			to:        domain.Ru,
 			translatorResp: &translate.Output{
 				TranslatedText: "Привет мир",
 			},
@@ -81,8 +81,8 @@ func TestService_translateAndAlignParagraph(t *testing.T) {
 		{
 			name:      "paragraph without letters",
 			paragraph: "123 456",
-			from:      models.En,
-			to:        models.Ru,
+			from:      domain.En,
+			to:        domain.Ru,
 			translatorResp: &translate.Output{
 				TranslatedText: "123 456",
 			},
@@ -143,19 +143,19 @@ func TestService_translateAndAlignParagraph(t *testing.T) {
 func TestService_saveChapterToS3(t *testing.T) {
 	tests := []struct {
 		name      string
-		chapter   *models.ChapterAlignNode
+		chapter   *domain.ChapterAlignNode
 		bookTitle string
 		s3Err     error
 		wantErr   bool
 	}{
 		{
 			name: "successful save",
-			chapter: &models.ChapterAlignNode{
+			chapter: &domain.ChapterAlignNode{
 				Id:              "chapter1",
 				Order:           0,
 				Title:           "Chapter 1",
 				TranslatedTitle: "Глава 1",
-				Content: []models.ParagraphAlignNode{
+				Content: []domain.ParagraphAlignNode{
 					{
 						OriginalParagraph:   "Hello",
 						TranslatedParagraph: "Привет",
@@ -168,7 +168,7 @@ func TestService_saveChapterToS3(t *testing.T) {
 		},
 		{
 			name: "s3 upload error",
-			chapter: &models.ChapterAlignNode{
+			chapter: &domain.ChapterAlignNode{
 				Id:    "chapter1",
 				Order: 0,
 			},
@@ -352,6 +352,7 @@ func TestNew(t *testing.T) {
 	assert.Equal(t, waitDuration, s.waitDuration)
 	assert.Equal(t, 0, s.currentCountBookTranslating)
 	assert.Equal(t, mockS3, s.s3)
+	assert.Equal(t, mockPg, s.pg)
 	assert.Equal(t, mockWordAligner, s.wordAligner)
 	assert.Equal(t, mockTranslator, s.translator)
 	assert.Equal(t, mockNotificationSender, s.notificationSignal)
