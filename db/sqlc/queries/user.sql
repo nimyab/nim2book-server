@@ -1,8 +1,19 @@
 -- name: GetUser :one
 select
-  sqlc.embed(u),
-  sqlc.embed(g),
-  sqlc.embed(e)
+  u.id,
+  u.is_admin,
+  u.is_vip,
+  u.metadata,
+  u.google_account_sub,
+  u.email_password_account_id,
+  g.sub as google_sub,
+  g.email as google_email,
+  g.email_verified as google_email_verified,
+  g.name as google_name,
+  g.picture as google_picture,
+  e.id as email_password_id,
+  e.email as email_password_email,
+  e.password_hash as email_password_hash
 from users as u
   left join google_accounts as g on u.google_account_sub = g.sub
   left join email_password_accounts as e on u.email_password_account_id = e.id

@@ -56,9 +56,12 @@ func uuidFromPgtype(pgu pgtype.UUID) domain.Id {
 	return domain.Id(pgu.Bytes)
 }
 
-func stringToPgtype(s string) pgtype.Text {
+func stringToPgtype(s *string) pgtype.Text {
+	if s == nil {
+		return pgtype.Text{Valid: false}
+	}
 	return pgtype.Text{
-		String: s,
+		String: *s,
 		Valid:  true,
 	}
 }

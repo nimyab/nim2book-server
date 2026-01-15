@@ -72,7 +72,7 @@ func (db *Postgres) CreateBook(ctx context.Context, book *domain.Book) (*domain.
 			return nil, fmt.Errorf("%s: %w", operation, err)
 		}
 
-		book.Id = id
+		book.Id = uuidFromPgtype(id)
 		return book, nil
 	})
 }
@@ -80,7 +80,7 @@ func (db *Postgres) CreateBook(ctx context.Context, book *domain.Book) (*domain.
 func (db *Postgres) GetBook(ctx context.Context, id domain.Id) (*domain.Book, error) {
 	const operation = "postgres_sqlc.GetBook"
 
-	book, err := db.Queries.GetBookById(ctx, id)
+	book, err := db.Queries.GetBookById(ctx, uuidToPgtype(id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrBookNotFound
 	}
@@ -122,7 +122,7 @@ func (db *Postgres) UpdateBook(ctx context.Context, book *domain.Book) error {
 			Title:  book.Title,
 			Author: book.Author,
 			Cover:  book.Cover,
-			ID:     book.Id,
+			ID:     uuidToPgtype(book.Id),
 		})
 		if err != nil {
 			return fmt.Errorf("%s: %w", operation, err)
@@ -135,7 +135,7 @@ func (db *Postgres) UpdateBook(ctx context.Context, book *domain.Book) error {
 // Конвертирует sqlc.Book в domain.Book
 func bookFromSqlc(book sqlc.Book) *domain.Book {
 	return &domain.Book{
-		Id:           book.ID,
+		Id:           uuidFromPgtype(book.ID),
 		Title:        book.Title,
 		Author:       book.Author,
 		ChapterPaths: book.ChapterPaths,

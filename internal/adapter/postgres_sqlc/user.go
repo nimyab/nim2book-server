@@ -41,7 +41,7 @@ func (db *Postgres) CreateUserByEmailAndPassword(ctx context.Context, data *doma
 			return nil, fmt.Errorf("%s: %w", operation, err)
 		}
 
-		data.Id = epaId
+		data.Id = uuidFromPgtype(epaId)
 
 		// Создаем user
 		userRow, err := queries.CreateUserByEmailPasswordAccountId(ctx, epaId)
@@ -50,7 +50,7 @@ func (db *Postgres) CreateUserByEmailAndPassword(ctx context.Context, data *doma
 		}
 
 		user := &domain.User{
-			Id:                   userRow.ID,
+			Id:                   uuidFromPgtype(userRow.ID),
 			IsAdmin:              userRow.IsAdmin,
 			IsVIP:                userRow.IsVip,
 			EmailPasswordAccount: data,
@@ -102,7 +102,7 @@ func (db *Postgres) CreateUserByGoogle(ctx context.Context, data *domain.GoogleA
 		}
 
 		user := &domain.User{
-			Id:            userRow.ID,
+			Id:            uuidFromPgtype(userRow.ID),
 			IsAdmin:       userRow.IsAdmin,
 			IsVIP:         userRow.IsVip,
 			GoogleAccount: data,
@@ -154,7 +154,7 @@ func (db *Postgres) GetUserById(ctx context.Context, userId domain.Id) (*domain.
 	const operation = "postgres_sqlc.GetUserById"
 
 	row, err := db.Queries.GetUser(ctx, sqlc.GetUserParams{
-		UserID: userId,
+		UserID: uuidToPgtype(userId),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrUserNotFound
@@ -174,13 +174,13 @@ func (db *Postgres) GetUser(ctx context.Context, user *domain.User) (*domain.Use
 	// Определяем по какому полю искать
 	switch {
 	case user.Id != domain.Id{}:
-		params.UserID = user.Id
+		params.UserID = uuidToPgtype(user.Id)
 	case user.GoogleAccount != nil && user.GoogleAccount.Sub != "":
 		params.GoogleSub = &user.GoogleAccount.Sub
 	case user.GoogleAccount != nil && user.GoogleAccount.Email != "":
 		params.GoogleEmail = &user.GoogleAccount.Email
 	case user.EmailPasswordAccount != nil && user.EmailPasswordAccount.Id != domain.Id{}:
-		params.EmailPasswordAccountID = user.EmailPasswordAccount.Id
+		params.EmailPasswordAccountID = uuidToPgtype(user.EmailPasswordAccount.Id)
 	case user.EmailPasswordAccount != nil && user.EmailPasswordAccount.Email != "":
 		params.Email = &user.EmailPasswordAccount.Email
 	default:
@@ -218,7 +218,7 @@ func (db *Postgres) UpdateMetadata(ctx context.Context, newMetadata domain.JsonB
 		// Обновляем метаданные
 		err = queries.UpdateUserMetadata(ctx, sqlc.UpdateUserMetadataParams{
 			Metadata: metadataBytes,
-			ID:       userId,
+			ID:       uuidToPgtype(userId),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", operation, err)
@@ -232,34 +232,36 @@ func (db *Postgres) UpdateMetadata(ctx context.Context, newMetadata domain.JsonB
 // userRowToUser конвертирует результат SQL запроса в domain.User
 func userRowToUser(row sqlc.GetUserRow) (*domain.User, error) {
 	user := &domain.User{
-		Id:      row.User.ID,
-		IsAdmin: row.User.IsAdmin,
-		IsVIP:   row.User.IsVip,
+		Id:      uuidFromPgtype(row.ID),
+		IsAdmin: row.IsAdmin,
+		IsVIP:   row.IsVip,
 	}
 
-	if len(row.User.Metadata) > 0 {
-		if err := json.Unmarshal(row.User.Metadata, &user.Metadata); err != nil {
+	if len(row.Metadata) > 0 {
+		if err := json.Unmarshal(row.Metadata, &user.Metadata); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 		}
 	}
 
 	// Если есть Google Account
-	if row.GoogleAccount.Sub != "" {
+	if row.GoogleSub != nil && *row.GoogleSub != "" {
 		user.GoogleAccount = &domain.GoogleAccount{
-			Sub:           row.GoogleAccount.Sub,
-			Email:         row.GoogleAccount.Email,
-			EmailVerified: row.GoogleAccount.EmailVerified,
-			Name:          row.GoogleAccount.Name,
-			Picture:       row.GoogleAccount.Picture,
+			Sub:           *row.GoogleSub,
+			Email:         *row.GoogleEmail,
+			EmailVerified: *row.GoogleEmailVerified,
+			Name:          *row.GoogleName,
+		}
+		if row.GooglePicture != nil {
+			user.GoogleAccount.Picture = row.GooglePicture
 		}
 	}
 
 	// Если есть Email/Password Account
-	if row.EmailPasswordAccount.ID.String() != "" {
+	if row.EmailPasswordEmail != nil && *row.EmailPasswordEmail != "" {
 		user.EmailPasswordAccount = &domain.EmailPasswordAccount{
-			Id:           row.EmailPasswordAccount.ID,
-			Email:        row.EmailPasswordAccount.Email,
-			PasswordHash: row.EmailPasswordAccount.PasswordHash,
+			Id:           uuidFromPgtype(row.EmailPasswordID),
+			Email:        *row.EmailPasswordEmail,
+			PasswordHash: *row.EmailPasswordHash,
 		}
 	}
 

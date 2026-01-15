@@ -8,8 +8,7 @@ package sqlc
 import (
 	"context"
 
-	"github.com/google/uuid"
-	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createEmailPasswordAccount = `-- name: CreateEmailPasswordAccount :one
@@ -23,9 +22,9 @@ type CreateEmailPasswordAccountParams struct {
 	PasswordHash string
 }
 
-func (q *Queries) CreateEmailPasswordAccount(ctx context.Context, arg CreateEmailPasswordAccountParams) (domain.Id, error) {
+func (q *Queries) CreateEmailPasswordAccount(ctx context.Context, arg CreateEmailPasswordAccountParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, createEmailPasswordAccount, arg.Email, arg.PasswordHash)
-	var id domain.Id
+	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -64,13 +63,13 @@ returning id,
 `
 
 type CreateUserByEmailPasswordAccountIdRow struct {
-	ID       domain.Id
+	ID       pgtype.UUID
 	IsAdmin  bool
 	IsVip    bool
 	Metadata []byte
 }
 
-func (q *Queries) CreateUserByEmailPasswordAccountId(ctx context.Context, emailPasswordAccountID uuid.UUID) (CreateUserByEmailPasswordAccountIdRow, error) {
+func (q *Queries) CreateUserByEmailPasswordAccountId(ctx context.Context, emailPasswordAccountID pgtype.UUID) (CreateUserByEmailPasswordAccountIdRow, error) {
 	row := q.db.QueryRow(ctx, createUserByEmailPasswordAccountId, emailPasswordAccountID)
 	var i CreateUserByEmailPasswordAccountIdRow
 	err := row.Scan(
@@ -92,7 +91,7 @@ returning id,
 `
 
 type CreateUserByGoogleSubRow struct {
-	ID       domain.Id
+	ID       pgtype.UUID
 	IsAdmin  bool
 	IsVip    bool
 	Metadata []byte
@@ -116,18 +115,29 @@ from email_password_accounts
 where email = $1
 `
 
-func (q *Queries) GetEmailPasswordAccountByEmail(ctx context.Context, email string) (domain.Id, error) {
+func (q *Queries) GetEmailPasswordAccountByEmail(ctx context.Context, email string) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, getEmailPasswordAccountByEmail, email)
-	var id domain.Id
+	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
 }
 
 const getUser = `-- name: GetUser :one
 select
-  u.id, u.is_admin, u.is_vip, u.metadata, u.google_account_sub, u.email_password_account_id,
-  g.sub, g.email, g.email_verified, g.name, g.picture,
-  e.id, e.email, e.password_hash
+  u.id,
+  u.is_admin,
+  u.is_vip,
+  u.metadata,
+  u.google_account_sub,
+  u.email_password_account_id,
+  g.sub as google_sub,
+  g.email as google_email,
+  g.email_verified as google_email_verified,
+  g.name as google_name,
+  g.picture as google_picture,
+  e.id as email_password_id,
+  e.email as email_password_email,
+  e.password_hash as email_password_hash
 from users as u
   left join google_accounts as g on u.google_account_sub = g.sub
   left join email_password_accounts as e on u.email_password_account_id = e.id
@@ -154,17 +164,28 @@ where (
 `
 
 type GetUserParams struct {
-	UserID                 uuid.UUID
+	UserID                 pgtype.UUID
 	GoogleSub              *string
 	GoogleEmail            *string
-	EmailPasswordAccountID uuid.UUID
+	EmailPasswordAccountID pgtype.UUID
 	Email                  *string
 }
 
 type GetUserRow struct {
-	User                 User
-	GoogleAccount        GoogleAccount
-	EmailPasswordAccount EmailPasswordAccount
+	ID                     pgtype.UUID
+	IsAdmin                bool
+	IsVip                  bool
+	Metadata               []byte
+	GoogleAccountSub       *string
+	EmailPasswordAccountID pgtype.UUID
+	GoogleSub              *string
+	GoogleEmail            *string
+	GoogleEmailVerified    *bool
+	GoogleName             *string
+	GooglePicture          *string
+	EmailPasswordID        pgtype.UUID
+	EmailPasswordEmail     *string
+	EmailPasswordHash      *string
 }
 
 func (q *Queries) GetUser(ctx context.Context, arg GetUserParams) (GetUserRow, error) {
@@ -177,20 +198,20 @@ func (q *Queries) GetUser(ctx context.Context, arg GetUserParams) (GetUserRow, e
 	)
 	var i GetUserRow
 	err := row.Scan(
-		&i.User.ID,
-		&i.User.IsAdmin,
-		&i.User.IsVip,
-		&i.User.Metadata,
-		&i.User.GoogleAccountSub,
-		&i.User.EmailPasswordAccountID,
-		&i.GoogleAccount.Sub,
-		&i.GoogleAccount.Email,
-		&i.GoogleAccount.EmailVerified,
-		&i.GoogleAccount.Name,
-		&i.GoogleAccount.Picture,
-		&i.EmailPasswordAccount.ID,
-		&i.EmailPasswordAccount.Email,
-		&i.EmailPasswordAccount.PasswordHash,
+		&i.ID,
+		&i.IsAdmin,
+		&i.IsVip,
+		&i.Metadata,
+		&i.GoogleAccountSub,
+		&i.EmailPasswordAccountID,
+		&i.GoogleSub,
+		&i.GoogleEmail,
+		&i.GoogleEmailVerified,
+		&i.GoogleName,
+		&i.GooglePicture,
+		&i.EmailPasswordID,
+		&i.EmailPasswordEmail,
+		&i.EmailPasswordHash,
 	)
 	return i, err
 }
@@ -203,7 +224,7 @@ where id = $2
 
 type UpdateUserMetadataParams struct {
 	Metadata []byte
-	ID       domain.Id
+	ID       pgtype.UUID
 }
 
 func (q *Queries) UpdateUserMetadata(ctx context.Context, arg UpdateUserMetadataParams) error {

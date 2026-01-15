@@ -8,7 +8,7 @@ package sqlc
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addFcmToken = `-- name: AddFcmToken :one
@@ -21,7 +21,7 @@ returning token,
 
 type AddFcmTokenParams struct {
 	Token  string
-	UserID uuid.UUID
+	UserID pgtype.UUID
 }
 
 func (q *Queries) AddFcmToken(ctx context.Context, arg AddFcmTokenParams) (FcmToken, error) {
@@ -39,7 +39,7 @@ where token = $1
 
 type DeleteFcmTokenParams struct {
 	Token  string
-	UserID uuid.UUID
+	UserID pgtype.UUID
 }
 
 func (q *Queries) DeleteFcmToken(ctx context.Context, arg DeleteFcmTokenParams) error {
@@ -66,7 +66,7 @@ from fcm_tokens
 where user_id = $1
 `
 
-func (q *Queries) GetFcmTokensByUserId(ctx context.Context, userID uuid.UUID) ([]FcmToken, error) {
+func (q *Queries) GetFcmTokensByUserId(ctx context.Context, userID pgtype.UUID) ([]FcmToken, error) {
 	rows, err := q.db.Query(ctx, getFcmTokensByUserId, userID)
 	if err != nil {
 		return nil, err

@@ -8,7 +8,7 @@ package sqlc
 import (
 	"context"
 
-	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createBook = `-- name: CreateBook :one
@@ -24,14 +24,14 @@ type CreateBookParams struct {
 	Cover        *string
 }
 
-func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (domain.Id, error) {
+func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, createBook,
 		arg.Title,
 		arg.Author,
 		arg.ChapterPaths,
 		arg.Cover,
 	)
-	var id domain.Id
+	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -67,7 +67,7 @@ from books
 where id = $1
 `
 
-func (q *Queries) GetBookById(ctx context.Context, id domain.Id) (Book, error) {
+func (q *Queries) GetBookById(ctx context.Context, id pgtype.UUID) (Book, error) {
 	row := q.db.QueryRow(ctx, getBookById, id)
 	var i Book
 	err := row.Scan(
@@ -139,7 +139,7 @@ type UpdateBookParams struct {
 	Title  string
 	Author string
 	Cover  *string
-	ID     domain.Id
+	ID     pgtype.UUID
 }
 
 func (q *Queries) UpdateBook(ctx context.Context, arg UpdateBookParams) error {
