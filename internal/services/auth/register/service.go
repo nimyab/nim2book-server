@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/models"
 	"github.com/nimyab/nim2book-back/internal/repositories"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -13,23 +12,15 @@ import (
 var (
 	ErrUserAlreadyExist = errors.New("user already exists")
 	ErrInternal         = errors.New("internal error")
-	ErrEmptyEmail       = errors.New("email cannot be empty")
-	ErrEmptyPassword    = errors.New("password cannot be empty")
 )
 
-// UserRepository defines the interface for user repository operations needed by this service
-type UserRepository interface {
-	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
-	CreateUserByEmailAndPassword(ctx context.Context, email, passwordHash string) (*models.User, error)
-}
-
 type Service struct {
-	userRepo UserRepository
+	userRepo *repositories.UserRepository
 }
 
 var service *Service
 
-func New(userRepo UserRepository) *Service {
+func New(userRepo *repositories.UserRepository) *Service {
 	service = &Service{
 		userRepo: userRepo,
 	}
@@ -38,14 +29,6 @@ func New(userRepo UserRepository) *Service {
 
 func (s *Service) Register(input *Input) (*Output, error) {
 	const operation = "auth.register.Register"
-
-	// Validate input
-	if input.Email == "" {
-		return nil, ErrEmptyEmail
-	}
-	if input.Password == "" {
-		return nil, ErrEmptyPassword
-	}
 
 	user, err := s.userRepo.GetUserByEmail(context.Background(), input.Email)
 	if user != nil {

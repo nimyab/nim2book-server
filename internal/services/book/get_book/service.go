@@ -4,22 +4,16 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/google/uuid"
-	"github.com/nimyab/nim2book-back/internal/models"
+	"github.com/nimyab/nim2book-back/internal/repositories"
 )
 
-// BookRepository defines the interface for book repository operations needed by this service
-type BookRepository interface {
-	GetBookById(ctx context.Context, id uuid.UUID) (*models.Book, error)
-}
-
 type Service struct {
-	bookRepo BookRepository
+	bookRepo *repositories.BookRepository
 }
 
 var service *Service
 
-func New(bookRepo BookRepository) *Service {
+func New(bookRepo *repositories.BookRepository) *Service {
 	service = &Service{
 		bookRepo: bookRepo,
 	}

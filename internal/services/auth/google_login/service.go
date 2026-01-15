@@ -12,14 +12,8 @@ import (
 	"google.golang.org/api/idtoken"
 )
 
-// UserRepository defines the interface for user repository operations needed by this service
-type UserRepository interface {
-	GetUserByGoogleSub(ctx context.Context, sub string) (*models.User, error)
-	CreateUserByGoogle(ctx context.Context, googleAccount *models.GoogleAccount) (*models.User, error)
-}
-
 type Service struct {
-	userRepo       UserRepository
+	userRepo       *repositories.UserRepository
 	secret         string
 	googleClientId string
 	accessTime     time.Duration
@@ -34,7 +28,7 @@ var (
 	ErrInvalidGoogleData = errors.New("invalid google data")
 )
 
-func New(userRepo UserRepository, googleClientId string, secret string, accessTime, refreshTime time.Duration) *Service {
+func New(userRepo *repositories.UserRepository, googleClientId string, secret string, accessTime, refreshTime time.Duration) *Service {
 	service = &Service{
 		userRepo:       userRepo,
 		secret:         secret,

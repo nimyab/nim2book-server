@@ -12,13 +12,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// UserRepository defines the interface for user repository operations needed by this service
-type UserRepository interface {
-	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
-}
-
 type Service struct {
-	userRepo    UserRepository
+	userRepo    *repositories.UserRepository
 	secret      string
 	accessTime  time.Duration
 	refreshTime time.Duration
@@ -29,11 +24,9 @@ var service *Service
 var (
 	ErrInternal           = errors.New("internal error")
 	ErrPasswordDoNotMatch = errors.New("passwords do not match")
-	ErrEmptyEmail         = errors.New("email cannot be empty")
-	ErrEmptyPassword      = errors.New("password cannot be empty")
 )
 
-func New(userRepo UserRepository, secret string, accessTime, refreshTime time.Duration) *Service {
+func New(userRepo *repositories.UserRepository, secret string, accessTime, refreshTime time.Duration) *Service {
 	service = &Service{
 		userRepo:    userRepo,
 		secret:      secret,
@@ -45,14 +38,6 @@ func New(userRepo UserRepository, secret string, accessTime, refreshTime time.Du
 
 func (s *Service) Login(input *Input) (*Output, error) {
 	const operation = "auth.login.Login"
-
-	// Validate input
-	if input.Email == "" {
-		return nil, ErrEmptyEmail
-	}
-	if input.Password == "" {
-		return nil, ErrEmptyPassword
-	}
 
 	user, err := s.userRepo.GetUserByEmail(context.Background(), input.Email)
 	if errors.Is(repositories.ErrUserNotFound, err) {

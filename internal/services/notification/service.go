@@ -6,19 +6,13 @@ import (
 	"log/slog"
 
 	"firebase.google.com/go/v4/messaging"
-	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/models"
+	"github.com/nimyab/nim2book-back/internal/repositories"
 )
 
-// FcmTokenRepository defines the interface for fcm token repository operations needed by this service
-type FcmTokenRepository interface {
-	GetFcmTokensByUserId(ctx context.Context, userId uuid.UUID) ([]*models.FcmToken, error)
-	DeleteFcmToken(ctx context.Context, token string, userId uuid.UUID) error
-}
-
 type Service struct {
-	fcmTokenRepo            FcmTokenRepository
+	fcmTokenRepo            *repositories.FcmTokenRepository
 	messagingFirebaseClient *messaging.Client
 }
 
@@ -26,7 +20,7 @@ var service *Service
 
 func New(
 	messagingFirebaseClient *messaging.Client,
-	fcmTokenRepo FcmTokenRepository,
+	fcmTokenRepo *repositories.FcmTokenRepository,
 ) *Service {
 	service = &Service{
 		fcmTokenRepo:            fcmTokenRepo,

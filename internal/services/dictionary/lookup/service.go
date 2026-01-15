@@ -11,6 +11,7 @@ import (
 
 	"github.com/avast/retry-go/v4"
 	"github.com/nimyab/nim2book-back/internal/models"
+	"github.com/nimyab/nim2book-back/internal/repositories"
 	"github.com/nimyab/nim2book-back/pkg/logger"
 )
 
@@ -19,15 +20,8 @@ type Redis interface {
 	Get(ctx context.Context, key string) ([]byte, error)
 }
 
-// DictionaryRepository defines the interface for dictionary repository operations needed by this service
-type DictionaryRepository interface {
-	GetDictionaryData(ctx context.Context, text, lang string) (*models.Dictionary, error)
-	CreateDictionaryData(ctx context.Context, text, lang string, content []byte) (*models.Dictionary, error)
-	ParseContent(dict *models.Dictionary) (*models.DictionaryData, error)
-}
-
 type Service struct {
-	dictRepo      DictionaryRepository
+	dictRepo      *repositories.DictionaryRepository
 	redis         Redis
 	yandexDictKey string
 	yandexDictURL string
@@ -35,7 +29,7 @@ type Service struct {
 
 var service *Service
 
-func New(dictRepo DictionaryRepository, redis Redis, yandexDictKey, yandexDictURL string) *Service {
+func New(dictRepo *repositories.DictionaryRepository, redis Redis, yandexDictKey, yandexDictURL string) *Service {
 	service = &Service{
 		dictRepo:      dictRepo,
 		redis:         redis,
