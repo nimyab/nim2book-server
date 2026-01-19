@@ -6,6 +6,7 @@ const (
 	NotificationError                   NotificationType = "error"
 	NotificationChapterTranslateSucceed NotificationType = "chapter_translate_succeed"
 	NotificationBookTranslated          NotificationType = "book_translated"
+	NotificationPersonalBookTranslated  NotificationType = "personal_book_translated"
 	NotificationTest                    NotificationType = "test"
 )
 
@@ -25,6 +26,10 @@ type NotificationChapterTranslateSucceedData struct {
 
 type NotificationBookTranslatedData struct {
 	Book *Book `json:"book"`
+}
+
+type NotificationPersonalBookTranslatedData struct {
+	Book *PersonalUserBook `json:"book"`
 }
 
 type NotificationTestData struct {

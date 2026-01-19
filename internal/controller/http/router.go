@@ -29,6 +29,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_books"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/update_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/translate/translate_book"
+	"github.com/nimyab/nim2book-back/internal/services/translate/translate_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/user/me"
 	"github.com/nimyab/nim2book-back/internal/services/user/metadata"
 	"github.com/nimyab/nim2book-back/pkg/validator"
@@ -54,8 +55,10 @@ func Router(secretKey string) *echo.Echo {
 
 	apiV1 := e.Group("/api/v1")
 	{
-		// книги могут переводить только vip пользователи
-		apiV1.POST("/translate/book", translate_book.HTTPv1, jwtMiddleware, vipRoleMiddleware)
+		// книги в общий доступ могут переводить только администраторы
+		apiV1.POST("/translate/book", translate_book.HTTPv1, jwtMiddleware, adminRoleMiddleware)
+		// пользователи могут переводить книги в свою личную библиотеку
+		apiV1.POST("/translate/personal-user-book", translate_personal_user_book.HTTPv1, jwtMiddleware, vipRoleMiddleware)
 
 		apiV1.GET("/book/get-chapter/:path", get_chapter.HTTPv1)
 		apiV1.GET("/book", get_books.HTTPv1)

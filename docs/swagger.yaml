@@ -12,7 +12,26 @@ definitions:
       success:
         type: boolean
     type: object
+  create_genre.Input:
+    properties:
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - name
+    type: object
+  create_genre.Output:
+    properties:
+      genre:
+        $ref: '#/definitions/domain.Genre'
+    type: object
   delete_fcm_token.Output:
+    properties:
+      success:
+        type: boolean
+    type: object
+  delete_genre.Output:
     properties:
       success:
         type: boolean
@@ -213,6 +232,30 @@ definitions:
           $ref: '#/definitions/domain.Book'
         type: array
     type: object
+  get_genre.Output:
+    properties:
+      genre:
+        $ref: '#/definitions/domain.Genre'
+    type: object
+  get_genres.Output:
+    properties:
+      genres:
+        items:
+          $ref: '#/definitions/domain.Genre'
+        type: array
+    type: object
+  get_personal_user_book.Output:
+    properties:
+      book:
+        $ref: '#/definitions/domain.PersonalUserBook'
+    type: object
+  get_personal_user_books.Output:
+    properties:
+      books:
+        items:
+          $ref: '#/definitions/domain.PersonalUserBook'
+        type: array
+    type: object
   google_login.Input:
     properties:
       idToken:
@@ -345,6 +388,28 @@ definitions:
       book:
         $ref: '#/definitions/domain.Book'
     type: object
+  update_genre.Input:
+    properties:
+      id:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - id
+    - name
+    type: object
+  update_genre.Output:
+    properties:
+      genre:
+        $ref: '#/definitions/domain.Genre'
+    type: object
+  update_personal_user_book.Output:
+    properties:
+      book:
+        $ref: '#/definitions/domain.PersonalUserBook'
+    type: object
 externalDocs:
   description: OpenAPI
   url: https://swagger.io/resources/open-api/
@@ -451,19 +516,23 @@ paths:
   /book:
     get:
       parameters:
-      - description: Chapter path
+      - description: Author filter
         in: query
         name: author
         type: string
-      - description: Chapter path
+      - description: Title filter
         in: query
         name: title
         type: string
-      - description: Chapter path
+      - description: Genre ID filter
+        in: query
+        name: genreId
+        type: string
+      - description: Page number
         in: query
         name: page
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -621,6 +690,104 @@ paths:
       summary: Get file data
       tags:
       - file
+  /genre:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_genres.Output'
+      summary: Get all genres
+      tags:
+      - genre
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Genre data
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/create_genre.Input'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/create_genre.Output'
+      security:
+      - BearerAuth: []
+      summary: Create genre
+      tags:
+      - genre
+  /genre/{id}:
+    delete:
+      parameters:
+      - description: Genre id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/delete_genre.Output'
+      security:
+      - BearerAuth: []
+      summary: Delete genre
+      tags:
+      - genre
+    get:
+      parameters:
+      - description: Genre id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_genre.Output'
+      summary: Get genre by id
+      tags:
+      - genre
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Genre id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Genre data
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/update_genre.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/update_genre.Output'
+      security:
+      - BearerAuth: []
+      summary: Update genre
+      tags:
+      - genre
   /notification/test:
     post:
       consumes:
@@ -644,6 +811,167 @@ paths:
       summary: Notification test
       tags:
       - notification
+  /personal-user-book:
+    get:
+      parameters:
+      - description: Author filter
+        in: query
+        name: author
+        type: string
+      - description: Title filter
+        in: query
+        name: title
+        type: string
+      - description: Genre ID filter
+        in: query
+        name: genreId
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_personal_user_books.Output'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get personal user books
+      tags:
+      - personal_user_book
+  /personal-user-book/{id}:
+    get:
+      parameters:
+      - description: Book ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_personal_user_book.Output'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get personal user book by ID
+      tags:
+      - personal_user_book
+    put:
+      parameters:
+      - description: Cover file
+        in: formData
+        name: cover
+        type: file
+      - description: Author book
+        in: formData
+        name: author
+        type: string
+      - description: Title book
+        in: formData
+        name: title
+        type: string
+      - description: Book id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/update_personal_user_book.Output'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update personal user book
+      tags:
+      - personal_user_book
   /translate/book:
     post:
       consumes:

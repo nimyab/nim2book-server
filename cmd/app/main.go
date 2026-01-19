@@ -39,6 +39,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_books"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/update_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/translate/translate_book"
+	"github.com/nimyab/nim2book-back/internal/services/translate/translate_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/user/me"
 	"github.com/nimyab/nim2book-back/internal/services/user/metadata"
 	"github.com/nimyab/nim2book-back/internal/services/word_aligner"
@@ -126,6 +127,15 @@ func appRun(cfg *config.Config) error {
 
 	// translate service
 	translate_book.New(
+		minioClient,
+		pgClient,
+		wordAlignerClient,
+		translateService,
+		cfg.MaxRequestCount,
+		cfg.WaitMilliseconds,
+		notificationSignal,
+	)
+	translate_personal_user_book.New(
 		minioClient,
 		pgClient,
 		wordAlignerClient,

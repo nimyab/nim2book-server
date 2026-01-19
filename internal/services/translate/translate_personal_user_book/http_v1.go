@@ -1,4 +1,4 @@
-package translate_book
+package translate_personal_user_book
 
 import (
 	"net/http"
@@ -9,7 +9,7 @@ import (
 )
 
 // HTTPv1 godoc
-// @Summary	Translate book to public library. Only administrators can translate books to public access
+// @Summary	Translate personal user book. Users can translate books to their personal library
 // @Tags	translate
 // @Security BearerAuth
 // @Accept	multipart/form-data
@@ -18,7 +18,7 @@ import (
 // @Param	from	formData	string	true	"Source lang"
 // @Param	to		formData	string	true	"Target lang"
 // @Success	201		{object}	Output
-// @Router	/translate/book [post]
+// @Router	/translate/personal-user-book [post]
 func HTTPv1(c echo.Context) error {
 	userPayload := jwt.GetUserPayload(c)
 
@@ -40,7 +40,7 @@ func HTTPv1(c echo.Context) error {
 		})
 	}
 
-	output, err := service.TranslateBook(input, bookFile, userPayload.Id)
+	output, err := service.TranslatePersonalUserBook(input, bookFile, userPayload.Id)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
