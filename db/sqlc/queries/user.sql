@@ -1,42 +1,41 @@
 -- name: GetUser :one
-select
-  u.id,
-  u.is_admin,
-  u.is_vip,
-  u.metadata,
-  u.google_account_sub,
-  u.email_password_account_id,
-  g.sub as google_sub,
-  g.email as google_email,
-  g.email_verified as google_email_verified,
-  g.name as google_name,
-  g.picture as google_picture,
-  e.id as email_password_id,
-  e.email as email_password_email,
-  e.password_hash as email_password_hash
+select u.id,
+       u.is_admin,
+       u.is_vip,
+       u.metadata,
+       u.google_account_sub,
+       u.email_password_account_id,
+       g.sub            as google_sub,
+       g.email          as google_email,
+       g.email_verified as google_email_verified,
+       g.name           as google_name,
+       g.picture        as google_picture,
+       e.id             as email_password_id,
+       e.email          as email_password_email,
+       e.password_hash  as email_password_hash
 from users as u
-  left join google_accounts as g on u.google_account_sub = g.sub
-  left join email_password_accounts as e on u.email_password_account_id = e.id
+         left join google_accounts as g on u.google_account_sub = g.sub
+         left join email_password_accounts as e on u.email_password_account_id = e.id
 where (
     sqlc.narg('user_id')::uuid IS NULL
-    OR u.id = sqlc.narg('user_id')::uuid
-  )
+        OR u.id = sqlc.narg('user_id')::uuid
+    )
   AND (
     sqlc.narg('google_sub')::varchar(40) IS NULL
-    OR u.google_account_sub = sqlc.narg('google_sub')::varchar(40)
-  )
+        OR u.google_account_sub = sqlc.narg('google_sub')::varchar(40)
+    )
   AND (
     sqlc.narg('google_email')::varchar(255) IS NULL
-    OR g.email = sqlc.narg('google_email')::varchar(255)
-  )
+        OR g.email = sqlc.narg('google_email')::varchar(255)
+    )
   AND (
     sqlc.narg('email_password_account_id')::uuid IS NULL
-    OR u.email_password_account_id = sqlc.narg('email_password_account_id')::uuid
-  )
+        OR u.email_password_account_id = sqlc.narg('email_password_account_id')::uuid
+    )
   AND (
     sqlc.narg('email')::varchar(255) IS NULL
-    OR e.email = sqlc.narg('email')::varchar(255)
-  );
+        OR e.email = sqlc.narg('email')::varchar(255)
+    );
 
 -- name: GetEmailPasswordAccountByEmail :one
 select id
@@ -52,9 +51,9 @@ returning id;
 insert into users (email_password_account_id)
 values ($1)
 returning id,
-  is_admin,
-  is_vip,
-  metadata;
+    is_admin,
+    is_vip,
+    metadata;
 
 -- name: CreateGoogleAccount :exec
 insert into google_accounts (sub, email, email_verified, name, picture)
@@ -64,9 +63,9 @@ values ($1, $2, $3, $4, $5);
 insert into users (google_account_sub)
 values ($1)
 returning id,
-  is_admin,
-  is_vip,
-  metadata;
+    is_admin,
+    is_vip,
+    metadata;
 
 -- name: UpdateUserMetadata :exec
 update users

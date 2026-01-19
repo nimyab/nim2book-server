@@ -16,6 +16,11 @@ type Book struct {
 	Cover        *string
 }
 
+type BookGenre struct {
+	BookID  pgtype.UUID
+	GenreID pgtype.UUID
+}
+
 type Dictionary struct {
 	ID      pgtype.UUID
 	Text    string
@@ -35,12 +40,31 @@ type FcmToken struct {
 	CreateAt pgtype.Timestamptz
 }
 
+type Genre struct {
+	ID   pgtype.UUID
+	Name string
+}
+
 type GoogleAccount struct {
 	Sub           string
 	Email         string
 	EmailVerified bool
 	Name          string
 	Picture       *string
+}
+
+type PersonalUserBook struct {
+	ID           pgtype.UUID
+	Title        string
+	Author       string
+	ChapterPaths []string
+	Cover        *string
+	UserID       pgtype.UUID
+}
+
+type PersonalUserBookGenre struct {
+	PersonalUserBookID pgtype.UUID
+	GenreID            pgtype.UUID
 }
 
 type User struct {

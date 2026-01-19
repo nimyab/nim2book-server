@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/helpers"
 )
 
 var (
@@ -29,6 +30,7 @@ type S3 interface {
 type Postgres interface {
 	GetBook(ctx context.Context, id domain.Id) (*domain.Book, error)
 	UpdateBook(ctx context.Context, book *domain.Book) error
+	GetBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
 }
 
 type Service struct {
@@ -92,6 +94,12 @@ func (s *Service) UpdateBook(input *Input, cover *multipart.FileHeader) (*Output
 	}
 
 	if err = s.pg.UpdateBook(context.Background(), book); err != nil {
+		slog.Error(err.Error(), slog.String("operation", operation))
+		return nil, ErrInternalServer
+	}
+
+	// Загружаем жанры книги
+	if err := helpers.EnrichBookWithGenres(context.Background(), book, s.pg, operation); err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternalServer
 	}

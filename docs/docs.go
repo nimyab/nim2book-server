@@ -630,6 +630,12 @@ const docTemplate = `{
                 "cover": {
                     "type": "string"
                 },
+                "genres": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Genre"
+                    }
+                },
                 "id": {
                     "type": "string"
                 },
@@ -724,6 +730,17 @@ const docTemplate = `{
                 }
             }
         },
+        "domain.Genre": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.GoogleAccount": {
             "type": "object",
             "properties": {
@@ -776,6 +793,38 @@ const docTemplate = `{
                 }
             }
         },
+        "domain.PersonalUserBook": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "type": "string"
+                },
+                "chapterPaths": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "cover": {
+                    "type": "string"
+                },
+                "genres": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Genre"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.Translation": {
             "type": "object",
             "required": [
@@ -822,6 +871,12 @@ const docTemplate = `{
                 },
                 "metadata": {
                     "$ref": "#/definitions/domain.JsonB"
+                },
+                "personalUserBooks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.PersonalUserBook"
+                    }
                 }
             }
         },

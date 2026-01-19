@@ -62,7 +62,7 @@ func (db *Postgres) CreateBook(ctx context.Context, book *domain.Book) (*domain.
 		}
 
 		// Создаем книгу
-		id, err := queries.CreateBook(ctx, sqlc.CreateBookParams{
+		createdBook, err := queries.CreateBook(ctx, sqlc.CreateBookParams{
 			Title:        book.Title,
 			Author:       book.Author,
 			ChapterPaths: book.ChapterPaths,
@@ -72,8 +72,7 @@ func (db *Postgres) CreateBook(ctx context.Context, book *domain.Book) (*domain.
 			return nil, fmt.Errorf("%s: %w", operation, err)
 		}
 
-		book.Id = uuidFromPgtype(id)
-		return book, nil
+		return bookFromSqlc(createdBook), nil
 	})
 }
 
@@ -130,6 +129,25 @@ func (db *Postgres) UpdateBook(ctx context.Context, book *domain.Book) error {
 
 		return nil
 	})
+}
+
+func (db *Postgres) GetBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error) {
+	const operation = "postgres_sqlc.GetBookGenres"
+
+	genres, err := db.Queries.GetBookGenres(ctx, uuidToPgtype(bookId))
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+
+	result := make([]domain.Genre, len(genres))
+	for i, genre := range genres {
+		result[i] = domain.Genre{
+			Id:   uuidFromPgtype(genre.ID),
+			Name: genre.Name,
+		}
+	}
+
+	return result, nil
 }
 
 // Конвертирует sqlc.Book в domain.Book

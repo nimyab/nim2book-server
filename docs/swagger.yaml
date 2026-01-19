@@ -27,6 +27,10 @@ definitions:
         type: array
       cover:
         type: string
+      genres:
+        items:
+          $ref: '#/definitions/domain.Genre'
+        type: array
       id:
         type: string
       title:
@@ -88,6 +92,13 @@ definitions:
     required:
     - text
     type: object
+  domain.Genre:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
   domain.GoogleAccount:
     properties:
       email:
@@ -122,6 +133,27 @@ definitions:
       tp:
         type: string
     type: object
+  domain.PersonalUserBook:
+    properties:
+      author:
+        type: string
+      chapterPaths:
+        items:
+          type: string
+        type: array
+      cover:
+        type: string
+      genres:
+        items:
+          $ref: '#/definitions/domain.Genre'
+        type: array
+      id:
+        type: string
+      title:
+        type: string
+      userId:
+        type: string
+    type: object
   domain.Translation:
     properties:
       ex:
@@ -153,6 +185,10 @@ definitions:
         type: boolean
       metadata:
         $ref: '#/definitions/domain.JsonB'
+      personalUserBooks:
+        items:
+          $ref: '#/definitions/domain.PersonalUserBook'
+        type: array
     type: object
   domain.WordAlignNode:
     properties:

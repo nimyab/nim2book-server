@@ -11,10 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addGenreToBook = `-- name: AddGenreToBook :exec
+insert into book_genres (book_id, genre_id)
+values ($1, $2)
+on conflict (book_id, genre_id) do nothing
+`
+
+type AddGenreToBookParams struct {
+	BookID  pgtype.UUID
+	GenreID pgtype.UUID
+}
+
+func (q *Queries) AddGenreToBook(ctx context.Context, arg AddGenreToBookParams) error {
+	_, err := q.db.Exec(ctx, addGenreToBook, arg.BookID, arg.GenreID)
+	return err
+}
+
 const createBook = `-- name: CreateBook :one
 insert into books (title, author, chapter_paths, cover)
 values ($1, $2, $3, $4)
-returning id
+returning id, title, author, chapter_paths, cover
 `
 
 type CreateBookParams struct {
@@ -24,23 +40,39 @@ type CreateBookParams struct {
 	Cover        *string
 }
 
-func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (pgtype.UUID, error) {
+func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, error) {
 	row := q.db.QueryRow(ctx, createBook,
 		arg.Title,
 		arg.Author,
 		arg.ChapterPaths,
 		arg.Cover,
 	)
-	var id pgtype.UUID
-	err := row.Scan(&id)
-	return id, err
+	var i Book
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Author,
+		&i.ChapterPaths,
+		&i.Cover,
+	)
+	return i, err
+}
+
+const deleteBook = `-- name: DeleteBook :exec
+delete from books
+where id = $1
+`
+
+func (q *Queries) DeleteBook(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteBook, id)
+	return err
 }
 
 const getBookByAuthorAndTitle = `-- name: GetBookByAuthorAndTitle :one
 select id, title, author, chapter_paths, cover
 from books
-where author = $1
-  and title = $2
+where books.author = $1
+  and books.title = $2
 `
 
 type GetBookByAuthorAndTitleParams struct {
@@ -64,7 +96,7 @@ func (q *Queries) GetBookByAuthorAndTitle(ctx context.Context, arg GetBookByAuth
 const getBookById = `-- name: GetBookById :one
 select id, title, author, chapter_paths, cover
 from books
-where id = $1
+where books.id = $1
 `
 
 func (q *Queries) GetBookById(ctx context.Context, id pgtype.UUID) (Book, error) {
@@ -80,26 +112,61 @@ func (q *Queries) GetBookById(ctx context.Context, id pgtype.UUID) (Book, error)
 	return i, err
 }
 
+const getBookGenres = `-- name: GetBookGenres :many
+select genres.id, genres.name
+from genres
+         inner join book_genres on genres.id = book_genres.genre_id
+where book_genres.book_id = $1
+`
+
+func (q *Queries) GetBookGenres(ctx context.Context, bookID pgtype.UUID) ([]Genre, error) {
+	rows, err := q.db.Query(ctx, getBookGenres, bookID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Genre
+	for rows.Next() {
+		var i Genre
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getBooks = `-- name: GetBooks :many
-select id, title, author, chapter_paths, cover
+select distinct books.id, books.title, books.author, books.chapter_paths, books.cover
 from books
-where (author ilike '%' || $1 || '%')
-  and (title ilike '%' || $2 || '%')
-limit $4
-offset $3
+         left join book_genres on books.id = book_genres.book_id
+where (books.author ilike '%' || $1 || '%')
+  and (books.title ilike '%' || $2 || '%')
+  and ($3::uuid IS NULL
+    or exists(select 1
+              from book_genres bg
+              where bg.book_id = books.id
+                and bg.genre_id = $3::uuid))
+order by books.id
+limit $5 offset $4
 `
 
 type GetBooksParams struct {
-	Author *string
-	Title  *string
-	Offset int32
-	Limit  int32
+	Author  *string
+	Title   *string
+	GenreID pgtype.UUID
+	Offset  int32
+	Limit   int32
 }
 
 func (q *Queries) GetBooks(ctx context.Context, arg GetBooksParams) ([]Book, error) {
 	rows, err := q.db.Query(ctx, getBooks,
 		arg.Author,
 		arg.Title,
+		arg.GenreID,
 		arg.Offset,
 		arg.Limit,
 	)
@@ -127,11 +194,78 @@ func (q *Queries) GetBooks(ctx context.Context, arg GetBooksParams) ([]Book, err
 	return items, nil
 }
 
+const getBooksByGenre = `-- name: GetBooksByGenre :many
+select distinct books.id, books.title, books.author, books.chapter_paths, books.cover
+from books
+         inner join book_genres on books.id = book_genres.book_id
+where book_genres.genre_id = $1
+order by books.id
+limit $3 offset $2
+`
+
+type GetBooksByGenreParams struct {
+	GenreID pgtype.UUID
+	Offset  int32
+	Limit   int32
+}
+
+func (q *Queries) GetBooksByGenre(ctx context.Context, arg GetBooksByGenreParams) ([]Book, error) {
+	rows, err := q.db.Query(ctx, getBooksByGenre, arg.GenreID, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Book
+	for rows.Next() {
+		var i Book
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Author,
+			&i.ChapterPaths,
+			&i.Cover,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const removeAllGenresFromBook = `-- name: RemoveAllGenresFromBook :exec
+delete from book_genres
+where book_id = $1
+`
+
+func (q *Queries) RemoveAllGenresFromBook(ctx context.Context, bookID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, removeAllGenresFromBook, bookID)
+	return err
+}
+
+const removeGenreFromBook = `-- name: RemoveGenreFromBook :exec
+delete from book_genres
+where book_id = $1
+  and genre_id = $2
+`
+
+type RemoveGenreFromBookParams struct {
+	BookID  pgtype.UUID
+	GenreID pgtype.UUID
+}
+
+func (q *Queries) RemoveGenreFromBook(ctx context.Context, arg RemoveGenreFromBookParams) error {
+	_, err := q.db.Exec(ctx, removeGenreFromBook, arg.BookID, arg.GenreID)
+	return err
+}
+
 const updateBook = `-- name: UpdateBook :exec
 update books
-set title = $1,
-  author = $2,
-  cover = $3
+set title  = $1,
+    author = $2,
+    cover  = $3
 where id = $4
 `
 

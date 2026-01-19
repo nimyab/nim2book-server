@@ -54,6 +54,14 @@ func (m *MockPostgres) GetFcmTokensByUserId(ctx context.Context, userId domain.I
 	return args.Get(0).([]domain.FcmToken), args.Error(1)
 }
 
+func (m *MockPostgres) GetBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error) {
+	args := m.Called(ctx, bookId)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Genre), args.Error(1)
+}
+
 // MockWordAligner is a mock implementation of AlignmentServiceClient interface
 type MockWordAligner struct {
 	mock.Mock

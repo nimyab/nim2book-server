@@ -57,9 +57,9 @@ const createUserByEmailPasswordAccountId = `-- name: CreateUserByEmailPasswordAc
 insert into users (email_password_account_id)
 values ($1)
 returning id,
-  is_admin,
-  is_vip,
-  metadata
+    is_admin,
+    is_vip,
+    metadata
 `
 
 type CreateUserByEmailPasswordAccountIdRow struct {
@@ -85,9 +85,9 @@ const createUserByGoogleSub = `-- name: CreateUserByGoogleSub :one
 insert into users (google_account_sub)
 values ($1)
 returning id,
-  is_admin,
-  is_vip,
-  metadata
+    is_admin,
+    is_vip,
+    metadata
 `
 
 type CreateUserByGoogleSubRow struct {
@@ -123,44 +123,43 @@ func (q *Queries) GetEmailPasswordAccountByEmail(ctx context.Context, email stri
 }
 
 const getUser = `-- name: GetUser :one
-select
-  u.id,
-  u.is_admin,
-  u.is_vip,
-  u.metadata,
-  u.google_account_sub,
-  u.email_password_account_id,
-  g.sub as google_sub,
-  g.email as google_email,
-  g.email_verified as google_email_verified,
-  g.name as google_name,
-  g.picture as google_picture,
-  e.id as email_password_id,
-  e.email as email_password_email,
-  e.password_hash as email_password_hash
+select u.id,
+       u.is_admin,
+       u.is_vip,
+       u.metadata,
+       u.google_account_sub,
+       u.email_password_account_id,
+       g.sub            as google_sub,
+       g.email          as google_email,
+       g.email_verified as google_email_verified,
+       g.name           as google_name,
+       g.picture        as google_picture,
+       e.id             as email_password_id,
+       e.email          as email_password_email,
+       e.password_hash  as email_password_hash
 from users as u
-  left join google_accounts as g on u.google_account_sub = g.sub
-  left join email_password_accounts as e on u.email_password_account_id = e.id
+         left join google_accounts as g on u.google_account_sub = g.sub
+         left join email_password_accounts as e on u.email_password_account_id = e.id
 where (
     $1::uuid IS NULL
-    OR u.id = $1::uuid
-  )
+        OR u.id = $1::uuid
+    )
   AND (
     $2::varchar(40) IS NULL
-    OR u.google_account_sub = $2::varchar(40)
-  )
+        OR u.google_account_sub = $2::varchar(40)
+    )
   AND (
     $3::varchar(255) IS NULL
-    OR g.email = $3::varchar(255)
-  )
+        OR g.email = $3::varchar(255)
+    )
   AND (
     $4::uuid IS NULL
-    OR u.email_password_account_id = $4::uuid
-  )
+        OR u.email_password_account_id = $4::uuid
+    )
   AND (
     $5::varchar(255) IS NULL
-    OR e.email = $5::varchar(255)
-  )
+        OR e.email = $5::varchar(255)
+    )
 `
 
 type GetUserParams struct {

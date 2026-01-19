@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/helpers"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/services/word_aligner/align"
 	"github.com/nimyab/nim2book-back/pkg/contains_letters"
@@ -33,6 +34,7 @@ type Postgres interface {
 	GetBookByAuthorAndTitle(ctx context.Context, author, title string) (*domain.Book, error)
 	CreateBook(ctx context.Context, book *domain.Book) (*domain.Book, error)
 	GetFcmTokensByUserId(ctx context.Context, userId domain.Id) ([]domain.FcmToken, error)
+	GetBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
 }
 
 type WordAligner interface {
@@ -133,6 +135,10 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 
 	existedBook, err := s.pg.GetBookByAuthorAndTitle(context.Background(), parsedBook.Author, parsedBook.Title)
 	if existedBook != nil {
+		// Загружаем жанры книги
+		if err := helpers.EnrichBookWithGenres(context.Background(), existedBook, s.pg, operation); err != nil {
+			slog.Error(err.Error(), slog.String("operation", operation))
+		}
 		return &Output{Book: existedBook}, nil
 	}
 	if err != nil && !errors.Is(err, postgres_sqlc.ErrBookNotFound) {
