@@ -20,6 +20,9 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/fcm_token/delete_fcm_token"
 	"github.com/nimyab/nim2book-back/internal/services/file/file_public"
 	"github.com/nimyab/nim2book-back/internal/services/notification"
+	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_book"
+	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_books"
+	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/update_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/translate/translate_book"
 	"github.com/nimyab/nim2book-back/internal/services/user/me"
 	"github.com/nimyab/nim2book-back/internal/services/user/metadata"
@@ -53,6 +56,10 @@ func Router(secretKey string) *echo.Echo {
 		apiV1.GET("/book", get_books.HTTPv1)
 		apiV1.GET("/book/:id", get_book.HTTPv1)
 		apiV1.PUT("/book/:id", update_book.HTTPv1, jwtMiddleware, adminRoleMiddleware)
+
+		apiV1.GET("/personal-user-book", get_personal_user_books.HTTPv1, jwtMiddleware)
+		apiV1.GET("/personal-user-book/:id", get_personal_user_book.HTTPv1, jwtMiddleware)
+		apiV1.PUT("/personal-user-book/:id", update_personal_user_book.HTTPv1, jwtMiddleware)
 
 		apiV1.POST("/auth/register", register.HTTPv1)
 		apiV1.POST("/auth/login", login.HTTPv1)

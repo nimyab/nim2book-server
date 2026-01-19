@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/nimyab/nim2book-back/db/sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/transaction"
@@ -21,9 +22,10 @@ const (
 )
 
 type GetBooksQuery struct {
-	Author string
-	Title  string
-	Page   int
+	Author  string
+	Title   string
+	GenreId *domain.Id
+	Page    int
 }
 
 func (db *Postgres) GetBookByAuthorAndTitle(ctx context.Context, author, title string) (*domain.Book, error) {
@@ -93,11 +95,17 @@ func (db *Postgres) GetBook(ctx context.Context, id domain.Id) (*domain.Book, er
 func (db *Postgres) GetBooks(ctx context.Context, query GetBooksQuery) ([]domain.Book, error) {
 	const operation = "postgres_sqlc.GetBooks"
 
+	var genreId pgtype.UUID
+	if query.GenreId != nil {
+		genreId = uuidToPgtype(*query.GenreId)
+	}
+
 	books, err := db.Queries.GetBooks(ctx, sqlc.GetBooksParams{
-		Author: &query.Author,
-		Title:  &query.Title,
-		Limit:  int32(step),
-		Offset: int32((query.Page - 1) * step),
+		Author:  &query.Author,
+		Title:   &query.Title,
+		GenreID: genreId,
+		Limit:   int32(step),
+		Offset:  int32((query.Page - 1) * step),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/nimyab/nim2book-back/db/sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/transaction"
@@ -17,10 +18,11 @@ var (
 )
 
 type GetPersonalUserBooksQuery struct {
-	UserId domain.Id
-	Author string
-	Title  string
-	Page   int
+	UserId  domain.Id
+	Author  string
+	Title   string
+	GenreId *domain.Id
+	Page    int
 }
 
 func (db *Postgres) GetPersonalUserBookByAuthorAndTitle(ctx context.Context, userId domain.Id, author, title string) (*domain.PersonalUserBook, error) {
@@ -93,12 +95,18 @@ func (db *Postgres) GetPersonalUserBook(ctx context.Context, id domain.Id) (*dom
 func (db *Postgres) GetPersonalUserBooks(ctx context.Context, query GetPersonalUserBooksQuery) ([]domain.PersonalUserBook, error) {
 	const operation = "postgres_sqlc.GetPersonalUserBooks"
 
+	var genreId pgtype.UUID
+	if query.GenreId != nil {
+		genreId = uuidToPgtype(*query.GenreId)
+	}
+
 	books, err := db.Queries.GetPersonalUserBooksByUserId(ctx, sqlc.GetPersonalUserBooksByUserIdParams{
-		UserID: uuidToPgtype(query.UserId),
-		Author: &query.Author,
-		Title:  &query.Title,
-		Limit:  int32(step),
-		Offset: int32((query.Page - 1) * step),
+		UserID:  uuidToPgtype(query.UserId),
+		Author:  &query.Author,
+		Title:   &query.Title,
+		GenreID: genreId,
+		Limit:   int32(step),
+		Offset:  int32((query.Page - 1) * step),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)

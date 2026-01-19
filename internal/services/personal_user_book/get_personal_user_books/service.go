@@ -1,4 +1,4 @@
-package get_books
+package get_personal_user_books
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 )
 
 type Postgres interface {
-	GetBooks(ctx context.Context, query postgres_sqlc.GetBooksQuery) ([]domain.Book, error)
-	GetBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
+	GetPersonalUserBooks(ctx context.Context, query postgres_sqlc.GetPersonalUserBooksQuery) ([]domain.PersonalUserBook, error)
+	GetPersonalUserBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
 }
 
 type Service struct {
@@ -27,10 +27,11 @@ func New(pg Postgres) *Service {
 	return service
 }
 
-func (s *Service) GetBooks(input *Input) (*Output, error) {
-	const operation = "book.get_books.GetBooks"
+func (s *Service) GetPersonalUserBooks(input *Input) (*Output, error) {
+	const operation = "personal_user_book.get_personal_user_books.GetPersonalUserBooks"
 
-	books, err := s.pg.GetBooks(context.Background(), postgres_sqlc.GetBooksQuery{
+	books, err := s.pg.GetPersonalUserBooks(context.Background(), postgres_sqlc.GetPersonalUserBooksQuery{
+		UserId:  input.UserId,
 		Author:  input.Author,
 		Title:   input.Title,
 		GenreId: input.GenreId,
@@ -42,7 +43,7 @@ func (s *Service) GetBooks(input *Input) (*Output, error) {
 	}
 
 	// Загружаем жанры для каждой книги
-	if err := helpers.EnrichBooksWithGenres(context.Background(), books, s.pg, operation); err != nil {
+	if err := helpers.EnrichPersonalBooksWithGenres(context.Background(), books, s.pg, operation); err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, err
 	}
