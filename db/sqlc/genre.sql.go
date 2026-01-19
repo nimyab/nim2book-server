@@ -84,3 +84,22 @@ func (q *Queries) GetGenreByName(ctx context.Context, name string) (Genre, error
 	err := row.Scan(&i.ID, &i.Name)
 	return i, err
 }
+
+const updateGenre = `-- name: UpdateGenre :one
+update genres
+set name = $2
+where id = $1
+returning id, name
+`
+
+type UpdateGenreParams struct {
+	ID   pgtype.UUID
+	Name string
+}
+
+func (q *Queries) UpdateGenre(ctx context.Context, arg UpdateGenreParams) (Genre, error) {
+	row := q.db.QueryRow(ctx, updateGenre, arg.ID, arg.Name)
+	var i Genre
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}

@@ -85,6 +85,43 @@ func (db *Postgres) CreateGenre(ctx context.Context, genre *domain.Genre) (*doma
 	})
 }
 
+func (db *Postgres) UpdateGenre(ctx context.Context, genre *domain.Genre) (*domain.Genre, error) {
+	const operation = "postgres_sqlc.UpdateGenre"
+
+	return transaction.TxWithData(ctx, db.Pool, func(tx pgx.Tx) (*domain.Genre, error) {
+		queries := db.Queries.WithTx(tx)
+
+		// Проверяем существует ли жанр
+		_, err := queries.GetGenreById(ctx, uuidToPgtype(genre.Id))
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrGenreNotFound
+		}
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", operation, err)
+		}
+
+		// Проверяем не занято ли новое название другим жанром
+		existedGenre, err := queries.GetGenreByName(ctx, genre.Name)
+		if err == nil && uuidFromPgtype(existedGenre.ID) != genre.Id {
+			return nil, ErrGenreAlreadyExists
+		}
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("%s: %w", operation, err)
+		}
+
+		// Обновляем жанр
+		updatedGenre, err := queries.UpdateGenre(ctx, sqlc.UpdateGenreParams{
+			ID:   uuidToPgtype(genre.Id),
+			Name: genre.Name,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", operation, err)
+		}
+
+		return genreFromSqlc(updatedGenre), nil
+	})
+}
+
 func (db *Postgres) DeleteGenre(ctx context.Context, id domain.Id) error {
 	const operation = "postgres_sqlc.DeleteGenre"
 

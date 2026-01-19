@@ -19,6 +19,11 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/fcm_token/add_fcm_token"
 	"github.com/nimyab/nim2book-back/internal/services/fcm_token/delete_fcm_token"
 	"github.com/nimyab/nim2book-back/internal/services/file/file_public"
+	"github.com/nimyab/nim2book-back/internal/services/genre/create_genre"
+	"github.com/nimyab/nim2book-back/internal/services/genre/delete_genre"
+	"github.com/nimyab/nim2book-back/internal/services/genre/get_genre"
+	"github.com/nimyab/nim2book-back/internal/services/genre/get_genres"
+	"github.com/nimyab/nim2book-back/internal/services/genre/update_genre"
 	"github.com/nimyab/nim2book-back/internal/services/notification"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_books"
@@ -78,6 +83,12 @@ func Router(secretKey string) *echo.Echo {
 		apiV1.DELETE("/fcm-token/delete", delete_fcm_token.HTTPv1, jwtMiddleware)
 
 		apiV1.POST("/notification/test", notification.HTTPv1, jwtMiddleware)
+
+		apiV1.GET("/genre", get_genres.HTTPv1)
+		apiV1.GET("/genre/:id", get_genre.HTTPv1)
+		apiV1.POST("/genre", create_genre.HTTPv1, jwtMiddleware, adminRoleMiddleware)
+		apiV1.PUT("/genre/:id", update_genre.HTTPv1, jwtMiddleware, adminRoleMiddleware)
+		apiV1.DELETE("/genre/:id", delete_genre.HTTPv1, jwtMiddleware, adminRoleMiddleware)
 	}
 
 	return e

@@ -17,6 +17,12 @@ returning *;
 select *
 from genres;
 
+-- name: UpdateGenre :one
+update genres
+set name = $2
+where id = $1
+returning *;
+
 -- name: DeleteGenre :exec
 delete from genres
 where id = $1;

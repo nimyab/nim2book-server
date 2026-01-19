@@ -28,8 +28,16 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/fcm_token/add_fcm_token"
 	"github.com/nimyab/nim2book-back/internal/services/fcm_token/delete_fcm_token"
 	"github.com/nimyab/nim2book-back/internal/services/file/file_public"
+	"github.com/nimyab/nim2book-back/internal/services/genre/create_genre"
+	"github.com/nimyab/nim2book-back/internal/services/genre/delete_genre"
+	"github.com/nimyab/nim2book-back/internal/services/genre/get_genre"
+	"github.com/nimyab/nim2book-back/internal/services/genre/get_genres"
+	"github.com/nimyab/nim2book-back/internal/services/genre/update_genre"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/services/notification"
+	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_book"
+	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_books"
+	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/update_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/translate/translate_book"
 	"github.com/nimyab/nim2book-back/internal/services/user/me"
 	"github.com/nimyab/nim2book-back/internal/services/user/metadata"
@@ -132,6 +140,18 @@ func appRun(cfg *config.Config) error {
 	get_books.New(pgClient)
 	get_book.New(pgClient)
 	update_book.New(pgClient, minioClient)
+
+	// genre service
+	get_genres.New(pgClient)
+	get_genre.New(pgClient)
+	create_genre.New(pgClient)
+	update_genre.New(pgClient)
+	delete_genre.New(pgClient)
+
+	// personal user book service
+	get_personal_user_books.New(pgClient)
+	get_personal_user_book.New(pgClient)
+	update_personal_user_book.New(pgClient, minioClient)
 
 	// auth service
 	register.New(pgClient)
