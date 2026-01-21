@@ -6,17 +6,21 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/avast/retry-go/v4"
+	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/logger"
 )
 
 type Postgres interface {
-	CreateDictionaryData(ctx context.Context, text, lang string, dictData *domain.DictionaryData) (bool, error)
-	GetDictionaryData(ctx context.Context, text, lang string) (*domain.DictionaryData, error)
+	CreateDictionaryWord(context.Context, *domain.DictionaryWord) (uuid.UUID, error)
+	CreateDictionaryExample(context.Context, *domain.DictionaryExample) (uuid.UUID, error)
+	GetDictionaryWordsByText(ctx context.Context, text, fromLang, toLang string) ([]domain.DictionaryWord, error)
 }
 
 type Redis interface {
@@ -51,16 +55,19 @@ const (
 	RedisCacheTTL = 15 * time.Minute
 )
 
-func (s *Service) Lookup(input *Input) (*Output, error) {
+func (s *Service) Lookup(input *Input) (Output, error) {
 	const operation = "lookup.Lookup"
 
-	output := new(domain.DictionaryData)
+	input.Text = strings.ToLower(strings.Trim(input.Text, ".!?,;: "))
+	var output []domain.DictionaryWord
+	var redisKey = fmt.Sprintf("%s:%s_%s", input.Text, input.FromLang, input.ToLang)
 
-	byteData, err := s.redis.Get(context.Background(), fmt.Sprintf("%s:%s", input.Text, input.Lang))
+	byteData, err := s.redis.Get(context.Background(), redisKey)
 	if err != nil {
 		logger.Error("failed to get from redis", err, operation)
 	} else {
-		err = json.Unmarshal(byteData, output)
+		err = json.Unmarshal(byteData, &output)
+		slog.Info("dictionary cache hit", slog.String("redisKey", redisKey), slog.Any("output", output))
 		if err != nil {
 			logger.Error("failed to unmarshal json", err, operation)
 		} else {
@@ -68,16 +75,18 @@ func (s *Service) Lookup(input *Input) (*Output, error) {
 		}
 	}
 
-	dictData, err := s.pg.GetDictionaryData(context.Background(), input.Text, input.Lang)
+	slog.Info("dictionary cache miss, start get from database", slog.String("redisKey", redisKey))
+	dictData, err := s.pg.GetDictionaryWordsByText(context.Background(), input.Text, input.FromLang, input.ToLang)
 	if err != nil {
 		logger.Error("failed to get from postgres", err, operation)
 	}
-	if dictData != nil {
+	if len(dictData) > 0 {
+		slog.Info("dictionary database hit", slog.String("redisKey", redisKey), slog.Any("dictData", dictData))
 		byteData, err = json.Marshal(dictData)
 		if err != nil {
 			logger.Error("failed to marshal json", err, operation)
 		} else {
-			if err = s.redis.Save(context.Background(), fmt.Sprintf("%s:%s", input.Text, input.Lang), byteData, RedisCacheTTL); err != nil {
+			if err = s.redis.Save(context.Background(), redisKey, byteData, RedisCacheTTL); err != nil {
 				logger.Error("failed to save dictionary data to redis", err, operation)
 			}
 		}
@@ -85,6 +94,7 @@ func (s *Service) Lookup(input *Input) (*Output, error) {
 		return dictData, nil
 	}
 
+	slog.Info("dictionary database miss, start get from yandex api", slog.String("redisKey", redisKey))
 	resp, err := retry.DoWithData(func() (*http.Response, error) {
 		baseURL := fmt.Sprintf("%s/%s", s.yandexDictURL, "lookup")
 		req, err := http.NewRequest("GET", baseURL, nil)
@@ -94,7 +104,7 @@ func (s *Service) Lookup(input *Input) (*Output, error) {
 
 		q := req.URL.Query()
 		q.Add("key", s.yandexDictKey)
-		q.Add("lang", input.Lang)
+		q.Add("lang", fmt.Sprintf("%s-%s", input.FromLang, input.ToLang))
 		q.Add("text", input.Text)
 		req.URL.RawQuery = q.Encode()
 
@@ -113,16 +123,71 @@ func (s *Service) Lookup(input *Input) (*Output, error) {
 	}
 	defer resp.Body.Close()
 
-	if err = json.Unmarshal(body, output); err != nil {
+	yandexLookupResponse := &DictionaryData{}
+	if err = json.Unmarshal(body, yandexLookupResponse); err != nil {
 		logger.Error("failed to unmarshal response body", err, operation)
 		return nil, ErrInternal
 	}
+	slog.Info("yandex dictionary len definitions", slog.Any("len definitions", len(yandexLookupResponse.Definitions)))
 
-	if _, err = s.pg.CreateDictionaryData(context.Background(), input.Text, input.Lang, output); err != nil {
-		logger.Error("failed to save dictionary data to postgres", err, operation)
+	var newDictData []domain.DictionaryWord
+
+	for _, definition := range yandexLookupResponse.Definitions {
+		wordTranslations := make([]string, 0)
+		for _, translation := range definition.Translations {
+			wordTranslations = append(wordTranslations, translation.Text)
+		}
+
+		wordData := domain.DictionaryWord{
+			Text:          definition.Text,
+			FromLangCode:  input.FromLang,
+			ToLangCode:    input.ToLang,
+			PartOfSpeech:  definition.PartOfSpeech,
+			Transcription: &definition.Transcription,
+			Translations:  wordTranslations,
+		}
+
+		wordId, err := s.pg.CreateDictionaryWord(context.Background(), &wordData)
+		if err != nil {
+			logger.Error("failed to create dictionary word", err, operation)
+			continue
+		}
+		wordData.ID = wordId
+
+		examplesData := make([]domain.DictionaryExample, 0)
+		for _, translation := range definition.Translations {
+			for _, example := range translation.Examples {
+				exampleData := domain.DictionaryExample{
+					Text:           example.Text,
+					TranslatedText: example.Translation[0].Text,
+					DictionaryID:   wordId,
+				}
+
+				exampleId, err := s.pg.CreateDictionaryExample(context.Background(), &exampleData)
+				if err != nil {
+					logger.Error("failed to create dictionary example", err, operation)
+					continue
+				}
+				exampleData.ID = exampleId
+
+				examplesData = append(examplesData, exampleData)
+			}
+		}
+
+		wordData.Examples = examplesData
+
+		newDictData = append(newDictData, wordData)
 	}
-	if err = s.redis.Save(context.Background(), fmt.Sprintf("%s:%s", input.Text, input.Lang), body, RedisCacheTTL); err != nil {
-		logger.Error("failed to save dictionary data to redis", err, operation)
+
+	output = newDictData
+
+	byteData, err = json.Marshal(output)
+	if err != nil {
+		logger.Error("failed to marshal json", err, operation)
+	} else {
+		if err = s.redis.Save(context.Background(), redisKey, byteData, RedisCacheTTL); err != nil {
+			logger.Error("failed to save dictionary data to redis", err, operation)
+		}
 	}
 
 	return output, nil

@@ -103,8 +103,24 @@ create table if not exists personal_user_book_genres
 -- Dictionary table for word translations/definitions
 create table if not exists dictionary
 (
-    id      uuid primary key default uuid_generate_v4(),
-    text    text        not null,
-    lang    varchar(10) not null,
-    content jsonb       not null
+    id             uuid primary key default uuid_generate_v4(),
+    text           varchar(255)   not null,
+    from_lang_code varchar(10)    not null,
+    to_lang_code   varchar(10)    not null,
+    part_of_speech varchar(50)    not null,
+    translations   varchar(255)[] not null,
+    transcription  varchar(255),
+    constraint text_part_of_speech_unique_key unique (text, part_of_speech)
+);
+
+-- Dictionary examples table
+create table if not exists dictionary_examples
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    text                text not null,
+    translated_text     text not null,
+    word_position_start int  not null,
+    word_position_end   int  not null,
+    dictionary_id       uuid not null,
+    constraint fk_dictionary_id foreign key (dictionary_id) references dictionary (id) on delete cascade
 );

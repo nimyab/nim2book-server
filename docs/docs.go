@@ -327,7 +327,7 @@ const docTemplate = `{
                 "tags": [
                     "dictionary"
                 ],
-                "summary": "Get translate from dictionary",
+                "summary": "Get list translate from dictionary",
                 "parameters": [
                     {
                         "description": "body",
@@ -343,7 +343,10 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/lookup.Output"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.DictionaryWord"
+                            }
                         }
                     }
                 }
@@ -906,7 +909,7 @@ const docTemplate = `{
                 "tags": [
                     "translate"
                 ],
-                "summary": "Translate book. Only VIP users can translate books",
+                "summary": "Translate book to public library. Only administrators can translate books to public access",
                 "parameters": [
                     {
                         "type": "file",
@@ -935,6 +938,56 @@ const docTemplate = `{
                         "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/translate_book.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/translate/personal-user-book": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "translate"
+                ],
+                "summary": "Translate personal user book. Users can translate books to their personal library",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Upload file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Source lang",
+                        "name": "from",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Target lang",
+                        "name": "to",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/translate_personal_user_book.Output"
                         }
                     }
                 }
@@ -1109,27 +1162,61 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.Definition": {
+        "domain.DictionaryExample": {
             "type": "object",
-            "required": [
-                "text",
-                "tr"
-            ],
             "properties": {
-                "pos": {
+                "dictionaryID": {
+                    "type": "string"
+                },
+                "id": {
                     "type": "string"
                 },
                 "text": {
                     "type": "string"
                 },
-                "tr": {
+                "translatedText": {
+                    "type": "string"
+                },
+                "wordPositionEnd": {
+                    "type": "integer"
+                },
+                "wordPositionStart": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.DictionaryWord": {
+            "type": "object",
+            "properties": {
+                "examples": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/domain.Translation"
+                        "$ref": "#/definitions/domain.DictionaryExample"
                     }
                 },
-                "ts": {
+                "fromLangCode": {
                     "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "partOfSpeech": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "toLangCode": {
+                    "type": "string"
+                },
+                "transcription": {
+                    "type": "string"
+                },
+                "translations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -1140,34 +1227,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.Example": {
-            "type": "object",
-            "required": [
-                "text"
-            ],
-            "properties": {
-                "text": {
-                    "type": "string"
-                },
-                "tr": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.ExampleTranslation"
-                    }
-                }
-            }
-        },
-        "domain.ExampleTranslation": {
-            "type": "object",
-            "required": [
-                "text"
-            ],
-            "properties": {
-                "text": {
                     "type": "string"
                 }
             }
@@ -1206,17 +1265,6 @@ const docTemplate = `{
         "domain.JsonB": {
             "type": "object",
             "additionalProperties": {}
-        },
-        "domain.Mean": {
-            "type": "object",
-            "required": [
-                "text"
-            ],
-            "properties": {
-                "text": {
-                    "type": "string"
-                }
-            }
         },
         "domain.ParagraphAlignNode": {
             "type": "object",
@@ -1263,32 +1311,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "userId": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.Translation": {
-            "type": "object",
-            "required": [
-                "text"
-            ],
-            "properties": {
-                "ex": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.Example"
-                    }
-                },
-                "mean": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.Mean"
-                    }
-                },
-                "pos": {
-                    "type": "string"
-                },
-                "text": {
                     "type": "string"
                 }
             }
@@ -1462,37 +1484,23 @@ const docTemplate = `{
         "lookup.Input": {
             "type": "object",
             "required": [
-                "lang",
+                "fromLang",
                 "text",
+                "toLang",
                 "ui"
             ],
             "properties": {
-                "lang": {
+                "fromLang": {
                     "type": "string"
                 },
                 "text": {
                     "type": "string"
                 },
+                "toLang": {
+                    "type": "string"
+                },
                 "ui": {
                     "type": "string"
-                }
-            }
-        },
-        "lookup.Output": {
-            "type": "object",
-            "required": [
-                "def"
-            ],
-            "properties": {
-                "def": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.Definition"
-                    }
-                },
-                "head": {
-                    "type": "object",
-                    "additionalProperties": {}
                 }
             }
         },
@@ -1585,6 +1593,17 @@ const docTemplate = `{
             "properties": {
                 "book": {
                     "$ref": "#/definitions/domain.Book"
+                },
+                "messageAboutTranslate": {
+                    "type": "string"
+                }
+            }
+        },
+        "translate_personal_user_book.Output": {
+            "type": "object",
+            "properties": {
+                "book": {
+                    "$ref": "#/definitions/domain.PersonalUserBook"
                 },
                 "messageAboutTranslate": {
                     "type": "string"

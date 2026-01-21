@@ -7,60 +7,453 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createDictionaryData = `-- name: CreateDictionaryData :exec
-insert into dictionary (text, lang, content)
-values ($1, $2, $3)
+const createDictionaryExample = `-- name: CreateDictionaryExample :one
+
+insert into dictionary_examples (text, translated_text, word_position_start, word_position_end, dictionary_id)
+values ($1,
+        $2,
+        $3,
+        $4,
+        $5)
+returning id
 `
 
-type CreateDictionaryDataParams struct {
-	Text    string
-	Lang    string
-	Content []byte
+type CreateDictionaryExampleParams struct {
+	Text              string
+	TranslatedText    string
+	WordPositionStart int32
+	WordPositionEnd   int32
+	DictionaryID      pgtype.UUID
 }
 
-func (q *Queries) CreateDictionaryData(ctx context.Context, arg CreateDictionaryDataParams) error {
-	_, err := q.db.Exec(ctx, createDictionaryData, arg.Text, arg.Lang, arg.Content)
+// Dictionary Examples queries
+func (q *Queries) CreateDictionaryExample(ctx context.Context, arg CreateDictionaryExampleParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, createDictionaryExample,
+		arg.Text,
+		arg.TranslatedText,
+		arg.WordPositionStart,
+		arg.WordPositionEnd,
+		arg.DictionaryID,
+	)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const createDictionaryWord = `-- name: CreateDictionaryWord :one
+insert into dictionary (text, from_lang_code, to_lang_code, part_of_speech, translations, transcription)
+values ($1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6)
+returning id
+`
+
+type CreateDictionaryWordParams struct {
+	Text          string
+	FromLangCode  string
+	ToLangCode    string
+	PartOfSpeech  string
+	Translations  []string
+	Transcription *string
+}
+
+func (q *Queries) CreateDictionaryWord(ctx context.Context, arg CreateDictionaryWordParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, createDictionaryWord,
+		arg.Text,
+		arg.FromLangCode,
+		arg.ToLangCode,
+		arg.PartOfSpeech,
+		arg.Translations,
+		arg.Transcription,
+	)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const deleteDictionaryExample = `-- name: DeleteDictionaryExample :exec
+delete
+from dictionary_examples
+where id = $1
+`
+
+func (q *Queries) DeleteDictionaryExample(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteDictionaryExample, id)
 	return err
 }
 
-const dictionaryDataExists = `-- name: DictionaryDataExists :one
-select exists(
-    select id
-    from dictionary
-    where text = $1
-      and lang = $2
-  )
+const deleteDictionaryExamplesByWordId = `-- name: DeleteDictionaryExamplesByWordId :exec
+delete
+from dictionary_examples
+where dictionary_id = $1
 `
 
-type DictionaryDataExistsParams struct {
-	Text string
-	Lang string
+func (q *Queries) DeleteDictionaryExamplesByWordId(ctx context.Context, dictionaryID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteDictionaryExamplesByWordId, dictionaryID)
+	return err
 }
 
-func (q *Queries) DictionaryDataExists(ctx context.Context, arg DictionaryDataExistsParams) (bool, error) {
-	row := q.db.QueryRow(ctx, dictionaryDataExists, arg.Text, arg.Lang)
+const deleteDictionaryWord = `-- name: DeleteDictionaryWord :exec
+delete
+from dictionary
+where id = $1
+`
+
+func (q *Queries) DeleteDictionaryWord(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteDictionaryWord, id)
+	return err
+}
+
+const dictionaryWordExists = `-- name: DictionaryWordExists :one
+select exists(select 1
+              from dictionary
+              where text = $1
+                and from_lang_code = $2
+                and to_lang_code = $3
+                and part_of_speech = $4)
+`
+
+type DictionaryWordExistsParams struct {
+	Text         string
+	FromLangCode string
+	ToLangCode   string
+	PartOfSpeech string
+}
+
+func (q *Queries) DictionaryWordExists(ctx context.Context, arg DictionaryWordExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, dictionaryWordExists,
+		arg.Text,
+		arg.FromLangCode,
+		arg.ToLangCode,
+		arg.PartOfSpeech,
+	)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
 }
 
-const getDictionaryData = `-- name: GetDictionaryData :one
-select content
-from dictionary
-where text = $1
-  and lang = $2
+const getDictionaryExampleById = `-- name: GetDictionaryExampleById :one
+select id, text, translated_text, word_position_start, word_position_end, dictionary_id
+from dictionary_examples
+where id = $1
 `
 
-type GetDictionaryDataParams struct {
-	Text string
-	Lang string
+func (q *Queries) GetDictionaryExampleById(ctx context.Context, id pgtype.UUID) (DictionaryExample, error) {
+	row := q.db.QueryRow(ctx, getDictionaryExampleById, id)
+	var i DictionaryExample
+	err := row.Scan(
+		&i.ID,
+		&i.Text,
+		&i.TranslatedText,
+		&i.WordPositionStart,
+		&i.WordPositionEnd,
+		&i.DictionaryID,
+	)
+	return i, err
 }
 
-func (q *Queries) GetDictionaryData(ctx context.Context, arg GetDictionaryDataParams) ([]byte, error) {
-	row := q.db.QueryRow(ctx, getDictionaryData, arg.Text, arg.Lang)
-	var content []byte
-	err := row.Scan(&content)
-	return content, err
+const getDictionaryExamples = `-- name: GetDictionaryExamples :many
+select id, text, translated_text, word_position_start, word_position_end, dictionary_id
+from dictionary_examples
+where dictionary_id = $1
+order by id
+`
+
+func (q *Queries) GetDictionaryExamples(ctx context.Context, dictionaryID pgtype.UUID) ([]DictionaryExample, error) {
+	rows, err := q.db.Query(ctx, getDictionaryExamples, dictionaryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DictionaryExample
+	for rows.Next() {
+		var i DictionaryExample
+		if err := rows.Scan(
+			&i.ID,
+			&i.Text,
+			&i.TranslatedText,
+			&i.WordPositionStart,
+			&i.WordPositionEnd,
+			&i.DictionaryID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getDictionaryWord = `-- name: GetDictionaryWord :one
+select id, text, from_lang_code, to_lang_code, part_of_speech, translations, transcription
+from dictionary
+where text = $1
+  and from_lang_code = $2
+  and to_lang_code = $3
+  and part_of_speech = $4
+`
+
+type GetDictionaryWordParams struct {
+	Text         string
+	FromLangCode string
+	ToLangCode   string
+	PartOfSpeech string
+}
+
+func (q *Queries) GetDictionaryWord(ctx context.Context, arg GetDictionaryWordParams) (Dictionary, error) {
+	row := q.db.QueryRow(ctx, getDictionaryWord,
+		arg.Text,
+		arg.FromLangCode,
+		arg.ToLangCode,
+		arg.PartOfSpeech,
+	)
+	var i Dictionary
+	err := row.Scan(
+		&i.ID,
+		&i.Text,
+		&i.FromLangCode,
+		&i.ToLangCode,
+		&i.PartOfSpeech,
+		&i.Translations,
+		&i.Transcription,
+	)
+	return i, err
+}
+
+const getDictionaryWordById = `-- name: GetDictionaryWordById :one
+select id, text, from_lang_code, to_lang_code, part_of_speech, translations, transcription
+from dictionary
+where id = $1
+`
+
+func (q *Queries) GetDictionaryWordById(ctx context.Context, id pgtype.UUID) (Dictionary, error) {
+	row := q.db.QueryRow(ctx, getDictionaryWordById, id)
+	var i Dictionary
+	err := row.Scan(
+		&i.ID,
+		&i.Text,
+		&i.FromLangCode,
+		&i.ToLangCode,
+		&i.PartOfSpeech,
+		&i.Translations,
+		&i.Transcription,
+	)
+	return i, err
+}
+
+const getDictionaryWordWithExamples = `-- name: GetDictionaryWordWithExamples :many
+select d.id                   as dictionary_id,
+       d.text                 as dictionary_text,
+       d.from_lang_code       as dictionary_from_lang_code,
+       d.to_lang_code         as dictionary_to_lang_code,
+       d.part_of_speech       as dictionary_part_of_speech,
+       d.translations         as dictionary_translations,
+       d.transcription        as dictionary_transcription,
+       de.id                  as example_id,
+       de.text                as example_text,
+       de.translated_text     as example_translated_text,
+       de.word_position_start as example_word_position_start,
+       de.word_position_end   as example_word_position_end
+from dictionary d
+         left join dictionary_examples de on d.id = de.dictionary_id
+where d.id = $1
+order by de.id
+`
+
+type GetDictionaryWordWithExamplesRow struct {
+	DictionaryID             pgtype.UUID
+	DictionaryText           string
+	DictionaryFromLangCode   string
+	DictionaryToLangCode     string
+	DictionaryPartOfSpeech   string
+	DictionaryTranslations   []string
+	DictionaryTranscription  *string
+	ExampleID                pgtype.UUID
+	ExampleText              *string
+	ExampleTranslatedText    *string
+	ExampleWordPositionStart *int32
+	ExampleWordPositionEnd   *int32
+}
+
+func (q *Queries) GetDictionaryWordWithExamples(ctx context.Context, dictionaryID pgtype.UUID) ([]GetDictionaryWordWithExamplesRow, error) {
+	rows, err := q.db.Query(ctx, getDictionaryWordWithExamples, dictionaryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetDictionaryWordWithExamplesRow
+	for rows.Next() {
+		var i GetDictionaryWordWithExamplesRow
+		if err := rows.Scan(
+			&i.DictionaryID,
+			&i.DictionaryText,
+			&i.DictionaryFromLangCode,
+			&i.DictionaryToLangCode,
+			&i.DictionaryPartOfSpeech,
+			&i.DictionaryTranslations,
+			&i.DictionaryTranscription,
+			&i.ExampleID,
+			&i.ExampleText,
+			&i.ExampleTranslatedText,
+			&i.ExampleWordPositionStart,
+			&i.ExampleWordPositionEnd,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getDictionaryWordsByText = `-- name: GetDictionaryWordsByText :many
+select id, text, from_lang_code, to_lang_code, part_of_speech, translations, transcription
+from dictionary
+where text = $1
+  and from_lang_code = $2
+  and to_lang_code = $3
+order by part_of_speech
+`
+
+type GetDictionaryWordsByTextParams struct {
+	Text         string
+	FromLangCode string
+	ToLangCode   string
+}
+
+func (q *Queries) GetDictionaryWordsByText(ctx context.Context, arg GetDictionaryWordsByTextParams) ([]Dictionary, error) {
+	rows, err := q.db.Query(ctx, getDictionaryWordsByText, arg.Text, arg.FromLangCode, arg.ToLangCode)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Dictionary
+	for rows.Next() {
+		var i Dictionary
+		if err := rows.Scan(
+			&i.ID,
+			&i.Text,
+			&i.FromLangCode,
+			&i.ToLangCode,
+			&i.PartOfSpeech,
+			&i.Translations,
+			&i.Transcription,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchDictionaryWords = `-- name: SearchDictionaryWords :many
+select id, text, from_lang_code, to_lang_code, part_of_speech, translations, transcription
+from dictionary
+where text ilike $1
+  and from_lang_code = $2
+  and to_lang_code = $3
+order by text
+limit $5 offset $4
+`
+
+type SearchDictionaryWordsParams struct {
+	SearchText   string
+	FromLangCode string
+	ToLangCode   string
+	OffsetCount  int32
+	LimitCount   int32
+}
+
+func (q *Queries) SearchDictionaryWords(ctx context.Context, arg SearchDictionaryWordsParams) ([]Dictionary, error) {
+	rows, err := q.db.Query(ctx, searchDictionaryWords,
+		arg.SearchText,
+		arg.FromLangCode,
+		arg.ToLangCode,
+		arg.OffsetCount,
+		arg.LimitCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Dictionary
+	for rows.Next() {
+		var i Dictionary
+		if err := rows.Scan(
+			&i.ID,
+			&i.Text,
+			&i.FromLangCode,
+			&i.ToLangCode,
+			&i.PartOfSpeech,
+			&i.Translations,
+			&i.Transcription,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateDictionaryExample = `-- name: UpdateDictionaryExample :exec
+update dictionary_examples
+set text                = $1,
+    translated_text     = $2,
+    word_position_start = $3,
+    word_position_end   = $4
+where id = $5
+`
+
+type UpdateDictionaryExampleParams struct {
+	Text              string
+	TranslatedText    string
+	WordPositionStart int32
+	WordPositionEnd   int32
+	ID                pgtype.UUID
+}
+
+func (q *Queries) UpdateDictionaryExample(ctx context.Context, arg UpdateDictionaryExampleParams) error {
+	_, err := q.db.Exec(ctx, updateDictionaryExample,
+		arg.Text,
+		arg.TranslatedText,
+		arg.WordPositionStart,
+		arg.WordPositionEnd,
+		arg.ID,
+	)
+	return err
+}
+
+const updateDictionaryWord = `-- name: UpdateDictionaryWord :exec
+update dictionary
+set translations  = $1,
+    transcription = $2
+where id = $3
+`
+
+type UpdateDictionaryWordParams struct {
+	Translations  []string
+	Transcription *string
+	ID            pgtype.UUID
+}
+
+func (q *Queries) UpdateDictionaryWord(ctx context.Context, arg UpdateDictionaryWordParams) error {
+	_, err := q.db.Exec(ctx, updateDictionaryWord, arg.Translations, arg.Transcription, arg.ID)
+	return err
 }

@@ -22,10 +22,22 @@ type BookGenre struct {
 }
 
 type Dictionary struct {
-	ID      pgtype.UUID
-	Text    string
-	Lang    string
-	Content []byte
+	ID            pgtype.UUID
+	Text          string
+	FromLangCode  string
+	ToLangCode    string
+	PartOfSpeech  string
+	Translations  []string
+	Transcription *string
+}
+
+type DictionaryExample struct {
+	ID                pgtype.UUID
+	Text              string
+	TranslatedText    string
+	WordPositionStart int32
+	WordPositionEnd   int32
+	DictionaryID      pgtype.UUID
 }
 
 type EmailPasswordAccount struct {

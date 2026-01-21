@@ -53,7 +53,7 @@ func uuidToPgtype(id domain.Id) pgtype.UUID {
 }
 
 func uuidFromPgtype(pgu pgtype.UUID) domain.Id {
-	return domain.Id(pgu.Bytes)
+	return pgu.Bytes
 }
 
 func stringToPgtype(s *string) pgtype.Text {

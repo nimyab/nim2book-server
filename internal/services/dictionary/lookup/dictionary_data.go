@@ -1,5 +1,7 @@
-package domain
+package lookup
 
+// DictionaryData represents the response from Yandex Dictionary API
+// This structure is kept for compatibility with external API
 type DictionaryData struct {
 	Head        map[string]any `json:"head,omitempty"`
 	Definitions []Definition   `json:"def" validate:"required"`

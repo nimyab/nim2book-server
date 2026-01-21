@@ -70,21 +70,43 @@ definitions:
       translatedTitle:
         type: string
     type: object
-  domain.Definition:
+  domain.DictionaryExample:
     properties:
-      pos:
+      dictionaryID:
+        type: string
+      id:
         type: string
       text:
         type: string
-      tr:
-        items:
-          $ref: '#/definitions/domain.Translation'
-        type: array
-      ts:
+      translatedText:
         type: string
-    required:
-    - text
-    - tr
+      wordPositionEnd:
+        type: integer
+      wordPositionStart:
+        type: integer
+    type: object
+  domain.DictionaryWord:
+    properties:
+      examples:
+        items:
+          $ref: '#/definitions/domain.DictionaryExample'
+        type: array
+      fromLangCode:
+        type: string
+      id:
+        type: string
+      partOfSpeech:
+        type: string
+      text:
+        type: string
+      toLangCode:
+        type: string
+      transcription:
+        type: string
+      translations:
+        items:
+          type: string
+        type: array
     type: object
   domain.EmailPasswordAccount:
     properties:
@@ -92,24 +114,6 @@ definitions:
         type: string
       id:
         type: string
-    type: object
-  domain.Example:
-    properties:
-      text:
-        type: string
-      tr:
-        items:
-          $ref: '#/definitions/domain.ExampleTranslation'
-        type: array
-    required:
-    - text
-    type: object
-  domain.ExampleTranslation:
-    properties:
-      text:
-        type: string
-    required:
-    - text
     type: object
   domain.Genre:
     properties:
@@ -133,13 +137,6 @@ definitions:
     type: object
   domain.JsonB:
     additionalProperties: {}
-    type: object
-  domain.Mean:
-    properties:
-      text:
-        type: string
-    required:
-    - text
     type: object
   domain.ParagraphAlignNode:
     properties:
@@ -172,23 +169,6 @@ definitions:
         type: string
       userId:
         type: string
-    type: object
-  domain.Translation:
-    properties:
-      ex:
-        items:
-          $ref: '#/definitions/domain.Example'
-        type: array
-      mean:
-        items:
-          $ref: '#/definitions/domain.Mean'
-        type: array
-      pos:
-        type: string
-      text:
-        type: string
-    required:
-    - text
     type: object
   domain.User:
     properties:
@@ -299,28 +279,19 @@ definitions:
     type: object
   lookup.Input:
     properties:
-      lang:
+      fromLang:
         type: string
       text:
+        type: string
+      toLang:
         type: string
       ui:
         type: string
     required:
-    - lang
+    - fromLang
     - text
+    - toLang
     - ui
-    type: object
-  lookup.Output:
-    properties:
-      def:
-        items:
-          $ref: '#/definitions/domain.Definition'
-        type: array
-      head:
-        additionalProperties: {}
-        type: object
-    required:
-    - def
     type: object
   me.Output:
     properties:
@@ -380,6 +351,13 @@ definitions:
     properties:
       book:
         $ref: '#/definitions/domain.Book'
+      messageAboutTranslate:
+        type: string
+    type: object
+  translate_personal_user_book.Output:
+    properties:
+      book:
+        $ref: '#/definitions/domain.PersonalUserBook'
       messageAboutTranslate:
         type: string
     type: object
@@ -627,8 +605,10 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/lookup.Output'
-      summary: Get translate from dictionary
+            items:
+              $ref: '#/definitions/domain.DictionaryWord'
+            type: array
+      summary: Get list translate from dictionary
       tags:
       - dictionary
   /fcm-token/add:
@@ -1001,7 +981,41 @@ paths:
             $ref: '#/definitions/translate_book.Output'
       security:
       - BearerAuth: []
-      summary: Translate book. Only VIP users can translate books
+      summary: Translate book to public library. Only administrators can translate
+        books to public access
+      tags:
+      - translate
+  /translate/personal-user-book:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Upload file
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Source lang
+        in: formData
+        name: from
+        required: true
+        type: string
+      - description: Target lang
+        in: formData
+        name: to
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/translate_personal_user_book.Output'
+      security:
+      - BearerAuth: []
+      summary: Translate personal user book. Users can translate books to their personal
+        library
       tags:
       - translate
   /user/me:

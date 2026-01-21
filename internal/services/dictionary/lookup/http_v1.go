@@ -7,7 +7,7 @@ import (
 )
 
 // HTTPv1 godoc
-// @Summary	Get translate from dictionary
+// @Summary	Get list translate from dictionary
 // @Tags	dictionary
 // @Accept  json
 // @Produce	json
