@@ -343,10 +343,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.DictionaryWord"
-                            }
+                            "$ref": "#/definitions/lookup.Output"
                         }
                     }
                 }
@@ -1501,6 +1498,17 @@ const docTemplate = `{
                 },
                 "ui": {
                     "type": "string"
+                }
+            }
+        },
+        "lookup.Output": {
+            "type": "object",
+            "properties": {
+                "words": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.DictionaryWord"
+                    }
                 }
             }
         },

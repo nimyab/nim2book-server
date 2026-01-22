@@ -293,6 +293,13 @@ definitions:
     - toLang
     - ui
     type: object
+  lookup.Output:
+    properties:
+      words:
+        items:
+          $ref: '#/definitions/domain.DictionaryWord'
+        type: array
+    type: object
   me.Output:
     properties:
       user:
@@ -605,9 +612,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/domain.DictionaryWord'
-            type: array
+            $ref: '#/definitions/lookup.Output'
       summary: Get list translate from dictionary
       tags:
       - dictionary

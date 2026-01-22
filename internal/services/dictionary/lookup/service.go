@@ -55,23 +55,25 @@ const (
 	RedisCacheTTL = 15 * time.Minute
 )
 
-func (s *Service) Lookup(input *Input) (Output, error) {
+func (s *Service) Lookup(input *Input) (*Output, error) {
 	const operation = "lookup.Lookup"
 
 	input.Text = strings.ToLower(strings.Trim(input.Text, ".!?,;: "))
-	var output []domain.DictionaryWord
 	var redisKey = fmt.Sprintf("%s:%s_%s", input.Text, input.FromLang, input.ToLang)
 
 	byteData, err := s.redis.Get(context.Background(), redisKey)
 	if err != nil {
 		logger.Error("failed to get from redis", err, operation)
 	} else {
-		err = json.Unmarshal(byteData, &output)
-		slog.Info("dictionary cache hit", slog.String("redisKey", redisKey), slog.Any("output", output))
+		var dictWords []domain.DictionaryWord
+		err = json.Unmarshal(byteData, &dictWords)
+		slog.Info("dictionary cache hit", slog.String("redisKey", redisKey), slog.Any("dictWords", dictWords))
 		if err != nil {
 			logger.Error("failed to unmarshal json", err, operation)
+		} else if len(dictWords) == 0 {
+			slog.Info("dictionary cache empty", slog.String("redisKey", redisKey))
 		} else {
-			return output, nil
+			return &Output{Words: dictWords}, nil
 		}
 	}
 
@@ -82,16 +84,8 @@ func (s *Service) Lookup(input *Input) (Output, error) {
 	}
 	if len(dictData) > 0 {
 		slog.Info("dictionary database hit", slog.String("redisKey", redisKey), slog.Any("dictData", dictData))
-		byteData, err = json.Marshal(dictData)
-		if err != nil {
-			logger.Error("failed to marshal json", err, operation)
-		} else {
-			if err = s.redis.Save(context.Background(), redisKey, byteData, RedisCacheTTL); err != nil {
-				logger.Error("failed to save dictionary data to redis", err, operation)
-			}
-		}
-
-		return dictData, nil
+		s.saveToRedis(dictData, redisKey)
+		return &Output{Words: dictData}, nil
 	}
 
 	slog.Info("dictionary database miss, start get from yandex api", slog.String("redisKey", redisKey))
@@ -123,8 +117,8 @@ func (s *Service) Lookup(input *Input) (Output, error) {
 	}
 	defer resp.Body.Close()
 
-	yandexLookupResponse := &DictionaryData{}
-	if err = json.Unmarshal(body, yandexLookupResponse); err != nil {
+	yandexLookupResponse := DictionaryData{}
+	if err = json.Unmarshal(body, &yandexLookupResponse); err != nil {
 		logger.Error("failed to unmarshal response body", err, operation)
 		return nil, ErrInternal
 	}
@@ -179,9 +173,18 @@ func (s *Service) Lookup(input *Input) (Output, error) {
 		newDictData = append(newDictData, wordData)
 	}
 
-	output = newDictData
+	s.saveToRedis(newDictData, redisKey)
 
-	byteData, err = json.Marshal(output)
+	return &Output{Words: newDictData}, nil
+}
+
+func (s *Service) saveToRedis(dictData []domain.DictionaryWord, redisKey string) {
+	const operation = "lookup.saveToRedis"
+
+	if len(dictData) == 0 {
+		return
+	}
+	byteData, err := json.Marshal(dictData)
 	if err != nil {
 		logger.Error("failed to marshal json", err, operation)
 	} else {
@@ -189,6 +192,4 @@ func (s *Service) Lookup(input *Input) (Output, error) {
 			logger.Error("failed to save dictionary data to redis", err, operation)
 		}
 	}
-
-	return output, nil
 }

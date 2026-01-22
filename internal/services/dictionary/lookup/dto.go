@@ -9,4 +9,6 @@ type Input struct {
 	UI       string `json:"ui" validate:"required"`
 }
 
-type Output = []domain.DictionaryWord
+type Output struct {
+	Words []domain.DictionaryWord `json:"words"`
+}
