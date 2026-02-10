@@ -1,6 +1,6 @@
 module github.com/nimyab/nim2book-back
 
-go 1.25.0
+go 1.25.7
 
 require (
 	firebase.google.com/go/v4 v4.19.0
