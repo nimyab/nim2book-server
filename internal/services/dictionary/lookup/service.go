@@ -35,16 +35,13 @@ type Service struct {
 	yandexDictURL string
 }
 
-var service *Service
-
 func New(pg Postgres, redis Redis, yandexDictKey, yandexDictURL string) *Service {
-	service = &Service{
+	return &Service{
 		pg:            pg,
 		redis:         redis,
 		yandexDictKey: yandexDictKey,
 		yandexDictURL: yandexDictURL,
 	}
-	return service
 }
 
 var (

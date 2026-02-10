@@ -6,6 +6,38 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// MakeHTTPv1Handler creates HTTP handler with dependencies
+func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		cover, err := c.FormFile("cover")
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, err.Error())
+		}
+
+		input := new(Input)
+		if err := c.Bind(input); err != nil {
+			return c.JSON(http.StatusBadRequest, echo.Map{
+				"error": "invalid input",
+			})
+		}
+
+		if err := c.Validate(input); err != nil {
+			return c.JSON(http.StatusBadRequest, echo.Map{
+				"error": err.Error(),
+			})
+		}
+
+		output, err := svc.UpdateBook(input, cover)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, echo.Map{
+				"error": err.Error(),
+			})
+		}
+
+		return c.JSON(http.StatusOK, output)
+	}
+}
+
 // HTTPv1 godoc
 // @Summary	Update book
 // @Tags	book
@@ -17,31 +49,7 @@ import (
 // @Param	id		path	string	true	"Book id"
 // @Success	200		{object}	Output
 // @Router	/book/{id}	[put]
+// Deprecated: Use MakeHTTPv1Handler instead
 func HTTPv1(c echo.Context) error {
-	cover, err := c.FormFile("cover")
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, err.Error())
-	}
-
-	input := new(Input)
-	if err := c.Bind(input); err != nil {
-		return c.JSON(http.StatusBadRequest, echo.Map{
-			"error": "invalid input",
-		})
-	}
-
-	if err := c.Validate(input); err != nil {
-		return c.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-		})
-	}
-
-	output, err := service.UpdateBook(input, cover)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
-		})
-	}
-
-	return c.JSON(http.StatusOK, output)
+	panic("HTTPv1 is deprecated, use MakeHTTPv1Handler instead")
 }

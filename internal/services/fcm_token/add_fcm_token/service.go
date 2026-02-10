@@ -17,18 +17,13 @@ type Service struct {
 	pg Postgres
 }
 
-var service *Service
-
 var (
 	ErrInternal        = errors.New("internal error")
 	ErrTokenAlreadyAdd = errors.New("token already add")
 )
 
 func New(pg Postgres) *Service {
-	service = &Service{
-		pg: pg,
-	}
-	return service
+	return &Service{pg: pg}
 }
 
 func (s *Service) AddFcmToken(input *Input, userId domain.Id) (*Output, error) {

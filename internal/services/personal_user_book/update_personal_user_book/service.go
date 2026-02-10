@@ -40,14 +40,8 @@ type Service struct {
 	s3 S3
 }
 
-var service *Service
-
 func New(pg Postgres, s3 S3) *Service {
-	service = &Service{
-		pg: pg,
-		s3: s3,
-	}
-	return service
+	return &Service{pg: pg, s3: s3}
 }
 
 func (s *Service) UpdatePersonalUserBook(input *Input, cover *multipart.FileHeader) (*Output, error) {

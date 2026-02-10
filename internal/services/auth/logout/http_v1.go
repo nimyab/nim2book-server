@@ -7,21 +7,29 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// MakeHTTPv1Handler creates HTTP handler (no service needed)
+func MakeHTTPv1Handler() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		cookie := &http.Cookie{
+			HttpOnly: true,
+			Name:     "refresh_token",
+			Value:    "",
+			Expires:  time.Now().Add(-24 * time.Hour),
+		}
+		c.SetCookie(cookie)
+		return c.JSON(http.StatusOK, &Output{
+			Success: true,
+		})
+	}
+}
+
 // HTTPv1 godoc
 // @Summary	Logout user
 // @Tags	auth
 // @Produce	json
 // @Success	200		{object}	Output
 // @Router	/auth/logout	[post]
+// Deprecated: Use MakeHTTPv1Handler instead
 func HTTPv1(c echo.Context) error {
-	cookie := &http.Cookie{
-		HttpOnly: true,
-		Name:     "refresh_token",
-		Value:    "",
-		Expires:  time.Now().Add(-24 * time.Hour),
-	}
-	c.SetCookie(cookie)
-	return c.JSON(http.StatusOK, &Output{
-		Success: true,
-	})
+	panic("HTTPv1 is deprecated, use MakeHTTPv1Handler instead")
 }

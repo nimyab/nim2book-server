@@ -26,21 +26,18 @@ type Service struct {
 	refreshTime time.Duration
 }
 
-var service *Service
-
 var (
 	ErrInternal           = errors.New("internal error")
 	ErrPasswordDoNotMatch = errors.New("passwords do not match")
 )
 
 func New(pg Postgres, secret string, accessTime, refreshTime time.Duration) *Service {
-	service = &Service{
+	return &Service{
 		pg:          pg,
 		secret:      secret,
 		accessTime:  accessTime,
 		refreshTime: refreshTime,
 	}
-	return service
 }
 
 func (s *Service) Login(input *Input) (*Output, error) {

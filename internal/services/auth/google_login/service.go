@@ -28,8 +28,6 @@ type Service struct {
 	refreshTime    time.Duration
 }
 
-var service *Service
-
 var (
 	ErrInternal          = errors.New("internal error")
 	ErrInvalidToken      = errors.New("invalid token")
@@ -37,14 +35,13 @@ var (
 )
 
 func New(pg Postgres, googleClientId string, secret string, accessTime, refreshTime time.Duration) *Service {
-	service = &Service{
+	return &Service{
 		pg:             pg,
 		secret:         secret,
 		accessTime:     accessTime,
 		refreshTime:    refreshTime,
 		googleClientId: googleClientId,
 	}
-	return service
 }
 
 func (s *Service) GoogleLogin(input *Input) (*Output, error) {

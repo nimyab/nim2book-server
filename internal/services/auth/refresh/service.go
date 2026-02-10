@@ -14,15 +14,12 @@ type Service struct {
 	refreshTime time.Duration
 }
 
-var service *Service
-
 func New(secret string, accessTime, refreshTime time.Duration) *Service {
-	service = &Service{
+	return &Service{
 		secret:      secret,
 		accessTime:  accessTime,
 		refreshTime: refreshTime,
 	}
-	return service
 }
 
 var (

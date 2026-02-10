@@ -16,17 +16,12 @@ type Service struct {
 	pg Postgres
 }
 
-var service *Service
-
 var (
 	ErrInternal = errors.New("internal error")
 )
 
 func New(pg Postgres) *Service {
-	service = &Service{
-		pg: pg,
-	}
-	return service
+	return &Service{pg: pg}
 }
 
 func (s *Service) DeleteFcmToken(input *Input, userId domain.Id) (*Output, error) {

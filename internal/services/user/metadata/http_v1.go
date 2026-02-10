@@ -7,6 +7,37 @@ import (
 	"github.com/nimyab/nim2book-back/pkg/jwt"
 )
 
+// MakeHTTPv1Handler creates HTTP handler with dependencies
+func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		payload := jwt.GetUserPayload(c)
+		input := &Input{
+			UserId: payload.Id,
+		}
+
+		if err := c.Bind(input); err != nil {
+			return c.JSON(http.StatusBadRequest, echo.Map{
+				"error": err.Error(),
+			})
+		}
+
+		if err := c.Validate(input); err != nil {
+			return c.JSON(http.StatusBadRequest, echo.Map{
+				"error": err.Error(),
+			})
+		}
+
+		output, err := svc.UpdateMetadata(input)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, echo.Map{
+				"error": err.Error(),
+			})
+		}
+
+		return c.JSON(http.StatusOK, output)
+	}
+}
+
 // HTTPv1 godoc
 // @Summary	Update user metadata
 // @Tags	user
@@ -15,30 +46,7 @@ import (
 // @Param	input	body		Input	true	"Input data"
 // @Success	200		{object}	Output
 // @Router	/user/metadata	[put]
+// Deprecated: Use MakeHTTPv1Handler instead
 func HTTPv1(c echo.Context) error {
-	payload := jwt.GetUserPayload(c)
-	input := &Input{
-		UserId: payload.Id,
-	}
-
-	if err := c.Bind(input); err != nil {
-		return c.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-		})
-	}
-
-	if err := c.Validate(input); err != nil {
-		return c.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-		})
-	}
-
-	output, err := service.UpdateMetadata(input)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
-		})
-	}
-
-	return c.JSON(http.StatusOK, output)
+	panic("HTTPv1 is deprecated, use MakeHTTPv1Handler instead")
 }

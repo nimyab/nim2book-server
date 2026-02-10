@@ -8,6 +8,31 @@ import (
 	"github.com/nimyab/nim2book-back/pkg/jwt"
 )
 
+// MakeHTTPv1Handler creates HTTP handler with dependencies
+func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		userId := jwt.GetUserPayload(c).Id
+
+		input := new(Input)
+		if err := c.Bind(input); err != nil {
+			return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
+		}
+
+		if err := c.Validate(input); err != nil {
+			return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
+		}
+
+		output, err := svc.AddFcmToken(input, userId)
+		if errors.Is(err, ErrInternal) {
+			return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+		} else if err != nil {
+			return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
+		}
+
+		return c.JSON(http.StatusOK, output)
+	}
+}
+
 // HTTPv1 godoc
 // @Summary	Add fcm token for send notifications
 // @Security BearerAuth
@@ -17,24 +42,7 @@ import (
 // @Param	data	body	Input	true	"body"
 // @Success	200		{object}	Output
 // @Router	/fcm-token/add	[post]
+// Deprecated: Use MakeHTTPv1Handler instead
 func HTTPv1(c echo.Context) error {
-	userId := jwt.GetUserPayload(c).Id
-
-	input := new(Input)
-	if err := c.Bind(input); err != nil {
-		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
-	}
-
-	if err := c.Validate(input); err != nil {
-		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
-	}
-
-	output, err := service.AddFcmToken(input, userId)
-	if errors.Is(err, ErrInternal) {
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
-	} else if err != nil {
-		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
-	}
-
-	return c.JSON(http.StatusOK, output)
+	panic("HTTPv1 is deprecated, use MakeHTTPv1Handler instead")
 }

@@ -17,13 +17,10 @@ type Service struct {
 	pg Postgres
 }
 
-var service *Service
-
 func New(pg Postgres) *Service {
-	service = &Service{
+	return &Service{
 		pg: pg,
 	}
-	return service
 }
 
 func (s *Service) GetBook(input *Input) (*Output, error) {

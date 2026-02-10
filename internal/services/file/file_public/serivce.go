@@ -13,11 +13,8 @@ type Service struct {
 	s3 S3
 }
 
-var service *Service
-
 func New(s3 S3) *Service {
-	service = &Service{s3: s3}
-	return service
+	return &Service{s3: s3}
 }
 
 func (s *Service) GetFile(input *Input) (Output, error) {

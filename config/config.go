@@ -48,17 +48,16 @@ type Config struct {
 	GoogleCredentials string `env:"GOOGLE_CREDENTIALS"`
 }
 
-var appConfig *Config
-
-func init() {
+// Load loads configuration from environment variables
+func Load() (*Config, error) {
 	maxRequestCount, _ := strconv.Atoi(os.Getenv("MAX_REQUEST_COUNT"))
 	jwtAccessTime, _ := strconv.Atoi(os.Getenv("JWT_ACCESS_TIME"))
 	jwtRefreshTime, _ := strconv.Atoi(os.Getenv("JWT_REFRESH_TIME"))
 	waitMilliseconds, _ := strconv.Atoi(os.Getenv("WAIT_MILLISECONDS"))
 
-	appConfig = &Config{
-		Env:                 os.Getenv("ENV"),
-		Port:                os.Getenv("PORT"),
+	cfg := &Config{
+		Env:                 getEnvOrDefault("ENV", EnvDev),
+		Port:                getEnvOrDefault("PORT", ":5050"),
 		YandexDictionaryKey: os.Getenv("YANDEX_DICTIONARY_KEY"),
 		YandexDictionaryURL: os.Getenv("YANDEX_DICTIONARY_URL"),
 		MaxRequestCount:     maxRequestCount,
@@ -80,8 +79,13 @@ func init() {
 		GoogleClientId:      os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleCredentials:   os.Getenv("GOOGLE_CREDENTIALS"),
 	}
+
+	return cfg, nil
 }
 
-func GetConfig() *Config {
-	return appConfig
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

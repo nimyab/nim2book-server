@@ -20,17 +20,14 @@ type Service struct {
 	messagingFirebaseClient *messaging.Client
 }
 
-var service *Service
-
 func New(
 	messagingFirebaseClient *messaging.Client,
 	pg Postgres,
 ) *Service {
-	service = &Service{
+	return &Service{
 		pg:                      pg,
 		messagingFirebaseClient: messagingFirebaseClient,
 	}
-	return service
 }
 
 func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notification) {
