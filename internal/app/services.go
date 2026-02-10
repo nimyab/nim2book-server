@@ -23,12 +23,16 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/genre/get_genre"
 	"github.com/nimyab/nim2book-back/internal/services/genre/get_genres"
 	"github.com/nimyab/nim2book-back/internal/services/genre/update_genre"
+	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/services/notification"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_books"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/update_personal_user_book"
+	"github.com/nimyab/nim2book-back/internal/services/translate/translate_book"
+	"github.com/nimyab/nim2book-back/internal/services/translate/translate_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/user/me"
 	"github.com/nimyab/nim2book-back/internal/services/user/metadata"
+	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
 	"github.com/samber/do/v2"
 )
 
@@ -165,7 +169,51 @@ func (a *App) registerServices() error {
 		return notification.New(messagingClient, pg), nil
 	})
 
-	// TODO: Complex async services (translate_book, translate_personal_user_book) will be added separately
+	// LibreTranslate service
+	do.Provide(a.injector, func(i do.Injector) (*translate.Service, error) {
+		cfg := do.MustInvoke[*config.Config](i)
+		return translate.New(cfg.LibreTranslateURL), nil
+	})
+
+	// Translate Book service
+	do.Provide(a.injector, func(i do.Injector) (*translate_book.Service, error) {
+		s3 := do.MustInvoke[*minio.Minio](i)
+		pg := do.MustInvoke[*postgres_sqlc.Postgres](i)
+		wordAligner := do.MustInvoke[pb.AlignmentServiceClient](i)
+		translator := do.MustInvoke[*translate.Service](i)
+		notificationSvc := do.MustInvoke[*notification.Service](i)
+		cfg := do.MustInvoke[*config.Config](i)
+
+		return translate_book.New(
+			s3,
+			pg,
+			wordAligner,
+			translator,
+			cfg.MaxRequestCount,
+			cfg.WaitMilliseconds,
+			notificationSvc,
+		), nil
+	})
+
+	// Translate Personal User Book service
+	do.Provide(a.injector, func(i do.Injector) (*translate_personal_user_book.Service, error) {
+		s3 := do.MustInvoke[*minio.Minio](i)
+		pg := do.MustInvoke[*postgres_sqlc.Postgres](i)
+		wordAligner := do.MustInvoke[pb.AlignmentServiceClient](i)
+		translator := do.MustInvoke[*translate.Service](i)
+		notificationSvc := do.MustInvoke[*notification.Service](i)
+		cfg := do.MustInvoke[*config.Config](i)
+
+		return translate_personal_user_book.New(
+			s3,
+			pg,
+			wordAligner,
+			translator,
+			cfg.MaxRequestCount,
+			cfg.WaitMilliseconds,
+			notificationSvc,
+		), nil
+	})
 
 	return nil
 }

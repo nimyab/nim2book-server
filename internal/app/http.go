@@ -28,6 +28,8 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_books"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/update_personal_user_book"
+	"github.com/nimyab/nim2book-back/internal/services/translate/translate_book"
+	"github.com/nimyab/nim2book-back/internal/services/translate/translate_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/user/me"
 	"github.com/nimyab/nim2book-back/internal/services/user/metadata"
 	"github.com/nimyab/nim2book-back/pkg/validator"
@@ -74,10 +76,14 @@ func (a *App) setupRoutes(e *echo.Echo) {
 			return c.JSON(200, map[string]string{"status": "ok"})
 		})
 
-		// TODO: Translate routes (complex async services - will be refactored later)
-		// vipRoleMiddleware := customMiddleware.VIPRole()
-		// apiV1.POST("/translate/book", translate_book.HTTPv1, jwtMiddleware, adminRoleMiddleware)
-		// apiV1.POST("/translate/personal-user-book", translate_personal_user_book.HTTPv1, jwtMiddleware, vipRoleMiddleware)
+		// Translate routes
+		vipRoleMiddleware := customMiddleware.VIPRole()
+		if svc, err := do.Invoke[*translate_book.Service](a.injector); err == nil {
+			apiV1.POST("/translate/book", translate_book.MakeHTTPv1Handler(svc), jwtMiddleware, adminRoleMiddleware)
+		}
+		if svc, err := do.Invoke[*translate_personal_user_book.Service](a.injector); err == nil {
+			apiV1.POST("/translate/personal-user-book", translate_personal_user_book.MakeHTTPv1Handler(svc), jwtMiddleware, vipRoleMiddleware)
+		}
 
 		// Book routes
 		if svc, err := do.Invoke[*get_chapter.Service](a.injector); err == nil {

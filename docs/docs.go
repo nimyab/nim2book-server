@@ -1483,8 +1483,7 @@ const docTemplate = `{
             "required": [
                 "fromLang",
                 "text",
-                "toLang",
-                "ui"
+                "toLang"
             ],
             "properties": {
                 "fromLang": {
@@ -1494,9 +1493,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "toLang": {
-                    "type": "string"
-                },
-                "ui": {
                     "type": "string"
                 }
             }

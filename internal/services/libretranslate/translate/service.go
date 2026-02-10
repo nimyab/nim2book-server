@@ -15,13 +15,10 @@ type Service struct {
 	ULR string
 }
 
-var service *Service
-
 func New(libretranslateURL string) *Service {
-	service = &Service{
+	return &Service{
 		ULR: libretranslateURL,
 	}
-	return service
 }
 
 func (s *Service) Translate(input *Input) (*Output, error) {

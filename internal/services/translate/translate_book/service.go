@@ -77,8 +77,6 @@ var (
 	ErrFailedSaveBookToDatabase = errors.New("failed save book to database")
 )
 
-var service *Service
-
 func New(
 	s3 S3,
 	pg Postgres,
@@ -88,7 +86,7 @@ func New(
 	waitDuration time.Duration,
 	notificationSignal NotificationSender,
 ) *Service {
-	service = &Service{
+	return &Service{
 		s3:                          s3,
 		pg:                          pg,
 		wordAligner:                 wordAligner,
@@ -98,7 +96,6 @@ func New(
 		currentCountBookTranslating: 0,
 		notificationSignal:          notificationSignal,
 	}
-	return service
 }
 
 func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId domain.Id) (*Output, error) {

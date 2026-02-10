@@ -285,13 +285,10 @@ definitions:
         type: string
       toLang:
         type: string
-      ui:
-        type: string
     required:
     - fromLang
     - text
     - toLang
-    - ui
     type: object
   lookup.Output:
     properties:

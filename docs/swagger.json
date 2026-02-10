@@ -1475,8 +1475,7 @@
             "required": [
                 "fromLang",
                 "text",
-                "toLang",
-                "ui"
+                "toLang"
             ],
             "properties": {
                 "fromLang": {
@@ -1486,9 +1485,6 @@
                     "type": "string"
                 },
                 "toLang": {
-                    "type": "string"
-                },
-                "ui": {
                     "type": "string"
                 }
             }
