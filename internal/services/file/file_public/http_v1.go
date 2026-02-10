@@ -7,7 +7,12 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// MakeHTTPv1Handler creates HTTP handler with dependencies
+// MakeHTTPv1Handler godoc
+// @Summary	Get file data
+// @Tags	file
+// @Param	path	query	string	true	"path"
+// @Success	200		{file} 	binary
+// @Router	/file/public	[get]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		var input = new(Input)
@@ -32,15 +37,4 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 
 		return c.Stream(http.StatusOK, http.DetectContentType(data), bytes.NewReader(data))
 	}
-}
-
-// HTTPv1 godoc
-// @Summary	Get file data
-// @Tags	file
-// @Param	path	query	string	true	"path"
-// @Success	200		{file} 	binary
-// @Router	/file/public	[get]
-// Deprecated: Use MakeHTTPv1Handler instead
-func HTTPv1(c echo.Context) error {
-	panic("HTTPv1 is deprecated, use MakeHTTPv1Handler instead")
 }

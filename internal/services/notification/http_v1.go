@@ -9,7 +9,15 @@ import (
 	"github.com/nimyab/nim2book-back/pkg/jwt"
 )
 
-// MakeHTTPv1Handler creates HTTP handler with dependencies
+// MakeHTTPv1Handler godoc
+// @Summary	Notification test
+// @Tags	notification
+// @Security BearerAuth
+// @Accept  json
+// @Produce	json
+// @Param	data	body	Input	true	"body"
+// @Success	200		{string}	string
+// @Router	/notification/test	[post]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		payload := jwt.GetUserPayload(c)
@@ -37,18 +45,4 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 
 		return c.String(http.StatusOK, "OK")
 	}
-}
-
-// HTTPv1 godoc
-// @Summary	Notification test
-// @Tags	notification
-// @Security BearerAuth
-// @Accept  json
-// @Produce	json
-// @Param	data	body	Input	true	"body"
-// @Success	200		{string}	string
-// @Router	/notification/test	[post]
-// Deprecated: Use MakeHTTPv1Handler instead
-func HTTPv1(c echo.Context) error {
-	panic("HTTPv1 is deprecated, use MakeHTTPv1Handler instead")
 }

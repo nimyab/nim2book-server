@@ -54,7 +54,7 @@ func (a *App) setupHTTPServer() error {
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
 	// WebSocket
-	e.GET("/ws", websocket.NewSocketConn)
+	e.GET("/ws", websocket.MakeSocketConnHandler(a.config))
 
 	// Setup routes
 	a.setupRoutes(e)

@@ -31,15 +31,3 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 		return c.JSON(http.StatusOK, output)
 	}
 }
-
-// HTTPv1 godoc
-// @Summary	Get user info
-// @Tags	user
-// @Produce	application/json
-// @Security BearerAuth
-// @Success	200		{object}	Output
-// @Router	/user/me	[get]
-// Deprecated: Use MakeHTTPv1Handler instead
-func HTTPv1(c echo.Context) error {
-	panic("HTTPv1 is deprecated, use MakeHTTPv1Handler instead")
-}

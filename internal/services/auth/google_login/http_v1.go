@@ -9,7 +9,14 @@ import (
 	"github.com/nimyab/nim2book-back/config"
 )
 
-// MakeHTTPv1Handler creates HTTP handler with dependencies
+// MakeHTTPv1Handler godoc
+// @Summary	GoogleLogin user
+// @Tags	auth
+// @Accept  json
+// @Produce	json
+// @Param	data	body	Input	true	"body"
+// @Success	200		{object}	Output
+// @Router	/auth/google-login	[post]
 func MakeHTTPv1Handler(svc *Service, cfg *config.Config) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		input := new(Input)
@@ -38,17 +45,4 @@ func MakeHTTPv1Handler(svc *Service, cfg *config.Config) echo.HandlerFunc {
 		c.SetCookie(cookie)
 		return c.JSON(http.StatusOK, output)
 	}
-}
-
-// HTTPv1 godoc
-// @Summary	GoogleLogin user
-// @Tags	auth
-// @Accept  json
-// @Produce	json
-// @Param	data	body	Input	true	"body"
-// @Success	200		{object}	Output
-// @Router	/auth/google-login	[post]
-// Deprecated: Use MakeHTTPv1Handler instead
-func HTTPv1(c echo.Context) error {
-	panic("HTTPv1 is deprecated, use MakeHTTPv1Handler instead")
 }

@@ -32,16 +32,3 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 		return c.JSON(http.StatusOK, output)
 	}
 }
-
-// HTTPv1 godoc
-// @Summary	Delete fcm token
-// @Security BearerAuth
-// @Tags	fcm-token
-// @Produce	json
-// @Param	token	query	string	true	"fcm token"
-// @Success	200		{object}	Output
-// @Router	/fcm-token/delete	[delete]
-// Deprecated: Use MakeHTTPv1Handler instead
-func HTTPv1(c echo.Context) error {
-	panic("HTTPv1 is deprecated, use MakeHTTPv1Handler instead")
-}

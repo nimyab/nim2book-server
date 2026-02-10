@@ -7,7 +7,16 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// MakeHTTPv1Handler creates HTTP handler with dependencies
+// MakeHTTPv1Handler godoc
+// @Summary	Update genre
+// @Tags	genre
+// @Security BearerAuth
+// @Accept	application/json
+// @Produce	application/json
+// @Param	id		path	string	true	"Genre id"
+// @Param	input	body	Input	true	"Genre data"
+// @Success	200		{object}	Output
+// @Router	/genre/{id}	[put]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		input := new(Input)
@@ -42,19 +51,4 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 
 		return c.JSON(http.StatusOK, output)
 	}
-}
-
-// HTTPv1 godoc
-// @Summary	Update genre
-// @Tags	genre
-// @Security BearerAuth
-// @Accept	application/json
-// @Produce	application/json
-// @Param	id		path	string	true	"Genre id"
-// @Param	input	body	Input	true	"Genre data"
-// @Success	200		{object}	Output
-// @Router	/genre/{id}	[put]
-// Deprecated: Use MakeHTTPv1Handler instead
-func HTTPv1(c echo.Context) error {
-	panic("HTTPv1 is deprecated, use MakeHTTPv1Handler instead")
 }

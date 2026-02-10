@@ -79,49 +79,6 @@ func MakeSocketConnHandler(cfg *config.Config) echo.HandlerFunc {
 	}
 }
 
-// NewSocketConn is deprecated, use MakeSocketConnHandler instead
-// Deprecated: Use MakeSocketConnHandler instead
-func NewSocketConn(c echo.Context) error {
-	const operation = "websocket.NewSocketConn"
-
-	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
-	if err != nil {
-		logger.Error("NotificationError upgrading to websocket", err, operation)
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
-	}
-
-	tokenCh := GetAuthTokenChan(conn)
-
-	token, ok := <-tokenCh
-	if !ok {
-		if err = conn.Close(); err != nil {
-			logger.Error("NotificationError closing socket", err, operation)
-		}
-		return c.JSON(http.StatusUnauthorized, echo.Map{"error": "unauthorized"})
-	}
-
-	// FIXME: This will panic if config is not loaded
-	payload, err := jwt.ParseToken(token, "")
-	if err != nil {
-		logger.Error("NotificationError parsing token", err, operation)
-		return c.JSON(http.StatusUnauthorized, echo.Map{"error": err.Error()})
-	}
-
-	socketConn := &SocketConn{
-		conn:        conn,
-		messageChan: make(chan *Message),
-		close:       make(chan int, 1),
-		userId:      payload.Id,
-	}
-
-	socketHub.registerCh <- socketConn
-
-	go socketConn.readPump()
-	go socketConn.writePump()
-
-	return nil
-}
-
 func GetAuthTokenChan(conn *websocket.Conn) <-chan string {
 	const operation = "websocket.GetAuthTokenChan"
 
