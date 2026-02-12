@@ -1,11 +1,21 @@
 package domain
 
 type ChapterAlignNode struct {
-	Id              string               `json:"id"`
-	Title           string               `json:"title"`
-	TranslatedTitle string               `json:"translatedTitle"`
-	Content         []ParagraphAlignNode `json:"content"`
-	Order           int                  `json:"order"`
+	Id              string        `json:"id"`
+	Title           string        `json:"title"`
+	TranslatedTitle string        `json:"translatedTitle"`
+	Content         []ContentNode `json:"content"`
+	Order           int           `json:"order"`
+}
+
+type ContentNode struct {
+	Paragraph *ParagraphAlignNode `json:"paragraph,omitempty"`
+	Image     *ImageNode          `json:"image,omitempty"`
+}
+
+type ImageNode struct {
+	Path string `json:"path"`
+	Alt  string `json:"alt"`
 }
 
 type ParagraphAlignNode struct {

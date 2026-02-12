@@ -155,10 +155,12 @@ func TestService_saveChapterToS3(t *testing.T) {
 				Order:           0,
 				Title:           "Chapter 1",
 				TranslatedTitle: "Глава 1",
-				Content: []domain.ParagraphAlignNode{
+				Content: []domain.ContentNode{
 					{
-						OriginalParagraph:   "Hello",
-						TranslatedParagraph: "Привет",
+						Paragraph: &domain.ParagraphAlignNode{
+							OriginalParagraph:   "Hello",
+							TranslatedParagraph: "Привет",
+						},
 					},
 				},
 			},
