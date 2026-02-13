@@ -3,11 +3,14 @@ package translate_personal_user_book
 import (
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/parsers/epub_parser"
+	"github.com/timsims/pamphlet"
 )
 
 type translateStruct struct {
-	UserId     domain.Id
-	ParsedBook *epub_parser.Book
-	From       domain.SupportedLang
-	To         domain.SupportedLang
+	UserId    domain.Id
+	Chapters  []epub_parser.FormattedChapter
+	CoverData []byte
+	Book      *pamphlet.Book
+	From      domain.SupportedLang
+	To        domain.SupportedLang
 }
