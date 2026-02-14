@@ -39,15 +39,15 @@ migrate-down:
 
 # SQLC commands
 # Generate Go code from SQL queries
-sql-gen:
+sqlc-gen:
 	sqlc generate
 
 # Verify sqlc configuration and queries
-sql-verify:
+sqlc-verify:
 	sqlc verify
 
 # Compile queries to check for errors
-sql-compile:
+sqlc-compile:
 	sqlc compile
 
 # Testing commands
@@ -56,3 +56,17 @@ test:
 
 test-coverage:
 	go test -coverprofile=coverage.out ./...
+
+altlasdiff:
+	atlas migrate diff $(name) \
+	  --dir "file://ent/migrate/migrations" \
+  	--to "ent://ent/schema" \
+ 	 	--dev-url "docker://postgres/17" 
+
+atlasapply:
+	atlas migrate apply \
+  --dir "file://ent/migrate/migrations" \
+  --url "$(POSTGRES_URL)"
+
+ent-generate:
+	go generate ./ent
