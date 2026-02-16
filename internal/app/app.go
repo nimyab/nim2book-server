@@ -6,6 +6,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/nimyab/nim2book-back/config"
+	"github.com/nimyab/nim2book-back/ent"
+	"github.com/nimyab/nim2book-back/internal/adapter/redis_cache"
+	"github.com/nimyab/nim2book-back/internal/services/word_aligner"
 	"github.com/samber/do/v2"
 )
 
@@ -53,11 +56,43 @@ func (a *App) Start() error {
 func (a *App) Shutdown(ctx context.Context) error {
 	slog.Info("Shutting down application...")
 
+	// Shutdown HTTP server first
 	if err := a.server.Shutdown(ctx); err != nil {
+		slog.Error("Failed to shutdown HTTP server", slog.Any("error", err))
 		return err
 	}
+	slog.Info("HTTP server shut down successfully")
 
+	// Close database connection
+	if client, err := do.Invoke[*ent.Client](a.injector); err == nil && client != nil {
+		if err := client.Close(); err != nil {
+			slog.Error("Failed to close database connection", slog.Any("error", err))
+		} else {
+			slog.Info("Database connection closed successfully")
+		}
+	}
+
+	// Close Redis connection
+	if redisCache, err := do.Invoke[*redis_cache.RedisCache](a.injector); err == nil && redisCache != nil {
+		if err := redisCache.Close(); err != nil {
+			slog.Error("Failed to close Redis connection", slog.Any("error", err))
+		} else {
+			slog.Info("Redis connection closed successfully")
+		}
+	}
+
+	// Close gRPC client connection
+	if grpcClient, err := do.Invoke[*word_aligner.Client](a.injector); err == nil && grpcClient != nil {
+		if err := grpcClient.Close(); err != nil {
+			slog.Error("Failed to close gRPC connection", slog.Any("error", err))
+		} else {
+			slog.Info("gRPC connection closed successfully")
+		}
+	}
+
+	// Shutdown DI container
 	if err := a.injector.Shutdown(); err != nil {
+		slog.Error("Failed to shutdown DI container", slog.Any("error", err))
 		return err
 	}
 

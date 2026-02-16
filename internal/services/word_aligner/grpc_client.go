@@ -18,9 +18,10 @@ type ClientConfig struct {
 
 type Client struct {
 	pb.AlignmentServiceClient
+	conn *grpc.ClientConn
 }
 
-func NewClient(cfg *ClientConfig) (pb.AlignmentServiceClient, error) {
+func NewClient(cfg *ClientConfig) (*Client, error) {
 	const operation = "align.NewClient"
 
 	var opts []grpc.DialOption
@@ -36,11 +37,22 @@ func NewClient(cfg *ClientConfig) (pb.AlignmentServiceClient, error) {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 
-	return &Client{pb.NewAlignmentServiceClient(conn)}, nil
+	return &Client{
+		AlignmentServiceClient: pb.NewAlignmentServiceClient(conn),
+		conn:                   conn,
+	}, nil
 }
 
 func (c *Client) Align(ctx context.Context, in *pb.AlignRequest, opts ...grpc.CallOption) (*pb.AlignResponse, error) {
 	return retry.DoWithData(func() (*pb.AlignResponse, error) {
 		return c.AlignmentServiceClient.Align(ctx, in, opts...)
 	}, retry.Attempts(5))
+}
+
+// Close closes the gRPC client connection
+func (c *Client) Close() error {
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+	return nil
 }

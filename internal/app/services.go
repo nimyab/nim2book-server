@@ -32,7 +32,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/translate/translate_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/user/me"
 	"github.com/nimyab/nim2book-back/internal/services/user/metadata"
-	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
+	"github.com/nimyab/nim2book-back/internal/services/word_aligner"
 	"github.com/samber/do/v2"
 )
 
@@ -182,7 +182,7 @@ func (a *App) registerServices() {
 		s3 := do.MustInvoke[*minio.Minio](i)
 		bookRepo := do.MustInvoke[*repository.BookRepository](i)
 		authorRepo := do.MustInvoke[*repository.AuthorRepository](i)
-		wordAligner := do.MustInvoke[pb.AlignmentServiceClient](i)
+		wordAligner := do.MustInvoke[*word_aligner.Client](i)
 		translator := do.MustInvoke[*translate.Service](i)
 		notificationSvc := do.MustInvoke[*notification.Service](i)
 		cfg := do.MustInvoke[*config.Config](i)
@@ -204,7 +204,7 @@ func (a *App) registerServices() {
 		s3 := do.MustInvoke[*minio.Minio](i)
 		personalBookRepo := do.MustInvoke[*repository.PersonalBookRepository](i)
 		authorRepo := do.MustInvoke[*repository.AuthorRepository](i)
-		wordAligner := do.MustInvoke[pb.AlignmentServiceClient](i)
+		wordAligner := do.MustInvoke[*word_aligner.Client](i)
 		translator := do.MustInvoke[*translate.Service](i)
 		notificationSvc := do.MustInvoke[*notification.Service](i)
 		cfg := do.MustInvoke[*config.Config](i)

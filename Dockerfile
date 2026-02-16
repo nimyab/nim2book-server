@@ -9,7 +9,7 @@ COPY . .
 RUN go mod tidy
 RUN go mod verify
 
-RUN go build -o main ./cmd/main.go
+RUN go build -o main ./cmd/app/main.go
 
 EXPOSE 5050
 

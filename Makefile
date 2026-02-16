@@ -1,4 +1,4 @@
-.PHONY: swagger dev build docker_dev install-tools test test-coverage atlasdiff atlasapply ent-generate
+.PHONY: swagger dev build install-tools test test-coverage atlasdiff atlasapply ent-generate
 
 include .env
 
@@ -25,16 +25,6 @@ docker-up:
 
 docker-down:
 	docker-compose -f docker-compose.dev.yml down
-
-# Goose migration commands
-migrate-create:
-	goose -dir db/migrations create $(NAME) sql
-
-migrate-up:
-	goose -dir db/migrations postgres "$(POSTGRES_URL)" up
-
-migrate-down:
-	goose -dir db/migrations postgres "$(POSTGRES_URL)" down
 
 # Testing commands
 test:

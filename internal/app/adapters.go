@@ -11,7 +11,6 @@ import (
 	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
 	"github.com/nimyab/nim2book-back/internal/adapter/redis_cache"
 	"github.com/nimyab/nim2book-back/internal/services/word_aligner"
-	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
 	"github.com/samber/do/v2"
 )
 
@@ -57,7 +56,7 @@ func (a *App) registerAdapters() {
 	})
 
 	// Word Aligner gRPC Client
-	do.Provide(a.injector, func(i do.Injector) (pb.AlignmentServiceClient, error) {
+	do.Provide(a.injector, func(i do.Injector) (*word_aligner.Client, error) {
 		cfg := do.MustInvoke[*config.Config](i)
 		return word_aligner.NewClient(&word_aligner.ClientConfig{
 			Address: cfg.WordAlignerAddrGrpc,

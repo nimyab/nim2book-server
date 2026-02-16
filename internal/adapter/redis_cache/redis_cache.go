@@ -75,3 +75,11 @@ func (r *RedisCache) Exists(ctx context.Context, key string) (bool, error) {
 
 	return count > 0, nil
 }
+
+// Close closes the Redis client connection
+func (r *RedisCache) Close() error {
+	if r.client != nil {
+		return r.client.Close()
+	}
+	return nil
+}
