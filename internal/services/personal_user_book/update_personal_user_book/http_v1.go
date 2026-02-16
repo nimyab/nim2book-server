@@ -30,7 +30,7 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 			})
 		}
 
-		output, err := svc.UpdatePersonalUserBook(input, cover)
+		output, err := svc.UpdatePersonalUserBook(c.Request().Context(), input, cover)
 		if err != nil {
 			if errors.Is(err, ErrBookNotFound) {
 				return c.JSON(http.StatusNotFound, echo.Map{

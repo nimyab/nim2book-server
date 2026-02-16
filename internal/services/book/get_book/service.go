@@ -21,10 +21,10 @@ func New(bookRepo BookRepository) *Service {
 	}
 }
 
-func (s *Service) GetBook(input *Input) (*Output, error) {
+func (s *Service) GetBook(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "book.get_book.GetBook"
 
-	book, err := s.bookRepo.GetByID(context.Background(), input.Id)
+	book, err := s.bookRepo.GetByID(ctx, input.Id)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, err

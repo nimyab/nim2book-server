@@ -29,7 +29,7 @@ func MakeHTTPv1Handler(svc *Service, cfg *config.Config) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
 		}
 
-		output, err := svc.Login(input)
+		output, err := svc.Login(c.Request().Context(), input)
 		if errors.Is(ErrInternal, err) {
 			return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 		} else if err != nil {

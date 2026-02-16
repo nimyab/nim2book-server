@@ -28,7 +28,7 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 			})
 		}
 
-		output, err := svc.GetPersonalUserBook(input)
+		output, err := svc.GetPersonalUserBook(c.Request().Context(), input)
 		if err != nil {
 			if errors.Is(err, ErrBookNotFound) {
 				return c.JSON(http.StatusNotFound, echo.Map{

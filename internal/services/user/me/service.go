@@ -26,10 +26,10 @@ func New(userRepo UserRepository) *Service {
 	return &Service{userRepo: userRepo}
 }
 
-func (s *Service) Me(input *Input) (*Output, error) {
+func (s *Service) Me(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "user.me.Me"
 
-	user, err := s.userRepo.GetByID(context.Background(), input.UserId)
+	user, err := s.userRepo.GetByID(ctx, input.UserId)
 	if errors.Is(err, repository.ErrNotFound) || user == nil {
 		return nil, ErrUserNotFound
 	}

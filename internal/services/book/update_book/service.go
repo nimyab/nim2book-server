@@ -49,10 +49,10 @@ func New(bookRepo BookRepository, authorRepo AuthorRepository, s3 S3) *Service {
 	}
 }
 
-func (s *Service) UpdateBook(input *Input, cover *multipart.FileHeader) (*Output, error) {
+func (s *Service) UpdateBook(ctx context.Context, input *Input, cover *multipart.FileHeader) (*Output, error) {
 	const operation = "book.update_book.UpdateBook"
 
-	book, err := s.bookRepo.GetByID(context.Background(), input.Id)
+	book, err := s.bookRepo.GetByID(ctx, input.Id)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrBookNotFound
@@ -91,7 +91,7 @@ func (s *Service) UpdateBook(input *Input, cover *multipart.FileHeader) (*Output
 	}
 
 	if input.Author != nil {
-		author, err := s.authorRepo.GetOrCreate(context.Background(), *input.Author)
+		author, err := s.authorRepo.GetOrCreate(ctx, *input.Author)
 		if err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation))
 			return nil, ErrInternalServer
@@ -99,7 +99,7 @@ func (s *Service) UpdateBook(input *Input, cover *multipart.FileHeader) (*Output
 		book.Author = author
 	}
 
-	updatedBook, err := s.bookRepo.Update(context.Background(), book)
+	updatedBook, err := s.bookRepo.Update(ctx, book)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternalServer

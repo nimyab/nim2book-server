@@ -31,7 +31,7 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 			})
 		}
 
-		output, err := svc.TranslateBook(input, bookFile, userPayload.ID)
+		output, err := svc.TranslateBook(c.Request().Context(), input, bookFile, userPayload.ID)
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),

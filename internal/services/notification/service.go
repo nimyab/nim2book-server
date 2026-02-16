@@ -60,7 +60,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 		}
 
 		for _, fcmToken := range fcmTokens {
-			info, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
+			info, err := s.messagingFirebaseClient.Send(ctx, &messaging.Message{
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
 					Title: "Перевод книги завершился",
@@ -91,7 +91,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 		}
 
 		for _, fcmToken := range fcmTokens {
-			info, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
+			info, err := s.messagingFirebaseClient.Send(ctx, &messaging.Message{
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
 					Title: "Перевод книги прервался",
@@ -121,7 +121,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 		}
 
 		for _, fcmToken := range fcmTokens {
-			info, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
+			info, err := s.messagingFirebaseClient.Send(ctx, &messaging.Message{
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
 					Title: fmt.Sprintf("Переведена глава %d", data.ChapterOrder),
@@ -153,7 +153,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 		}
 
 		for _, fcmToken := range fcmTokens {
-			info, err := s.messagingFirebaseClient.Send(context.Background(), &messaging.Message{
+			info, err := s.messagingFirebaseClient.Send(ctx, &messaging.Message{
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
 					Title: data.Title,

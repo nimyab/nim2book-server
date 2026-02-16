@@ -20,11 +20,11 @@ func New(genreRepo GenreRepository) *Service {
 	return &Service{genreRepo: genreRepo}
 }
 
-func (s *Service) GetGenres() (*Output, error) {
+func (s *Service) GetGenres(ctx context.Context) (*Output, error) {
 	const operation = "genre.get_genres.GetGenres"
 
 	// Получить все жанры без пагинации
-	genres, err := s.genreRepo.List(context.Background(), repository.QueryOptions{})
+	genres, err := s.genreRepo.List(ctx, repository.QueryOptions{})
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, err

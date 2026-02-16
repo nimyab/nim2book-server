@@ -27,11 +27,11 @@ func New(fcmTokenRepo FcmTokenRepository) *Service {
 	return &Service{fcmTokenRepo: fcmTokenRepo}
 }
 
-func (s *Service) AddFcmToken(input *Input, userId domain.ID) (*Output, error) {
+func (s *Service) AddFcmToken(ctx context.Context, input *Input, userId domain.ID) (*Output, error) {
 	const operation = "fcm_token.add_fcm_token.AddFcmToken"
 
 	// Проверяем, существует ли уже токен
-	existingToken, err := s.fcmTokenRepo.GetByToken(context.Background(), input.FcmToken)
+	existingToken, err := s.fcmTokenRepo.GetByToken(ctx, input.FcmToken)
 	if err == nil && existingToken != nil {
 		slog.Warn("Token already exists", slog.String("operation", operation), slog.String("token", input.FcmToken))
 		return nil, ErrTokenAlreadyAdd
@@ -44,7 +44,7 @@ func (s *Service) AddFcmToken(input *Input, userId domain.ID) (*Output, error) {
 		},
 	}
 
-	_, err = s.fcmTokenRepo.Create(context.Background(), fcmTokenData)
+	_, err = s.fcmTokenRepo.Create(ctx, fcmTokenData)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation), slog.Any("fcmTokenData", fcmTokenData))
 		if ent.IsConstraintError(err) {

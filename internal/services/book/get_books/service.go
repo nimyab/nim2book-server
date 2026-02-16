@@ -24,13 +24,13 @@ func New(bookRepo BookRepository) *Service {
 	}
 }
 
-func (s *Service) GetBooks(input *Input) (*Output, error) {
+func (s *Service) GetBooks(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "book.get_books.GetBooks"
 
 	offset := (input.Page - 1) * booksPerPage
 
 	books, err := s.bookRepo.SearchWithFilters(
-		context.Background(),
+		ctx,
 		input.Title,
 		input.Author,
 		input.GenreId,

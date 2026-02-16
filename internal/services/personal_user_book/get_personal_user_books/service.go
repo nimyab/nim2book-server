@@ -22,13 +22,13 @@ func New(personalBookRepo PersonalBookRepository) *Service {
 	return &Service{personalBookRepo: personalBookRepo}
 }
 
-func (s *Service) GetPersonalUserBooks(input *Input) (*Output, error) {
+func (s *Service) GetPersonalUserBooks(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "personal_user_book.get_personal_user_books.GetPersonalUserBooks"
 
 	offset := (input.Page - 1) * booksPerPage
 
 	books, err := s.personalBookRepo.SearchByUserWithFilters(
-		context.Background(),
+		ctx,
 		input.UserId,
 		input.Title,
 		input.Author,

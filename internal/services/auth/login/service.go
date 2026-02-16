@@ -38,11 +38,11 @@ func New(userRepo UserRepository, secret string, accessTime, refreshTime time.Du
 	}
 }
 
-func (s *Service) Login(input *Input) (*Output, error) {
+func (s *Service) Login(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "auth.login.Login"
 
 	// Получаем пользователя по email
-	user, err := s.userRepo.GetByBasicAccountEmail(context.Background(), input.Email)
+	user, err := s.userRepo.GetByBasicAccountEmail(ctx, input.Email)
 	if errors.Is(err, repository.ErrNotFound) || user == nil {
 		return nil, ErrUserNotFound
 	}

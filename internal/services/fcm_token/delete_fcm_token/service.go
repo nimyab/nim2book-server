@@ -24,10 +24,10 @@ func New(fcmTokenRepo FcmTokenRepository) *Service {
 	return &Service{fcmTokenRepo: fcmTokenRepo}
 }
 
-func (s *Service) DeleteFcmToken(input *Input, userId domain.ID) (*Output, error) {
+func (s *Service) DeleteFcmToken(ctx context.Context, input *Input, userId domain.ID) (*Output, error) {
 	const operation = "fcm_token.delete_fcm_token.DeleteFcmToken"
 
-	err := s.fcmTokenRepo.DeleteByToken(context.Background(), input.FcmToken)
+	err := s.fcmTokenRepo.DeleteByToken(ctx, input.FcmToken)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation), slog.String("fcmToken", input.FcmToken))
 		return nil, ErrInternal

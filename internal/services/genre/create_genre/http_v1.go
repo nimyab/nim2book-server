@@ -31,7 +31,7 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 			})
 		}
 
-		output, err := svc.CreateGenre(input)
+		output, err := svc.CreateGenre(c.Request().Context(), input)
 		if errors.Is(err, ErrGenreAlreadyExists) {
 			return c.JSON(http.StatusConflict, echo.Map{
 				"error": err.Error(),

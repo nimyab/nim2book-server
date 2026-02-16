@@ -1,7 +1,6 @@
 package notification
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -34,7 +33,7 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 			})
 		}
 
-		svc.ProcessNotification(context.Background(), &domain.Notification{
+		svc.ProcessNotification(c.Request().Context(), &domain.Notification{
 			UserId: payload.ID,
 			Type:   domain.NotificationTest,
 			Data: &domain.NotificationTestData{

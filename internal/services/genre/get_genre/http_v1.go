@@ -28,7 +28,7 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 			})
 		}
 
-		output, err := svc.GetGenre(input)
+		output, err := svc.GetGenre(c.Request().Context(), input)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, echo.Map{
 				"error": err.Error(),

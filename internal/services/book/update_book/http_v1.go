@@ -37,7 +37,7 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 			})
 		}
 
-		output, err := svc.UpdateBook(input, cover)
+		output, err := svc.UpdateBook(c.Request().Context(), input, cover)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, echo.Map{
 				"error": err.Error(),

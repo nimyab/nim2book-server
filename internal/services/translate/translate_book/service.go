@@ -103,7 +103,7 @@ func New(
 	}
 }
 
-func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId domain.ID) (*Output, error) {
+func (s *Service) TranslateBook(ctx context.Context, input *Input, book *multipart.FileHeader, userId domain.ID) (*Output, error) {
 	const operation = "translate_book.Service.TranslateBook"
 
 	file, err := book.Open()
@@ -135,7 +135,7 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 		slog.String("title", parsedBook.Title),
 	)
 
-	existedBook, err := s.bookRepo.GetByAuthorAndTitle(context.Background(), parsedBook.Author, parsedBook.Title)
+	existedBook, err := s.bookRepo.GetByAuthorAndTitle(ctx, parsedBook.Author, parsedBook.Title)
 	if existedBook != nil {
 		return &Output{Book: existedBook}, nil
 	}
@@ -273,7 +273,7 @@ func (s *Service) startTranslate(
 	}
 
 	// Получаем или создаём автора
-	author, err := s.authorRepo.GetOrCreate(context.Background(), data.Book.Author)
+	author, err := s.authorRepo.GetOrCreate(ctx, data.Book.Author)
 	if err != nil {
 		logger.Error(
 			fmt.Sprintf("failed to get or create author: %s", data.Book.Author),
@@ -300,7 +300,7 @@ func (s *Service) startTranslate(
 		OriginalLang:   string(data.From),
 		TranslatedLang: string(data.To),
 	}
-	newBook, err = s.bookRepo.Create(context.Background(), newBook)
+	newBook, err = s.bookRepo.Create(ctx, newBook)
 	if err != nil {
 		logger.Error(
 			fmt.Sprintf("failed to save book to database, title: %s, author: %s", data.Book.Title, data.Book.Author),
@@ -317,7 +317,7 @@ func (s *Service) startTranslate(
 			Order:      i,
 			ContentURL: path,
 		}
-		_, err := s.bookRepo.CreateChapter(context.Background(), chapter)
+		_, err := s.bookRepo.CreateChapter(ctx, chapter)
 		if err != nil {
 			logger.Error(
 				fmt.Sprintf("failed to save chapter %d to database, title: %s", i, data.Book.Title),
@@ -397,7 +397,7 @@ func (s *Service) translateChapters(
 					slog.String("operation", operation),
 				)
 
-				alignedParagraph, err := s.translateAndAlignParagraph(paragraph, data.From, data.To)
+				alignedParagraph, err := s.translateAndAlignParagraph(ctxErrGroup, paragraph, data.From, data.To)
 				if err != nil {
 					return err
 				}
@@ -471,7 +471,7 @@ func (s *Service) translateChapters(
 
 }
 
-func (s *Service) translateAndAlignParagraph(paragraph string, from domain.SupportedLang, to domain.SupportedLang) (domain.ParagraphAlignNode, error) {
+func (s *Service) translateAndAlignParagraph(ctx context.Context, paragraph string, from domain.SupportedLang, to domain.SupportedLang) (domain.ParagraphAlignNode, error) {
 	const operation = "translate_book.Service.translateAndAlignParagraph"
 
 	// перевод параграфа (использую libretranslate, которую развернул на серваке у себя)
@@ -500,7 +500,7 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.waitDuration)
 
 	// выравнивание слов (самописный выравниватель на змеинном, можно в docker-compose найти образ)
-	alignOutput, err := s.wordAligner.Align(context.Background(), &pb.AlignRequest{
+	alignOutput, err := s.wordAligner.Align(ctx, &pb.AlignRequest{
 		SourceText: paragraph,
 		TargetText: translateOutput.TranslatedText,
 	})

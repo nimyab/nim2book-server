@@ -41,10 +41,10 @@ func New(userRepo UserRepository, googleClientId string, secret string, accessTi
 	}
 }
 
-func (s *Service) GoogleLogin(input *Input) (*Output, error) {
+func (s *Service) GoogleLogin(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "auth.login.GoogleLogin"
 
-	payload, err := idtoken.Validate(context.Background(), input.IdToken, s.googleClientId)
+	payload, err := idtoken.Validate(ctx, input.IdToken, s.googleClientId)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInvalidToken
@@ -70,7 +70,7 @@ func (s *Service) GoogleLogin(input *Input) (*Output, error) {
 	}
 
 	// Проверяем, существует ли Google аккаунт
-	existingAccount, err := s.userRepo.GetGoogleAccountBySub(context.Background(), googleAccount.Sub)
+	existingAccount, err := s.userRepo.GetGoogleAccountBySub(ctx, googleAccount.Sub)
 	var user *domain.User
 
 	if err != nil && !errors.Is(err, repository.ErrNotFound) {
@@ -85,7 +85,7 @@ func (s *Service) GoogleLogin(input *Input) (*Output, error) {
 			IsAdmin:  false,
 			Metadata: map[string]interface{}{},
 		}
-		user, err = s.userRepo.CreateWithGoogleAccount(context.Background(), newUser, googleAccount)
+		user, err = s.userRepo.CreateWithGoogleAccount(ctx, newUser, googleAccount)
 		if err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation), slog.Any("googleAccount", googleAccount))
 			return nil, ErrInternal

@@ -51,10 +51,10 @@ func New(personalBookRepo PersonalBookRepository, authorRepo AuthorRepository, s
 	}
 }
 
-func (s *Service) UpdatePersonalUserBook(input *Input, cover *multipart.FileHeader) (*Output, error) {
+func (s *Service) UpdatePersonalUserBook(ctx context.Context, input *Input, cover *multipart.FileHeader) (*Output, error) {
 	const operation = "personal_user_book.update_personal_user_book.UpdatePersonalUserBook"
 
-	book, err := s.personalBookRepo.GetByID(context.Background(), input.Id)
+	book, err := s.personalBookRepo.GetByID(ctx, input.Id)
 	if errors.Is(err, repository.ErrNotFound) {
 		return nil, ErrBookNotFound
 	}
@@ -106,7 +106,7 @@ func (s *Service) UpdatePersonalUserBook(input *Input, cover *multipart.FileHead
 	}
 
 	if input.Author != nil {
-		author, err := s.authorRepo.GetOrCreate(context.Background(), *input.Author)
+		author, err := s.authorRepo.GetOrCreate(ctx, *input.Author)
 		if err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation))
 			return nil, ErrInternalServer
@@ -114,7 +114,7 @@ func (s *Service) UpdatePersonalUserBook(input *Input, cover *multipart.FileHead
 		book.Author = author
 	}
 
-	updatedBook, err := s.personalBookRepo.Update(context.Background(), book)
+	updatedBook, err := s.personalBookRepo.Update(ctx, book)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternalServer

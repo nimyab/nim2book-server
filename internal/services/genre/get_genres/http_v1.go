@@ -14,7 +14,7 @@ import (
 // @Router	/genre	[get]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		output, err := svc.GetGenres()
+		output, err := svc.GetGenres(c.Request().Context())
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, echo.Map{
 				"error": err.Error(),

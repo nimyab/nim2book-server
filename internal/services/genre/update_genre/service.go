@@ -27,7 +27,7 @@ func New(genreRepo GenreRepository) *Service {
 	return &Service{genreRepo: genreRepo}
 }
 
-func (s *Service) UpdateGenre(input *Input) (*Output, error) {
+func (s *Service) UpdateGenre(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "genre.update_genre.UpdateGenre"
 
 	genre := &domain.Genre{
@@ -35,7 +35,7 @@ func (s *Service) UpdateGenre(input *Input) (*Output, error) {
 		Name: input.Name,
 	}
 
-	updatedGenre, err := s.genreRepo.Update(context.Background(), genre)
+	updatedGenre, err := s.genreRepo.Update(ctx, genre)
 	if errors.Is(err, repository.ErrNotFound) {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrGenreNotFound

@@ -22,7 +22,7 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
 		}
 
-		output, err := svc.AddFcmToken(input, userId)
+		output, err := svc.AddFcmToken(c.Request().Context(), input, userId)
 		if errors.Is(err, ErrInternal) {
 			return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 		} else if err != nil {

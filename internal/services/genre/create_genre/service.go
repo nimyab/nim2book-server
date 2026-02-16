@@ -26,14 +26,14 @@ func New(genreRepo GenreRepository) *Service {
 	return &Service{genreRepo: genreRepo}
 }
 
-func (s *Service) CreateGenre(input *Input) (*Output, error) {
+func (s *Service) CreateGenre(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "genre.create_genre.CreateGenre"
 
 	genre := &domain.Genre{
 		Name: input.Name,
 	}
 
-	createdGenre, err := s.genreRepo.Create(context.Background(), genre)
+	createdGenre, err := s.genreRepo.Create(ctx, genre)
 	if errors.Is(err, repository.ErrDuplicateKey) {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrGenreAlreadyExists

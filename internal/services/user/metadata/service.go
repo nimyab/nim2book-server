@@ -27,11 +27,11 @@ func New(userRepo UserRepository) *Service {
 	return &Service{userRepo: userRepo}
 }
 
-func (s *Service) UpdateMetadata(input *Input) (*Output, error) {
+func (s *Service) UpdateMetadata(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "user.metadata.UpdateMetadata"
 
 	// Получаем пользователя
-	user, err := s.userRepo.GetByID(context.Background(), input.UserId)
+	user, err := s.userRepo.GetByID(ctx, input.UserId)
 	if errors.Is(err, repository.ErrNotFound) || user == nil {
 		return nil, ErrUserNotFound
 	}
@@ -42,7 +42,7 @@ func (s *Service) UpdateMetadata(input *Input) (*Output, error) {
 
 	// Обновляем metadata
 	user.Metadata = input.Metadata
-	updatedUser, err := s.userRepo.Update(context.Background(), user)
+	updatedUser, err := s.userRepo.Update(ctx, user)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternal

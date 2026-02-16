@@ -29,11 +29,11 @@ func New(userRepo UserRepository) *Service {
 	return &Service{userRepo: userRepo}
 }
 
-func (s *Service) Register(input *Input) (*Output, error) {
+func (s *Service) Register(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "auth.register.Register"
 
 	// Проверяем, существует ли пользователь с таким email
-	existingAccount, err := s.userRepo.GetBasicAccountByEmail(context.Background(), input.Email)
+	existingAccount, err := s.userRepo.GetBasicAccountByEmail(ctx, input.Email)
 	if err == nil && existingAccount != nil {
 		return nil, ErrUserAlreadyExist
 	}
@@ -66,7 +66,7 @@ func (s *Service) Register(input *Input) (*Output, error) {
 		Metadata: map[string]interface{}{},
 	}
 
-	user, err := s.userRepo.CreateWithBasicAccount(context.Background(), newUser, newBasicAccount)
+	user, err := s.userRepo.CreateWithBasicAccount(ctx, newUser, newBasicAccount)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternal

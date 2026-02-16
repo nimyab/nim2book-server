@@ -19,10 +19,10 @@ func New(genreRepo GenreRepository) *Service {
 	return &Service{genreRepo: genreRepo}
 }
 
-func (s *Service) DeleteGenre(input *Input) (*Output, error) {
+func (s *Service) DeleteGenre(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "genre.delete_genre.DeleteGenre"
 
-	err := s.genreRepo.Delete(context.Background(), input.Id)
+	err := s.genreRepo.Delete(ctx, input.Id)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, err

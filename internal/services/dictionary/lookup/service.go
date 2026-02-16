@@ -52,9 +52,8 @@ const (
 	RedisCacheTTL = 15 * time.Minute
 )
 
-func (s *Service) Lookup(input *Input) (*Output, error) {
+func (s *Service) Lookup(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "lookup.Lookup"
-	ctx := context.Background()
 
 	// Нормализуем входной текст
 	normalizedText := strings.ToLower(strings.Trim(input.Text, ".!?,;: "))

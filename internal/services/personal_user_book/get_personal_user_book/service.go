@@ -26,10 +26,10 @@ func New(personalBookRepo PersonalBookRepository) *Service {
 	return &Service{personalBookRepo: personalBookRepo}
 }
 
-func (s *Service) GetPersonalUserBook(input *Input) (*Output, error) {
+func (s *Service) GetPersonalUserBook(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "personal_user_book.get_personal_user_book.GetPersonalUserBook"
 
-	book, err := s.personalBookRepo.GetByID(context.Background(), input.BookId)
+	book, err := s.personalBookRepo.GetByID(ctx, input.BookId)
 	if errors.Is(err, repository.ErrNotFound) {
 		return nil, ErrBookNotFound
 	}

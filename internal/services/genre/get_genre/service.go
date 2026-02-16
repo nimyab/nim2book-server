@@ -19,10 +19,10 @@ func New(genreRepo GenreRepository) *Service {
 	return &Service{genreRepo: genreRepo}
 }
 
-func (s *Service) GetGenre(input *Input) (*Output, error) {
+func (s *Service) GetGenre(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "genre.get_genre.GetGenre"
 
-	genre, err := s.genreRepo.GetByID(context.Background(), input.Id)
+	genre, err := s.genreRepo.GetByID(ctx, input.Id)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, err

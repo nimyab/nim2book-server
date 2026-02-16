@@ -102,7 +102,7 @@ func New(
 	}
 }
 
-func (s *Service) TranslatePersonalUserBook(input *Input, book *multipart.FileHeader, userId domain.ID) (*Output, error) {
+func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, book *multipart.FileHeader, userId domain.ID) (*Output, error) {
 	const operation = "translate_personal_user_book.Service.TranslatePersonalUserBook"
 
 	file, err := book.Open()
@@ -134,7 +134,7 @@ func (s *Service) TranslatePersonalUserBook(input *Input, book *multipart.FileHe
 		slog.String("title", parsedBook.Title),
 	)
 
-	existedBook, err := s.personalBookRepo.GetByUserAndAuthorAndTitle(context.Background(), userId, parsedBook.Author, parsedBook.Title)
+	existedBook, err := s.personalBookRepo.GetByUserAndAuthorAndTitle(ctx, userId, parsedBook.Author, parsedBook.Title)
 	if existedBook != nil {
 		return &Output{Book: existedBook}, nil
 	}
@@ -282,7 +282,7 @@ func (s *Service) startTranslate(
 	}
 
 	// Получаем или создаём автора
-	author, err := s.authorRepo.GetOrCreate(context.Background(), data.Book.Author)
+	author, err := s.authorRepo.GetOrCreate(ctx, data.Book.Author)
 	if err != nil {
 		logger.Error(
 			fmt.Sprintf("failed to get or create author: %s", data.Book.Author),
@@ -307,7 +307,7 @@ func (s *Service) startTranslate(
 			ID: data.UserId,
 		},
 	}
-	newBook, err = s.personalBookRepo.Create(context.Background(), newBook)
+	newBook, err = s.personalBookRepo.Create(ctx, newBook)
 	if err != nil {
 		logger.Error(
 			fmt.Sprintf("failed to save personal book to database, title: %s, author: %s", data.Book.Title, data.Book.Author),
@@ -324,7 +324,7 @@ func (s *Service) startTranslate(
 			Order:        i,
 			ContentURL:   path,
 		}
-		_, err := s.personalBookRepo.CreateChapter(context.Background(), chapter)
+		_, err := s.personalBookRepo.CreateChapter(ctx, chapter)
 		if err != nil {
 			logger.Error(
 				fmt.Sprintf("failed to save chapter %d to database, title: %s", i, data.Book.Title),
@@ -401,7 +401,7 @@ func (s *Service) translateChapters(
 					slog.String("operation", operation),
 				)
 
-				alignedParagraph, err := s.translateAndAlignParagraph(paragraph, data.From, data.To)
+				alignedParagraph, err := s.translateAndAlignParagraph(ctxErrGroup, paragraph, data.From, data.To)
 				if err != nil {
 					return err
 				}
@@ -474,7 +474,7 @@ func (s *Service) translateChapters(
 	}
 }
 
-func (s *Service) translateAndAlignParagraph(paragraph string, from domain.SupportedLang, to domain.SupportedLang) (domain.ParagraphAlignNode, error) {
+func (s *Service) translateAndAlignParagraph(ctx context.Context, paragraph string, from domain.SupportedLang, to domain.SupportedLang) (domain.ParagraphAlignNode, error) {
 	const operation = "translate_personal_user_book.Service.translateAndAlignParagraph"
 
 	translateOutput, err := s.translator.Translate(&translate.Input{
@@ -500,7 +500,7 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 	}
 	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.waitDuration)
 
-	alignOutput, err := s.wordAligner.Align(context.Background(), &pb.AlignRequest{
+	alignOutput, err := s.wordAligner.Align(ctx, &pb.AlignRequest{
 		SourceText: paragraph,
 		TargetText: translateOutput.TranslatedText,
 	})
