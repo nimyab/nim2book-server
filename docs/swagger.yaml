@@ -19,15 +19,49 @@ definitions:
       success:
         type: boolean
     type: object
+  domain.Author:
+    properties:
+      books:
+        items:
+          $ref: '#/definitions/domain.Book'
+        type: array
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      personal_books:
+        items:
+          $ref: '#/definitions/domain.PersonalBook'
+        type: array
+    type: object
+  domain.BasicAccount:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      isVerified:
+        type: boolean
+      user:
+        $ref: '#/definitions/domain.User'
+      verifyLink:
+        type: string
+    type: object
   domain.Book:
     properties:
       author:
-        type: string
-      chapterPaths:
+        $ref: '#/definitions/domain.Author'
+      bookChapters:
         items:
-          type: string
+          $ref: '#/definitions/domain.BookChapter'
         type: array
-      cover:
+      coverUrl:
+        type: string
+      createdAt:
         type: string
       genres:
         items:
@@ -35,7 +69,28 @@ definitions:
         type: array
       id:
         type: string
+      originalLang:
+        type: string
       title:
+        type: string
+      translatedLang:
+        type: string
+    type: object
+  domain.BookChapter:
+    properties:
+      book:
+        $ref: '#/definitions/domain.Book'
+      contentURL:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: string
+      order:
+        type: integer
+      title:
+        type: string
+      translatedTitle:
         type: string
     type: object
   domain.DictionaryExample:
@@ -76,45 +131,52 @@ definitions:
           type: string
         type: array
     type: object
-  domain.EmailPasswordAccount:
-    properties:
-      email:
-        type: string
-      id:
-        type: string
-    type: object
   domain.Genre:
     properties:
+      books:
+        items:
+          $ref: '#/definitions/domain.Book'
+        type: array
+      createdAt:
+        type: string
       id:
         type: string
       name:
         type: string
+      personalBooks:
+        items:
+          $ref: '#/definitions/domain.PersonalBook'
+        type: array
     type: object
   domain.GoogleAccount:
     properties:
+      createdAt:
+        type: string
       email:
         type: string
       emailVerified:
         type: boolean
+      id:
+        type: string
       name:
         type: string
       picture:
         type: string
       sub:
         type: string
+      user:
+        $ref: '#/definitions/domain.User'
     type: object
   domain.JsonB:
     additionalProperties: {}
     type: object
-  domain.PersonalUserBook:
+  domain.PersonalBook:
     properties:
       author:
+        $ref: '#/definitions/domain.Author'
+      coverUrl:
         type: string
-      chapterPaths:
-        items:
-          type: string
-        type: array
-      cover:
+      createdAt:
         type: string
       genres:
         items:
@@ -122,15 +184,42 @@ definitions:
         type: array
       id:
         type: string
+      originalLang:
+        type: string
+      personalBookChapters:
+        items:
+          $ref: '#/definitions/domain.PersonalBookChapter'
+        type: array
       title:
         type: string
-      userId:
+      translatedLang:
+        type: string
+      user:
+        $ref: '#/definitions/domain.User'
+    type: object
+  domain.PersonalBookChapter:
+    properties:
+      contentUrl:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: string
+      order:
+        type: integer
+      personalBook:
+        $ref: '#/definitions/domain.PersonalBook'
+      title:
+        type: string
+      translatedTitle:
         type: string
     type: object
   domain.User:
     properties:
-      emailPasswordAccount:
-        $ref: '#/definitions/domain.EmailPasswordAccount'
+      basicAccount:
+        $ref: '#/definitions/domain.BasicAccount'
+      createdAt:
+        type: string
       googleAccount:
         $ref: '#/definitions/domain.GoogleAccount'
       id:
@@ -141,9 +230,9 @@ definitions:
         type: boolean
       metadata:
         $ref: '#/definitions/domain.JsonB'
-      personalUserBooks:
+      personalBooks:
         items:
-          $ref: '#/definitions/domain.PersonalUserBook'
+          $ref: '#/definitions/domain.PersonalBook'
         type: array
     type: object
   get_book.Output:

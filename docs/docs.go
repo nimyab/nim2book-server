@@ -572,19 +572,71 @@ const docTemplate = `{
                 }
             }
         },
+        "domain.Author": {
+            "type": "object",
+            "properties": {
+                "books": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Book"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "personal_books": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.PersonalBook"
+                    }
+                }
+            }
+        },
+        "domain.BasicAccount": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "isVerified": {
+                    "type": "boolean"
+                },
+                "user": {
+                    "$ref": "#/definitions/domain.User"
+                },
+                "verifyLink": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.Book": {
             "type": "object",
             "properties": {
                 "author": {
-                    "type": "string"
+                    "$ref": "#/definitions/domain.Author"
                 },
-                "chapterPaths": {
+                "bookChapters": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/domain.BookChapter"
                     }
                 },
-                "cover": {
+                "coverUrl": {
+                    "type": "string"
+                },
+                "createdAt": {
                     "type": "string"
                 },
                 "genres": {
@@ -596,7 +648,39 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "originalLang": {
+                    "type": "string"
+                },
                 "title": {
+                    "type": "string"
+                },
+                "translatedLang": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.BookChapter": {
+            "type": "object",
+            "properties": {
+                "book": {
+                    "$ref": "#/definitions/domain.Book"
+                },
+                "contentURL": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "translatedTitle": {
                     "type": "string"
                 }
             }
@@ -659,36 +743,46 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.EmailPasswordAccount": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                }
-            }
-        },
         "domain.Genre": {
             "type": "object",
             "properties": {
+                "books": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Book"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
+                },
+                "personalBooks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.PersonalBook"
+                    }
                 }
             }
         },
         "domain.GoogleAccount": {
             "type": "object",
             "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
                 "emailVerified": {
                     "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
                 },
                 "name": {
                     "type": "string"
@@ -698,6 +792,9 @@ const docTemplate = `{
                 },
                 "sub": {
                     "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/domain.User"
                 }
             }
         },
@@ -705,19 +802,16 @@ const docTemplate = `{
             "type": "object",
             "additionalProperties": {}
         },
-        "domain.PersonalUserBook": {
+        "domain.PersonalBook": {
             "type": "object",
             "properties": {
                 "author": {
+                    "$ref": "#/definitions/domain.Author"
+                },
+                "coverUrl": {
                     "type": "string"
                 },
-                "chapterPaths": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "cover": {
+                "createdAt": {
                     "type": "string"
                 },
                 "genres": {
@@ -729,10 +823,48 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "originalLang": {
+                    "type": "string"
+                },
+                "personalBookChapters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.PersonalBookChapter"
+                    }
+                },
                 "title": {
                     "type": "string"
                 },
-                "userId": {
+                "translatedLang": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/domain.User"
+                }
+            }
+        },
+        "domain.PersonalBookChapter": {
+            "type": "object",
+            "properties": {
+                "contentUrl": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order": {
+                    "type": "integer"
+                },
+                "personalBook": {
+                    "$ref": "#/definitions/domain.PersonalBook"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "translatedTitle": {
                     "type": "string"
                 }
             }
@@ -740,8 +872,11 @@ const docTemplate = `{
         "domain.User": {
             "type": "object",
             "properties": {
-                "emailPasswordAccount": {
-                    "$ref": "#/definitions/domain.EmailPasswordAccount"
+                "basicAccount": {
+                    "$ref": "#/definitions/domain.BasicAccount"
+                },
+                "createdAt": {
+                    "type": "string"
                 },
                 "googleAccount": {
                     "$ref": "#/definitions/domain.GoogleAccount"
@@ -758,10 +893,10 @@ const docTemplate = `{
                 "metadata": {
                     "$ref": "#/definitions/domain.JsonB"
                 },
-                "personalUserBooks": {
+                "personalBooks": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/domain.PersonalUserBook"
+                        "$ref": "#/definitions/domain.PersonalBook"
                     }
                 }
             }
