@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/internal/helpers"
 )
 
 var (
@@ -27,28 +26,33 @@ type S3 interface {
 	Upload(path string, data []byte) error
 }
 
-type Postgres interface {
-	GetBook(ctx context.Context, id domain.Id) (*domain.Book, error)
-	UpdateBook(ctx context.Context, book *domain.Book) error
-	GetBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
+type BookRepository interface {
+	GetByID(ctx context.Context, id domain.ID) (*domain.Book, error)
+	Update(ctx context.Context, book *domain.Book) (*domain.Book, error)
+}
+
+type AuthorRepository interface {
+	GetOrCreate(ctx context.Context, name string) (*domain.Author, error)
 }
 
 type Service struct {
-	pg Postgres
-	s3 S3
+	bookRepo   BookRepository
+	authorRepo AuthorRepository
+	s3         S3
 }
 
-func New(pg Postgres, s3 S3) *Service {
+func New(bookRepo BookRepository, authorRepo AuthorRepository, s3 S3) *Service {
 	return &Service{
-		pg: pg,
-		s3: s3,
+		bookRepo:   bookRepo,
+		authorRepo: authorRepo,
+		s3:         s3,
 	}
 }
 
 func (s *Service) UpdateBook(input *Input, cover *multipart.FileHeader) (*Output, error) {
 	const operation = "book.update_book.UpdateBook"
 
-	book, err := s.pg.GetBook(context.Background(), input.Id)
+	book, err := s.bookRepo.GetByID(context.Background(), input.Id)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrBookNotFound
@@ -79,7 +83,7 @@ func (s *Service) UpdateBook(input *Input, cover *multipart.FileHeader) (*Output
 			return nil, ErrFailedToUploadFile
 		}
 
-		book.Cover = &path
+		book.CoverURL = path
 	}
 
 	if input.Title != nil {
@@ -87,19 +91,19 @@ func (s *Service) UpdateBook(input *Input, cover *multipart.FileHeader) (*Output
 	}
 
 	if input.Author != nil {
-		book.Author = *input.Author
+		author, err := s.authorRepo.GetOrCreate(context.Background(), *input.Author)
+		if err != nil {
+			slog.Error(err.Error(), slog.String("operation", operation))
+			return nil, ErrInternalServer
+		}
+		book.Author = author
 	}
 
-	if err = s.pg.UpdateBook(context.Background(), book); err != nil {
+	updatedBook, err := s.bookRepo.Update(context.Background(), book)
+	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternalServer
 	}
 
-	// Загружаем жанры книги
-	if err := helpers.EnrichBookWithGenres(context.Background(), book, s.pg, operation); err != nil {
-		slog.Error(err.Error(), slog.String("operation", operation))
-		return nil, ErrInternalServer
-	}
-
-	return &Output{Book: book}, nil
+	return &Output{Book: updatedBook}, nil
 }

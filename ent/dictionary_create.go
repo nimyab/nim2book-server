@@ -214,7 +214,7 @@ func (_c *DictionaryCreate) createSpec() (*Dictionary, *sqlgraph.CreateSpec) {
 	}
 	if value, ok := _c.mutation.Transcription(); ok {
 		_spec.SetField(dictionary.FieldTranscription, field.TypeString, value)
-		_node.Transcription = value
+		_node.Transcription = &value
 	}
 	if value, ok := _c.mutation.FromLangCode(); ok {
 		_spec.SetField(dictionary.FieldFromLangCode, field.TypeString, value)

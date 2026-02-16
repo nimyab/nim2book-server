@@ -13,9 +13,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/internal/helpers"
+	"github.com/nimyab/nim2book-back/internal/repository"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/services/word_aligner/align"
 	"github.com/nimyab/nim2book-back/pkg/contains_letters"
@@ -30,11 +29,14 @@ type S3 interface {
 	Check(path string) error
 }
 
-type Postgres interface {
-	GetBookByAuthorAndTitle(ctx context.Context, author, title string) (*domain.Book, error)
-	CreateBook(ctx context.Context, book *domain.Book) (*domain.Book, error)
-	GetFcmTokensByUserId(ctx context.Context, userId domain.Id) ([]domain.FcmToken, error)
-	GetBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
+type BookRepository interface {
+	GetByAuthorAndTitle(ctx context.Context, authorName, title string) (*domain.Book, error)
+	Create(ctx context.Context, book *domain.Book) (*domain.Book, error)
+	CreateChapter(ctx context.Context, chapter *domain.BookChapter) (*domain.BookChapter, error)
+}
+
+type AuthorRepository interface {
+	GetOrCreate(ctx context.Context, name string) (*domain.Author, error)
 }
 
 type WordAligner interface {
@@ -57,7 +59,8 @@ type Service struct {
 	currentCountBookTranslating int
 
 	s3          S3
-	pg          Postgres
+	bookRepo    BookRepository
+	authorRepo  AuthorRepository
 	wordAligner pb.AlignmentServiceClient
 	translator  Translator
 
@@ -79,7 +82,8 @@ var (
 
 func New(
 	s3 S3,
-	pg Postgres,
+	bookRepo BookRepository,
+	authorRepo AuthorRepository,
 	wordAligner pb.AlignmentServiceClient,
 	translator Translator,
 	maxRequestCount int,
@@ -88,7 +92,8 @@ func New(
 ) *Service {
 	return &Service{
 		s3:                          s3,
-		pg:                          pg,
+		bookRepo:                    bookRepo,
+		authorRepo:                  authorRepo,
 		wordAligner:                 wordAligner,
 		translator:                  translator,
 		maxRequestCount:             maxRequestCount,
@@ -98,7 +103,7 @@ func New(
 	}
 }
 
-func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId domain.Id) (*Output, error) {
+func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId domain.ID) (*Output, error) {
 	const operation = "translate_book.Service.TranslateBook"
 
 	file, err := book.Open()
@@ -130,15 +135,11 @@ func (s *Service) TranslateBook(input *Input, book *multipart.FileHeader, userId
 		slog.String("title", parsedBook.Title),
 	)
 
-	existedBook, err := s.pg.GetBookByAuthorAndTitle(context.Background(), parsedBook.Author, parsedBook.Title)
+	existedBook, err := s.bookRepo.GetByAuthorAndTitle(context.Background(), parsedBook.Author, parsedBook.Title)
 	if existedBook != nil {
-		// Загружаем жанры книги
-		if err := helpers.EnrichBookWithGenres(context.Background(), existedBook, s.pg, operation); err != nil {
-			slog.Error(err.Error(), slog.String("operation", operation))
-		}
 		return &Output{Book: existedBook}, nil
 	}
-	if err != nil && !errors.Is(err, postgres_sqlc.ErrBookNotFound) {
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, errors.New("failed to find book")
 	}
@@ -271,23 +272,35 @@ func (s *Service) startTranslate(
 		})
 	}
 
-	var cover *string = nil
+	// Получаем или создаём автора
+	author, err := s.authorRepo.GetOrCreate(context.Background(), data.Book.Author)
+	if err != nil {
+		logger.Error(
+			fmt.Sprintf("failed to get or create author: %s", data.Book.Author),
+			err,
+			operation,
+		)
+		return ErrFailedSaveBookToDatabase
+	}
+
+	var coverURL string
 	if data.CoverData != nil {
 		coverPath, err := s.saveCoverToS3(data.CoverData, data.Book.Title)
 		if err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation))
 		} else {
-			cover = &coverPath
+			coverURL = coverPath
 		}
 	}
 
 	newBook := &domain.Book{
-		Author:       data.Book.Author,
-		Title:        data.Book.Title,
-		ChapterPaths: paths,
-		Cover:        cover,
+		Author:         author,
+		Title:          data.Book.Title,
+		CoverURL:       coverURL,
+		OriginalLang:   string(data.From),
+		TranslatedLang: string(data.To),
 	}
-	newBook, err := s.pg.CreateBook(context.Background(), newBook)
+	newBook, err = s.bookRepo.Create(context.Background(), newBook)
 	if err != nil {
 		logger.Error(
 			fmt.Sprintf("failed to save book to database, title: %s, author: %s", data.Book.Title, data.Book.Author),
@@ -295,6 +308,23 @@ func (s *Service) startTranslate(
 			operation,
 		)
 		return ErrFailedSaveBookToDatabase
+	}
+
+	// Создаём главы книги
+	for i, path := range paths {
+		chapter := &domain.BookChapter{
+			Book:       newBook,
+			Order:      i,
+			ContentURL: path,
+		}
+		_, err := s.bookRepo.CreateChapter(context.Background(), chapter)
+		if err != nil {
+			logger.Error(
+				fmt.Sprintf("failed to save chapter %d to database, title: %s", i, data.Book.Title),
+				err,
+				operation,
+			)
+		}
 	}
 
 	// уведомление что книга создана

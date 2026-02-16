@@ -5,14 +5,15 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
+	"github.com/nimyab/nim2book-back/ent"
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Postgres interface {
-	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
-	CreateUserByEmailAndPassword(ctx context.Context, data *domain.EmailPasswordAccount) (*domain.User, error)
+type UserRepository interface {
+	GetBasicAccountByEmail(ctx context.Context, email string) (*domain.BasicAccount, error)
+	CreateWithBasicAccount(ctx context.Context, user *domain.User, basicAccount *domain.BasicAccount) (*domain.User, error)
 }
 
 var (
@@ -21,22 +22,25 @@ var (
 )
 
 type Service struct {
-	pg Postgres
+	userRepo UserRepository
 }
 
-func New(pg Postgres) *Service {
-	return &Service{pg: pg}
+func New(userRepo UserRepository) *Service {
+	return &Service{userRepo: userRepo}
 }
 
 func (s *Service) Register(input *Input) (*Output, error) {
 	const operation = "auth.register.Register"
 
-	user, err := s.pg.GetUserByEmail(context.Background(), input.Email)
-	if user != nil {
+	// Проверяем, существует ли пользователь с таким email
+	existingAccount, err := s.userRepo.GetBasicAccountByEmail(context.Background(), input.Email)
+	if err == nil && existingAccount != nil {
 		return nil, ErrUserAlreadyExist
 	}
-	if err != nil && !errors.Is(postgres_sqlc.ErrUserNotFound, err) {
-		return nil, err
+	// Если ошибка не NotFound - возвращаем ошибку
+	if err != nil && !ent.IsNotFound(err) && !errors.Is(err, repository.ErrNotFound) {
+		slog.Error(err.Error(), slog.String("operation", operation))
+		return nil, ErrInternal
 	}
 
 	passwordHashBytes, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
@@ -49,11 +53,20 @@ func (s *Service) Register(input *Input) (*Output, error) {
 		return nil, ErrInternal
 	}
 
-	newUser := &domain.EmailPasswordAccount{
+	newBasicAccount := &domain.BasicAccount{
 		Email:        input.Email,
 		PasswordHash: string(passwordHashBytes),
+		IsVerified:   false,
+		VerifyLink:   "",
 	}
-	user, err = s.pg.CreateUserByEmailAndPassword(context.Background(), newUser)
+
+	newUser := &domain.User{
+		IsVIP:    false,
+		IsAdmin:  false,
+		Metadata: map[string]interface{}{},
+	}
+
+	user, err := s.userRepo.CreateWithBasicAccount(context.Background(), newUser, newBasicAccount)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternal

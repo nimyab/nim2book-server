@@ -13,9 +13,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/internal/helpers"
+	"github.com/nimyab/nim2book-back/internal/repository"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/pkg/contains_letters"
 	"github.com/nimyab/nim2book-back/pkg/logger"
@@ -29,11 +28,14 @@ type S3 interface {
 	Check(path string) error
 }
 
-type Postgres interface {
-	GetPersonalUserBookByAuthorAndTitle(ctx context.Context, userId domain.Id, author, title string) (*domain.PersonalUserBook, error)
-	CreatePersonalUserBook(ctx context.Context, book *domain.PersonalUserBook) (*domain.PersonalUserBook, error)
-	GetFcmTokensByUserId(ctx context.Context, userId domain.Id) ([]domain.FcmToken, error)
-	GetPersonalUserBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
+type PersonalBookRepository interface {
+	GetByUserAndAuthorAndTitle(ctx context.Context, userID domain.ID, authorName, title string) (*domain.PersonalBook, error)
+	Create(ctx context.Context, book *domain.PersonalBook) (*domain.PersonalBook, error)
+	CreateChapter(ctx context.Context, chapter *domain.PersonalBookChapter) (*domain.PersonalBookChapter, error)
+}
+
+type AuthorRepository interface {
+	GetOrCreate(ctx context.Context, name string) (*domain.Author, error)
 }
 
 type WordAligner interface {
@@ -55,10 +57,11 @@ type Service struct {
 	mu                          sync.Mutex
 	currentCountBookTranslating int
 
-	s3          S3
-	pg          Postgres
-	wordAligner pb.AlignmentServiceClient
-	translator  Translator
+	s3               S3
+	personalBookRepo PersonalBookRepository
+	authorRepo       AuthorRepository
+	wordAligner      pb.AlignmentServiceClient
+	translator       Translator
 
 	notificationSignal NotificationSender
 }
@@ -78,7 +81,8 @@ var (
 
 func New(
 	s3 S3,
-	pg Postgres,
+	personalBookRepo PersonalBookRepository,
+	authorRepo AuthorRepository,
 	wordAligner pb.AlignmentServiceClient,
 	translator Translator,
 	maxRequestCount int,
@@ -87,7 +91,8 @@ func New(
 ) *Service {
 	return &Service{
 		s3:                          s3,
-		pg:                          pg,
+		personalBookRepo:            personalBookRepo,
+		authorRepo:                  authorRepo,
 		wordAligner:                 wordAligner,
 		translator:                  translator,
 		maxRequestCount:             maxRequestCount,
@@ -97,7 +102,7 @@ func New(
 	}
 }
 
-func (s *Service) TranslatePersonalUserBook(input *Input, book *multipart.FileHeader, userId domain.Id) (*Output, error) {
+func (s *Service) TranslatePersonalUserBook(input *Input, book *multipart.FileHeader, userId domain.ID) (*Output, error) {
 	const operation = "translate_personal_user_book.Service.TranslatePersonalUserBook"
 
 	file, err := book.Open()
@@ -129,15 +134,11 @@ func (s *Service) TranslatePersonalUserBook(input *Input, book *multipart.FileHe
 		slog.String("title", parsedBook.Title),
 	)
 
-	existedBook, err := s.pg.GetPersonalUserBookByAuthorAndTitle(context.Background(), userId, parsedBook.Author, parsedBook.Title)
+	existedBook, err := s.personalBookRepo.GetByUserAndAuthorAndTitle(context.Background(), userId, parsedBook.Author, parsedBook.Title)
 	if existedBook != nil {
-		// Загружаем жанры книги
-		if err := helpers.EnrichPersonalBookWithGenres(context.Background(), existedBook, s.pg, operation); err != nil {
-			slog.Error(err.Error(), slog.String("operation", operation))
-		}
 		return &Output{Book: existedBook}, nil
 	}
-	if err != nil && !errors.Is(err, postgres_sqlc.ErrPersonalUserBookNotFound) {
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, errors.New("failed to find book")
 	}
@@ -280,21 +281,58 @@ func (s *Service) startTranslate(
 		}
 	}
 
-	newBook := &domain.PersonalUserBook{
-		Author:       data.Book.Author,
-		Title:        data.Book.Title,
-		ChapterPaths: paths,
-		Cover:        cover,
-		UserId:       data.UserId,
-	}
-	newBook, err := s.pg.CreatePersonalUserBook(context.Background(), newBook)
+	// Получаем или создаём автора
+	author, err := s.authorRepo.GetOrCreate(context.Background(), data.Book.Author)
 	if err != nil {
 		logger.Error(
-			fmt.Sprintf("failed to save personal user book to database, title: %s, author: %s", data.Book.Title, data.Book.Author),
+			fmt.Sprintf("failed to get or create author: %s", data.Book.Author),
 			err,
 			operation,
 		)
 		return ErrFailedSaveBookToDatabase
+	}
+
+	var coverURL string
+	if cover != nil {
+		coverURL = *cover
+	}
+
+	newBook := &domain.PersonalBook{
+		Author:         author,
+		Title:          data.Book.Title,
+		CoverURL:       coverURL,
+		OriginalLang:   string(data.From),
+		TranslatedLang: string(data.To),
+		User: &domain.User{
+			ID: data.UserId,
+		},
+	}
+	newBook, err = s.personalBookRepo.Create(context.Background(), newBook)
+	if err != nil {
+		logger.Error(
+			fmt.Sprintf("failed to save personal book to database, title: %s, author: %s", data.Book.Title, data.Book.Author),
+			err,
+			operation,
+		)
+		return ErrFailedSaveBookToDatabase
+	}
+
+	// Создаём главы книги
+	for i, path := range paths {
+		chapter := &domain.PersonalBookChapter{
+			PersonalBook: newBook,
+			Order:        i,
+			ContentURL:   path,
+		}
+		_, err := s.personalBookRepo.CreateChapter(context.Background(), chapter)
+		if err != nil {
+			logger.Error(
+				fmt.Sprintf("failed to save chapter %d to database, title: %s", i, data.Book.Title),
+				err,
+				operation,
+			)
+			// Продолжаем даже при ошибке создания главы
+		}
 	}
 
 	// уведомление что книга создана
@@ -506,7 +544,7 @@ func (s *Service) translateAndAlignParagraph(paragraph string, from domain.Suppo
 	return alignedParagraph, nil
 }
 
-func (s *Service) saveChapterToS3(chapter *domain.ChapterAlignNode, bookTitle string, userId domain.Id) (string, error) {
+func (s *Service) saveChapterToS3(chapter *domain.ChapterAlignNode, bookTitle string, userId domain.ID) (string, error) {
 	const operation = "translate_personal_user_book.Service.saveChapterToS3"
 
 	path := fmt.Sprintf("user/%s/book/%s/%d.json", userId, strings.ReplaceAll(bookTitle, " ", "_"), chapter.Order)
@@ -523,7 +561,7 @@ func (s *Service) saveChapterToS3(chapter *domain.ChapterAlignNode, bookTitle st
 	return path, nil
 }
 
-func (s *Service) saveCoverToS3(coverData []byte, bookTitle string, userId domain.Id) (string, error) {
+func (s *Service) saveCoverToS3(coverData []byte, bookTitle string, userId domain.ID) (string, error) {
 	const operation = "translate_personal_user_book.Service.saveCoverToS3"
 
 	path := fmt.Sprintf("user/%s/cover/%s/%s", userId, strings.ReplaceAll(bookTitle, " ", "_"), uuid.New().String())
@@ -535,7 +573,7 @@ func (s *Service) saveCoverToS3(coverData []byte, bookTitle string, userId domai
 	return path, nil
 }
 
-func (s *Service) checkChapterInStorage(chapterOrder int, bookTitle string, userId domain.Id) string {
+func (s *Service) checkChapterInStorage(chapterOrder int, bookTitle string, userId domain.ID) string {
 	const operation = "translate_personal_user_book.Service.checkChapterPath"
 
 	path := fmt.Sprintf("user/%s/book/%s/%d.json", userId, strings.ReplaceAll(bookTitle, " ", "_"), chapterOrder)

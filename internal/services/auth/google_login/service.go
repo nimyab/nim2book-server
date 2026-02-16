@@ -6,22 +6,19 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/internal/helpers"
+	"github.com/nimyab/nim2book-back/internal/repository"
 	"github.com/nimyab/nim2book-back/pkg/jwt"
 	"google.golang.org/api/idtoken"
 )
 
-type Postgres interface {
-	GetUserByGoogleSub(ctx context.Context, sub string) (*domain.User, error)
-	CreateUserByGoogle(ctx context.Context, data *domain.GoogleAccount) (*domain.User, error)
-	GetPersonalUserBooks(ctx context.Context, query postgres_sqlc.GetPersonalUserBooksQuery) ([]domain.PersonalUserBook, error)
-	GetPersonalUserBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
+type UserRepository interface {
+	GetGoogleAccountBySub(ctx context.Context, sub string) (*domain.GoogleAccount, error)
+	CreateWithGoogleAccount(ctx context.Context, user *domain.User, googleAccount *domain.GoogleAccount) (*domain.User, error)
 }
 
 type Service struct {
-	pg             Postgres
+	userRepo       UserRepository
 	secret         string
 	googleClientId string
 	accessTime     time.Duration
@@ -34,9 +31,9 @@ var (
 	ErrInvalidGoogleData = errors.New("invalid google data")
 )
 
-func New(pg Postgres, googleClientId string, secret string, accessTime, refreshTime time.Duration) *Service {
+func New(userRepo UserRepository, googleClientId string, secret string, accessTime, refreshTime time.Duration) *Service {
 	return &Service{
-		pg:             pg,
+		userRepo:       userRepo,
 		secret:         secret,
 		accessTime:     accessTime,
 		refreshTime:    refreshTime,
@@ -59,12 +56,12 @@ func (s *Service) GoogleLogin(input *Input) (*Output, error) {
 	if !(ok1 && ok2 && ok3 && ok4) {
 		return nil, ErrInvalidGoogleData
 	}
-	var picture *string = nil
+	var picture string
 	if pic, ok := payload.Claims["picture"].(string); ok {
-		picture = &pic
+		picture = pic
 	}
 
-	googleUser := &domain.GoogleAccount{
+	googleAccount := &domain.GoogleAccount{
 		Email:         email,
 		EmailVerified: emailVerified,
 		Sub:           sub,
@@ -72,23 +69,35 @@ func (s *Service) GoogleLogin(input *Input) (*Output, error) {
 		Picture:       picture,
 	}
 
-	user, err := s.pg.GetUserByGoogleSub(context.Background(), googleUser.Sub)
-	if err != nil && !errors.Is(err, postgres_sqlc.ErrUserNotFound) {
-		slog.Error(err.Error(), slog.String("operation", operation), slog.Any("googleUser", googleUser))
+	// Проверяем, существует ли Google аккаунт
+	existingAccount, err := s.userRepo.GetGoogleAccountBySub(context.Background(), googleAccount.Sub)
+	var user *domain.User
+
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		slog.Error(err.Error(), slog.String("operation", operation), slog.Any("googleAccount", googleAccount))
 		return nil, ErrInternal
 	}
-	// елси такого пользователя нет, то создаем его
-	if errors.Is(err, postgres_sqlc.ErrUserNotFound) {
-		user, err = s.pg.CreateUserByGoogle(context.Background(), googleUser)
+
+	// Если такого пользователя нет, то создаем его
+	if existingAccount == nil || errors.Is(err, repository.ErrNotFound) {
+		newUser := &domain.User{
+			IsVIP:    false,
+			IsAdmin:  false,
+			Metadata: map[string]interface{}{},
+		}
+		user, err = s.userRepo.CreateWithGoogleAccount(context.Background(), newUser, googleAccount)
 		if err != nil {
-			slog.Error(err.Error(), slog.String("operation", operation), slog.Any("googleUser", googleUser))
+			slog.Error(err.Error(), slog.String("operation", operation), slog.Any("googleAccount", googleAccount))
 			return nil, ErrInternal
 		}
+	} else {
+		// Используем существующего пользователя
+		user = existingAccount.User
 	}
 
 	accessToken, refreshToken, err := jwt.GenerateTokens(
 		domain.JwtPayload{
-			Id:      user.Id,
+			ID:      user.ID,
 			IsAdmin: user.IsAdmin,
 			IsVIP:   user.IsVIP,
 		},
@@ -98,11 +107,6 @@ func (s *Service) GoogleLogin(input *Input) (*Output, error) {
 	)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
-		return nil, ErrInternal
-	}
-
-	// Загружаем персональные книги пользователя вместе с жанрами
-	if err := helpers.EnrichUserWithPersonalBooksAndGenres(context.Background(), user, s.pg, operation); err != nil {
 		return nil, ErrInternal
 	}
 

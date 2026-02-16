@@ -8,24 +8,25 @@ import (
 	"firebase.google.com/go/v4/messaging"
 	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/repository"
 )
 
-type Postgres interface {
-	GetFcmTokensByUserId(ctx context.Context, userId domain.Id) ([]domain.FcmToken, error)
-	DeleteFcmToken(ctx context.Context, token string, userId domain.Id) error
+type FcmTokenRepository interface {
+	ListByUserID(ctx context.Context, userID domain.ID, opts repository.QueryOptions) ([]*domain.FcmToken, error)
+	DeleteByToken(ctx context.Context, token string) error
 }
 
 type Service struct {
-	pg                      Postgres
+	fcmTokenRepo            FcmTokenRepository
 	messagingFirebaseClient *messaging.Client
 }
 
 func New(
 	messagingFirebaseClient *messaging.Client,
-	pg Postgres,
+	fcmTokenRepo FcmTokenRepository,
 ) *Service {
 	return &Service{
-		pg:                      pg,
+		fcmTokenRepo:            fcmTokenRepo,
 		messagingFirebaseClient: messagingFirebaseClient,
 	}
 }
@@ -38,9 +39,16 @@ func (s *Service) Emit(ctx context.Context, notification *domain.Notification) {
 func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notification) {
 	const operation = "notification.ProcessNotification"
 
-	fcmTokens, err := s.pg.GetFcmTokensByUserId(ctx, d.UserId)
+	fcmTokenPtrs, err := s.fcmTokenRepo.ListByUserID(ctx, d.UserId, repository.QueryOptions{})
 	if err != nil {
 		slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId))
+		return
+	}
+
+	// Convert []*FcmToken to []FcmToken for compatibility
+	fcmTokens := make([]domain.FcmToken, len(fcmTokenPtrs))
+	for i, ptr := range fcmTokenPtrs {
+		fcmTokens[i] = *ptr
 	}
 
 	switch d.Type {
@@ -56,16 +64,16 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
 					Title: "Перевод книги завершился",
-					Body:  fmt.Sprintf("Книга: %s - %s была переведена, теперь ее можно скачать из библиотеки книг", data.Book.Author, data.Book.Title),
+					Body:  fmt.Sprintf("Книга: %s - %s была переведена, теперь ее можно скачать из библиотеки книг", data.Book.Author.Name, data.Book.Title),
 				},
 				Data: map[string]string{
-					"bookId": data.Book.Id.String(),
+					"bookId": data.Book.ID.String(),
 				},
 			})
 			slog.Info("test notification", slog.String("fcmToken", fcmToken.Token), slog.String("info", info))
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
-				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
+				_ = s.fcmTokenRepo.DeleteByToken(ctx, fcmToken.Token)
 			}
 		}
 
@@ -93,7 +101,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 			slog.Info("test notification", slog.String("fcmToken", fcmToken.Token), slog.String("info", info))
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
-				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
+				_ = s.fcmTokenRepo.DeleteByToken(ctx, fcmToken.Token)
 			}
 		}
 
@@ -123,7 +131,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 			slog.Info("test notification", slog.String("fcmToken", fcmToken.Token), slog.String("info", info))
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
-				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
+				_ = s.fcmTokenRepo.DeleteByToken(ctx, fcmToken.Token)
 			}
 		}
 
@@ -155,7 +163,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 			slog.Info("test notification", slog.String("fcmToken", fcmToken.Token), slog.String("info", info))
 			if err != nil {
 				slog.Error(fmt.Sprintf("%s: %s", operation, err.Error()), slog.Any("userId", d.UserId), slog.Any("type", d.Type), slog.String("fcmToken", fcmToken.Token))
-				_ = s.pg.DeleteFcmToken(ctx, fcmToken.Token, d.UserId)
+				_ = s.fcmTokenRepo.DeleteByToken(ctx, fcmToken.Token)
 			}
 		}
 	default:

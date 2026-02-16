@@ -35,7 +35,7 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 		}
 
 		svc.ProcessNotification(context.Background(), &domain.Notification{
-			UserId: payload.Id,
+			UserId: payload.ID,
 			Type:   domain.NotificationTest,
 			Data: &domain.NotificationTestData{
 				Title: input.Title,

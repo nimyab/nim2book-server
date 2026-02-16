@@ -5,19 +5,16 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/internal/helpers"
+	"github.com/nimyab/nim2book-back/internal/repository"
 )
 
-type Postgres interface {
-	GetUserById(ctx context.Context, userId domain.Id) (*domain.User, error)
-	GetPersonalUserBooks(ctx context.Context, query postgres_sqlc.GetPersonalUserBooksQuery) ([]domain.PersonalUserBook, error)
-	GetPersonalUserBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
+type UserRepository interface {
+	GetByID(ctx context.Context, id domain.ID) (*domain.User, error)
 }
 
 type Service struct {
-	pg Postgres
+	userRepo UserRepository
 }
 
 var (
@@ -25,24 +22,19 @@ var (
 	ErrUserNotFound = errors.New("user not found")
 )
 
-func New(pg Postgres) *Service {
-	return &Service{pg: pg}
+func New(userRepo UserRepository) *Service {
+	return &Service{userRepo: userRepo}
 }
 
 func (s *Service) Me(input *Input) (*Output, error) {
 	const operation = "user.me.Me"
 
-	user, err := s.pg.GetUserById(context.Background(), input.UserId)
-	if errors.Is(err, postgres_sqlc.ErrUserNotFound) {
+	user, err := s.userRepo.GetByID(context.Background(), input.UserId)
+	if errors.Is(err, repository.ErrNotFound) || user == nil {
 		return nil, ErrUserNotFound
 	}
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
-		return nil, ErrInternal
-	}
-
-	// Загружаем персональные книги пользователя вместе с жанрами
-	if err := helpers.EnrichUserWithPersonalBooksAndGenres(context.Background(), user, s.pg, operation); err != nil {
 		return nil, ErrInternal
 	}
 

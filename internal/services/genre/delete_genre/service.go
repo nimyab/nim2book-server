@@ -7,26 +7,22 @@ import (
 	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
-var (
-	ErrInternalServer = error(nil)
-)
-
-type Postgres interface {
-	DeleteGenre(ctx context.Context, id domain.Id) error
+type GenreRepository interface {
+	Delete(ctx context.Context, id domain.ID) error
 }
 
 type Service struct {
-	pg Postgres
+	genreRepo GenreRepository
 }
 
-func New(pg Postgres) *Service {
-	return &Service{pg: pg}
+func New(genreRepo GenreRepository) *Service {
+	return &Service{genreRepo: genreRepo}
 }
 
 func (s *Service) DeleteGenre(input *Input) (*Output, error) {
 	const operation = "genre.delete_genre.DeleteGenre"
 
-	err := s.pg.DeleteGenre(context.Background(), input.Id)
+	err := s.genreRepo.Delete(context.Background(), input.Id)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, err

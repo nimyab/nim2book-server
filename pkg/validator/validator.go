@@ -12,6 +12,6 @@ func New() *Validator {
 	}
 }
 
-func (ev *Validator) Validate(i interface{}) error {
+func (ev *Validator) Validate(i any) error {
 	return ev.validator.Struct(i)
 }

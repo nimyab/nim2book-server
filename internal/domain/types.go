@@ -2,6 +2,6 @@ package domain
 
 import "github.com/google/uuid"
 
-type Id = uuid.UUID
+type ID = uuid.UUID
 
 type JsonB = map[string]any

@@ -22,7 +22,7 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 			})
 		}
 
-		input.UserId = payload.Id
+		input.UserId = payload.ID
 
 		if err := c.Validate(input); err != nil {
 			return c.JSON(http.StatusBadRequest, echo.Map{

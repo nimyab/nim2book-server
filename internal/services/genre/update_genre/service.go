@@ -5,8 +5,8 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/repository"
 )
 
 var (
@@ -15,32 +15,32 @@ var (
 	ErrInternalServer     = errors.New("internal server error")
 )
 
-type Postgres interface {
-	UpdateGenre(ctx context.Context, genre *domain.Genre) (*domain.Genre, error)
+type GenreRepository interface {
+	Update(ctx context.Context, genre *domain.Genre) (*domain.Genre, error)
 }
 
 type Service struct {
-	pg Postgres
+	genreRepo GenreRepository
 }
 
-func New(pg Postgres) *Service {
-	return &Service{pg: pg}
+func New(genreRepo GenreRepository) *Service {
+	return &Service{genreRepo: genreRepo}
 }
 
 func (s *Service) UpdateGenre(input *Input) (*Output, error) {
 	const operation = "genre.update_genre.UpdateGenre"
 
 	genre := &domain.Genre{
-		Id:   input.Id,
+		ID:   input.Id,
 		Name: input.Name,
 	}
 
-	updatedGenre, err := s.pg.UpdateGenre(context.Background(), genre)
-	if errors.Is(err, postgres_sqlc.ErrGenreNotFound) {
+	updatedGenre, err := s.genreRepo.Update(context.Background(), genre)
+	if errors.Is(err, repository.ErrNotFound) {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrGenreNotFound
 	}
-	if errors.Is(err, postgres_sqlc.ErrGenreAlreadyExists) {
+	if errors.Is(err, repository.ErrDuplicateKey) {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrGenreAlreadyExists
 	}

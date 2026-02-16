@@ -17,7 +17,7 @@ func (Dictionary) Fields() []ent.Field {
 	return append([]ent.Field{
 		field.String("text").SchemaType(varchar255),
 		field.String("part_of_speech").SchemaType(varchar255),
-		field.String("transcription").SchemaType(varchar255),
+		field.String("transcription").Nillable().SchemaType(varchar255),
 		field.String("from_lang_code").SchemaType(varchar10),
 		field.String("to_lang_code").SchemaType(varchar10),
 		field.Strings("translations"),

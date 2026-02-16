@@ -1,10 +1,17 @@
 package domain
 
+import "time"
+
 type Book struct {
-	Id           Id       `json:"id"`
-	Title        string   `json:"title"`
-	Author       string   `json:"author"`
-	ChapterPaths []string `json:"chapterPaths"`
-	Cover        *string  `json:"cover,omitempty"`
-	Genres       []Genre  `json:"genres,omitempty"`
+	ID        ID        `json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	Title          string `json:"title"`
+	CoverURL       string `json:"coverUrl"`
+	OriginalLang   string `json:"originalLang"`
+	TranslatedLang string `json:"translatedLang"`
+
+	Author       *Author        `json:"author"`
+	Genres       []*Genre       `json:"genres"`
+	BookChapters []*BookChapter `json:"bookChapters"`
 }

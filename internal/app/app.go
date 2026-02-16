@@ -29,19 +29,16 @@ func New(cfg *config.Config) (*App, error) {
 	do.ProvideValue(injector, cfg)
 
 	// Register adapters (infrastructure layer)
-	if err := app.registerAdapters(); err != nil {
-		return nil, err
-	}
+	app.registerAdapters()
+
+	// Register repositories (data access layer)
+	app.registerRepositories()
 
 	// Register services (use cases / business logic)
-	if err := app.registerServices(); err != nil {
-		return nil, err
-	}
+	app.registerServices()
 
 	// Setup HTTP server and routes
-	if err := app.setupHTTPServer(); err != nil {
-		return nil, err
-	}
+	app.setupHTTPServer()
 
 	return app, nil
 }

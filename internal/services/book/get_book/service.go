@@ -5,35 +5,27 @@ import (
 	"log/slog"
 
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/internal/helpers"
 )
 
-type Postgres interface {
-	GetBook(ctx context.Context, id domain.Id) (*domain.Book, error)
-	GetBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
+type BookRepository interface {
+	GetByID(ctx context.Context, id domain.ID) (*domain.Book, error)
 }
 
 type Service struct {
-	pg Postgres
+	bookRepo BookRepository
 }
 
-func New(pg Postgres) *Service {
+func New(bookRepo BookRepository) *Service {
 	return &Service{
-		pg: pg,
+		bookRepo: bookRepo,
 	}
 }
 
 func (s *Service) GetBook(input *Input) (*Output, error) {
 	const operation = "book.get_book.GetBook"
 
-	book, err := s.pg.GetBook(context.Background(), input.Id)
+	book, err := s.bookRepo.GetByID(context.Background(), input.Id)
 	if err != nil {
-		slog.Error(err.Error(), slog.String("operation", operation))
-		return nil, err
-	}
-
-	// Загружаем жанры книги
-	if err := helpers.EnrichBookWithGenres(context.Background(), book, s.pg, operation); err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, err
 	}

@@ -11,9 +11,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/internal/helpers"
+	"github.com/nimyab/nim2book-back/internal/repository"
 )
 
 var (
@@ -29,26 +28,34 @@ type S3 interface {
 	Upload(path string, data []byte) error
 }
 
-type Postgres interface {
-	GetPersonalUserBook(ctx context.Context, id domain.Id) (*domain.PersonalUserBook, error)
-	UpdatePersonalUserBook(ctx context.Context, book *domain.PersonalUserBook) error
-	GetPersonalUserBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
+type PersonalBookRepository interface {
+	GetByID(ctx context.Context, id domain.ID) (*domain.PersonalBook, error)
+	Update(ctx context.Context, book *domain.PersonalBook) (*domain.PersonalBook, error)
+}
+
+type AuthorRepository interface {
+	GetOrCreate(ctx context.Context, name string) (*domain.Author, error)
 }
 
 type Service struct {
-	pg Postgres
-	s3 S3
+	personalBookRepo PersonalBookRepository
+	authorRepo       AuthorRepository
+	s3               S3
 }
 
-func New(pg Postgres, s3 S3) *Service {
-	return &Service{pg: pg, s3: s3}
+func New(personalBookRepo PersonalBookRepository, authorRepo AuthorRepository, s3 S3) *Service {
+	return &Service{
+		personalBookRepo: personalBookRepo,
+		authorRepo:       authorRepo,
+		s3:               s3,
+	}
 }
 
 func (s *Service) UpdatePersonalUserBook(input *Input, cover *multipart.FileHeader) (*Output, error) {
 	const operation = "personal_user_book.update_personal_user_book.UpdatePersonalUserBook"
 
-	book, err := s.pg.GetPersonalUserBook(context.Background(), input.Id)
-	if errors.Is(err, postgres_sqlc.ErrPersonalUserBookNotFound) {
+	book, err := s.personalBookRepo.GetByID(context.Background(), input.Id)
+	if errors.Is(err, repository.ErrNotFound) {
 		return nil, ErrBookNotFound
 	}
 	if err != nil {
@@ -57,12 +64,11 @@ func (s *Service) UpdatePersonalUserBook(input *Input, cover *multipart.FileHead
 	}
 
 	// Проверяем, что книга принадлежит пользователю
-	if book.UserId != input.UserId {
+	if book.User == nil || book.User.ID != input.UserId {
 		slog.Warn("user tried to update book that doesn't belong to them",
 			slog.String("operation", operation),
 			slog.String("userId", input.UserId.String()),
 			slog.String("bookId", input.Id.String()),
-			slog.String("bookOwnerId", book.UserId.String()),
 		)
 		return nil, ErrForbidden
 	}
@@ -92,7 +98,7 @@ func (s *Service) UpdatePersonalUserBook(input *Input, cover *multipart.FileHead
 			return nil, ErrFailedToUploadFile
 		}
 
-		book.Cover = &path
+		book.CoverURL = path
 	}
 
 	if input.Title != nil {
@@ -100,19 +106,19 @@ func (s *Service) UpdatePersonalUserBook(input *Input, cover *multipart.FileHead
 	}
 
 	if input.Author != nil {
-		book.Author = *input.Author
+		author, err := s.authorRepo.GetOrCreate(context.Background(), *input.Author)
+		if err != nil {
+			slog.Error(err.Error(), slog.String("operation", operation))
+			return nil, ErrInternalServer
+		}
+		book.Author = author
 	}
 
-	if err = s.pg.UpdatePersonalUserBook(context.Background(), book); err != nil {
+	updatedBook, err := s.personalBookRepo.Update(context.Background(), book)
+	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternalServer
 	}
 
-	// Загружаем жанры книги
-	if err := helpers.EnrichPersonalBookWithGenres(context.Background(), book, s.pg, operation); err != nil {
-		slog.Error(err.Error(), slog.String("operation", operation))
-		return nil, ErrInternalServer
-	}
-
-	return &Output{Book: book}, nil
+	return &Output{Book: updatedBook}, nil
 }

@@ -5,9 +5,10 @@ import (
 
 	"firebase.google.com/go/v4/messaging"
 	"github.com/nimyab/nim2book-back/config"
+	"github.com/nimyab/nim2book-back/ent"
 	"github.com/nimyab/nim2book-back/internal/adapter/firebase"
 	"github.com/nimyab/nim2book-back/internal/adapter/minio"
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
+	"github.com/nimyab/nim2book-back/internal/adapter/postgres"
 	"github.com/nimyab/nim2book-back/internal/adapter/redis_cache"
 	"github.com/nimyab/nim2book-back/internal/services/word_aligner"
 	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
@@ -15,13 +16,11 @@ import (
 )
 
 // registerAdapters registers all infrastructure adapters (database, storage, cache, etc.)
-func (a *App) registerAdapters() error {
+func (a *App) registerAdapters() {
 	// PostgreSQL
-	do.Provide(a.injector, func(i do.Injector) (*postgres_sqlc.Postgres, error) {
+	do.Provide(a.injector, func(i do.Injector) (*ent.Client, error) {
 		cfg := do.MustInvoke[*config.Config](i)
-		return postgres_sqlc.New(context.Background(), &postgres_sqlc.Config{
-			PostgresURL: cfg.PostgresURL,
-		})
+		return postgres.New(&postgres.Config{PostgresURL: cfg.PostgresURL})
 	})
 
 	// MinIO
@@ -64,6 +63,4 @@ func (a *App) registerAdapters() error {
 			Address: cfg.WordAlignerAddrGrpc,
 		})
 	})
-
-	return nil
 }

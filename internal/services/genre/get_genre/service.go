@@ -7,22 +7,22 @@ import (
 	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
-type Postgres interface {
-	GetGenreById(ctx context.Context, id domain.Id) (*domain.Genre, error)
+type GenreRepository interface {
+	GetByID(ctx context.Context, id domain.ID) (*domain.Genre, error)
 }
 
 type Service struct {
-	pg Postgres
+	genreRepo GenreRepository
 }
 
-func New(pg Postgres) *Service {
-	return &Service{pg: pg}
+func New(genreRepo GenreRepository) *Service {
+	return &Service{genreRepo: genreRepo}
 }
 
 func (s *Service) GetGenre(input *Input) (*Output, error) {
 	const operation = "genre.get_genre.GetGenre"
 
-	genre, err := s.pg.GetGenreById(context.Background(), input.Id)
+	genre, err := s.genreRepo.GetByID(context.Background(), input.Id)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, err

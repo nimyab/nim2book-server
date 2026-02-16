@@ -5,28 +5,36 @@ import (
 	"log/slog"
 
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/repository"
 )
 
-type Postgres interface {
-	GetAllGenres(ctx context.Context) ([]domain.Genre, error)
+type GenreRepository interface {
+	List(ctx context.Context, opts repository.QueryOptions) ([]*domain.Genre, error)
 }
 
 type Service struct {
-	pg Postgres
+	genreRepo GenreRepository
 }
 
-func New(pg Postgres) *Service {
-	return &Service{pg: pg}
+func New(genreRepo GenreRepository) *Service {
+	return &Service{genreRepo: genreRepo}
 }
 
 func (s *Service) GetGenres() (*Output, error) {
 	const operation = "genre.get_genres.GetGenres"
 
-	genres, err := s.pg.GetAllGenres(context.Background())
+	// Получить все жанры без пагинации
+	genres, err := s.genreRepo.List(context.Background(), repository.QueryOptions{})
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, err
 	}
 
-	return &Output{Genres: genres}, nil
+	// Конвертируем в слайс значений для совместимости с Output
+	result := make([]domain.Genre, len(genres))
+	for i, genre := range genres {
+		result[i] = *genre
+	}
+
+	return &Output{Genres: result}, nil
 }

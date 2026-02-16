@@ -38,7 +38,7 @@ import (
 )
 
 // setupHTTPServer initializes the Echo server with middleware and routes
-func (a *App) setupHTTPServer() error {
+func (a *App) setupHTTPServer() {
 	e := echo.New()
 
 	// Middleware
@@ -60,7 +60,6 @@ func (a *App) setupHTTPServer() error {
 	a.setupRoutes(e)
 
 	a.server = e
-	return nil
 }
 
 // setupRoutes defines all HTTP routes

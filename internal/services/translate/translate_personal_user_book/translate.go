@@ -7,7 +7,7 @@ import (
 )
 
 type translateStruct struct {
-	UserId    domain.Id
+	UserId    domain.ID
 	Chapters  []epub_parser.FormattedChapter
 	CoverData []byte
 	Book      *pamphlet.Book

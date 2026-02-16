@@ -5,7 +5,7 @@ import (
 )
 
 type Input struct {
-	Id domain.Id `param:"id" validate:"required,uuid"`
+	Id domain.ID `param:"id" validate:"required,uuid"`
 }
 
 type Output struct {

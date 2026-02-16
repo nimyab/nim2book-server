@@ -8,6 +8,6 @@ type Input struct {
 }
 
 type Output struct {
-	Book    *domain.PersonalUserBook `json:"book,omitempty"`
-	Message string                   `json:"messageAboutTranslate,omitempty"`
+	Book    *domain.PersonalBook `json:"book,omitempty"`
+	Message string               `json:"messageAboutTranslate,omitempty"`
 }

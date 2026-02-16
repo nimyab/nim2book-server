@@ -30,7 +30,7 @@ var (
 )
 
 type SocketConn struct {
-	userId      domain.Id
+	userId      domain.ID
 	conn        *websocket.Conn
 	messageChan chan *Message
 	close       chan int
@@ -67,7 +67,7 @@ func MakeSocketConnHandler(cfg *config.Config) echo.HandlerFunc {
 			conn:        conn,
 			messageChan: make(chan *Message),
 			close:       make(chan int, 1),
-			userId:      payload.Id,
+			userId:      payload.ID,
 		}
 
 		socketHub.registerCh <- socketConn

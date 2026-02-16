@@ -4,44 +4,50 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/internal/helpers"
+	"github.com/nimyab/nim2book-back/internal/repository"
 )
 
-type Postgres interface {
-	GetPersonalUserBooks(ctx context.Context, query postgres_sqlc.GetPersonalUserBooksQuery) ([]domain.PersonalUserBook, error)
-	GetPersonalUserBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
+const booksPerPage = 10
+
+type PersonalBookRepository interface {
+	SearchByUserWithFilters(ctx context.Context, userID domain.ID, title, authorName string, genreID *domain.ID, opts repository.QueryOptions) ([]*domain.PersonalBook, error)
 }
 
 type Service struct {
-	pg Postgres
+	personalBookRepo PersonalBookRepository
 }
 
-func New(pg Postgres) *Service {
-	return &Service{pg: pg}
+func New(personalBookRepo PersonalBookRepository) *Service {
+	return &Service{personalBookRepo: personalBookRepo}
 }
 
 func (s *Service) GetPersonalUserBooks(input *Input) (*Output, error) {
 	const operation = "personal_user_book.get_personal_user_books.GetPersonalUserBooks"
 
-	books, err := s.pg.GetPersonalUserBooks(context.Background(), postgres_sqlc.GetPersonalUserBooksQuery{
-		UserId:  input.UserId,
-		Author:  input.Author,
-		Title:   input.Title,
-		GenreId: input.GenreId,
-		Page:    input.Page,
-	})
+	offset := (input.Page - 1) * booksPerPage
+
+	books, err := s.personalBookRepo.SearchByUserWithFilters(
+		context.Background(),
+		input.UserId,
+		input.Title,
+		input.Author,
+		input.GenreId,
+		repository.QueryOptions{
+			Limit:  booksPerPage,
+			Offset: offset,
+		},
+	)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, err
 	}
 
-	// Загружаем жанры для каждой книги
-	if err := helpers.EnrichPersonalBooksWithGenres(context.Background(), books, s.pg, operation); err != nil {
-		slog.Error(err.Error(), slog.String("operation", operation))
-		return nil, err
+	// Конвертируем в слайс значений для совместимости с Output
+	result := make([]domain.PersonalBook, len(books))
+	for i, book := range books {
+		result[i] = *book
 	}
 
-	return &Output{Books: books}, nil
+	return &Output{Books: result}, nil
 }

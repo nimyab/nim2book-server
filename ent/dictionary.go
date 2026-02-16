@@ -24,7 +24,7 @@ type Dictionary struct {
 	// PartOfSpeech holds the value of the "part_of_speech" field.
 	PartOfSpeech string `json:"part_of_speech,omitempty"`
 	// Transcription holds the value of the "transcription" field.
-	Transcription string `json:"transcription,omitempty"`
+	Transcription *string `json:"transcription,omitempty"`
 	// FromLangCode holds the value of the "from_lang_code" field.
 	FromLangCode string `json:"from_lang_code,omitempty"`
 	// ToLangCode holds the value of the "to_lang_code" field.
@@ -107,7 +107,8 @@ func (_m *Dictionary) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field transcription", values[i])
 			} else if value.Valid {
-				_m.Transcription = value.String
+				_m.Transcription = new(string)
+				*_m.Transcription = value.String
 			}
 		case dictionary.FieldFromLangCode:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -182,8 +183,10 @@ func (_m *Dictionary) String() string {
 	builder.WriteString("part_of_speech=")
 	builder.WriteString(_m.PartOfSpeech)
 	builder.WriteString(", ")
-	builder.WriteString("transcription=")
-	builder.WriteString(_m.Transcription)
+	if v := _m.Transcription; v != nil {
+		builder.WriteString("transcription=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("from_lang_code=")
 	builder.WriteString(_m.FromLangCode)

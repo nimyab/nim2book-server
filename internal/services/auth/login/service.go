@@ -6,21 +6,18 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/internal/helpers"
+	"github.com/nimyab/nim2book-back/internal/repository"
 	"github.com/nimyab/nim2book-back/pkg/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Postgres interface {
-	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
-	GetPersonalUserBooks(ctx context.Context, query postgres_sqlc.GetPersonalUserBooksQuery) ([]domain.PersonalUserBook, error)
-	GetPersonalUserBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
+type UserRepository interface {
+	GetByBasicAccountEmail(ctx context.Context, email string) (*domain.User, error)
 }
 
 type Service struct {
-	pg          Postgres
+	userRepo    UserRepository
 	secret      string
 	accessTime  time.Duration
 	refreshTime time.Duration
@@ -29,11 +26,12 @@ type Service struct {
 var (
 	ErrInternal           = errors.New("internal error")
 	ErrPasswordDoNotMatch = errors.New("passwords do not match")
+	ErrUserNotFound       = errors.New("user not found")
 )
 
-func New(pg Postgres, secret string, accessTime, refreshTime time.Duration) *Service {
+func New(userRepo UserRepository, secret string, accessTime, refreshTime time.Duration) *Service {
 	return &Service{
-		pg:          pg,
+		userRepo:    userRepo,
 		secret:      secret,
 		accessTime:  accessTime,
 		refreshTime: refreshTime,
@@ -43,28 +41,37 @@ func New(pg Postgres, secret string, accessTime, refreshTime time.Duration) *Ser
 func (s *Service) Login(input *Input) (*Output, error) {
 	const operation = "auth.login.Login"
 
-	user, err := s.pg.GetUserByEmail(context.Background(), input.Email)
-	if errors.Is(postgres_sqlc.ErrUserNotFound, err) {
-		return nil, err
+	// Получаем пользователя по email
+	user, err := s.userRepo.GetByBasicAccountEmail(context.Background(), input.Email)
+	if errors.Is(err, repository.ErrNotFound) || user == nil {
+		return nil, ErrUserNotFound
 	}
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternal
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.EmailPasswordAccount.PasswordHash), []byte(input.Password))
-	if err != nil && errors.Is(bcrypt.ErrMismatchedHashAndPassword, err) {
-		slog.Error(err.Error(), slog.String("operation", operation))
-		return nil, ErrPasswordDoNotMatch
+	// Проверяем наличие BasicAccount
+	if user.BasicAccount == nil {
+		slog.Error("User has no basic account", slog.String("operation", operation), slog.Any("userId", user.ID))
+		return nil, ErrUserNotFound
 	}
+
+	// Сравниваем пароли
+	err = bcrypt.CompareHashAndPassword([]byte(user.BasicAccount.PasswordHash), []byte(input.Password))
 	if err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			slog.Warn("Password mismatch", slog.String("operation", operation), slog.String("email", input.Email))
+			return nil, ErrPasswordDoNotMatch
+		}
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternal
 	}
 
+	// Генерируем токены
 	accessToken, refreshToken, err := jwt.GenerateTokens(
 		domain.JwtPayload{
-			Id:      user.Id,
+			ID:      user.ID,
 			IsAdmin: user.IsAdmin,
 			IsVIP:   user.IsVIP,
 		},
@@ -74,11 +81,6 @@ func (s *Service) Login(input *Input) (*Output, error) {
 	)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
-		return nil, ErrInternal
-	}
-
-	// Загружаем персональные книги пользователя вместе с жанрами
-	if err := helpers.EnrichUserWithPersonalBooksAndGenres(context.Background(), user, s.pg, operation); err != nil {
 		return nil, ErrInternal
 	}
 

@@ -20,7 +20,7 @@ type SocketHub struct {
 
 	validator Validator
 
-	clients map[domain.Id]*SocketConn
+	clients map[domain.ID]*SocketConn
 	mu      sync.RWMutex
 }
 
@@ -39,7 +39,7 @@ func NewAndStart() *SocketHub {
 	return socketHub
 }
 
-func SendMessage(userId domain.Id, msg *Message) {
+func SendMessage(userId domain.ID, msg *Message) {
 	const operation = "websocket.SendMessage"
 
 	socketHub.mu.RLock()

@@ -18,9 +18,9 @@ import (
 )
 
 type Postgres interface {
-	CreateDictionaryWord(context.Context, *domain.DictionaryWord) (uuid.UUID, error)
-	CreateDictionaryExample(context.Context, *domain.DictionaryExample) (uuid.UUID, error)
-	GetDictionaryWordsByText(ctx context.Context, text, fromLang, toLang string) ([]domain.DictionaryWord, error)
+	CreateDictionaryWord(context.Context, *domain.DictionaryWord) (domain.ID, error)
+	CreateDictionaryExample(context.Context, *domain.DictionaryExample) (domain.ID, error)
+	GetDictionaryWordsByText(ctx context.Context, text, fromLang, toLang string) ([]*domain.DictionaryWord, error)
 }
 
 type Redis interface {
@@ -109,14 +109,20 @@ func (s *Service) getFromCache(ctx context.Context, redisKey string) ([]domain.D
 func (s *Service) getFromDatabase(ctx context.Context, text, fromLang, toLang, redisKey string) ([]domain.DictionaryWord, bool) {
 	slog.Info("dictionary cache miss, checking database", slog.String("redisKey", redisKey))
 
-	dictData, err := s.pg.GetDictionaryWordsByText(ctx, text, fromLang, toLang)
+	dictDataPtrs, err := s.pg.GetDictionaryWordsByText(ctx, text, fromLang, toLang)
 	if err != nil {
 		slog.Info("failed to get from postgres", slog.Any("error", err))
 		return nil, false
 	}
 
-	if len(dictData) == 0 {
+	if len(dictDataPtrs) == 0 {
 		return nil, false
+	}
+
+	// Конвертируем []*DictionaryWord в []DictionaryWord
+	dictData := make([]domain.DictionaryWord, len(dictDataPtrs))
+	for i, ptr := range dictDataPtrs {
+		dictData[i] = *ptr
 	}
 
 	slog.Info("dictionary database hit", slog.String("redisKey", redisKey))

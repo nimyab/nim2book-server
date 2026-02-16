@@ -1,9 +1,14 @@
 package domain
 
-import "time"
+import (
+	"time"
+)
 
 type FcmToken struct {
-	Token    string    `json:"token"`
-	UserId   Id        `json:"userId"`
-	CreateAt time.Time `json:"createAt"`
+	ID        ID        `json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	Token string `json:"token"`
+
+	User *User `json:"user,omitempty"`
 }

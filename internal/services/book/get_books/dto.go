@@ -5,7 +5,7 @@ import "github.com/nimyab/nim2book-back/internal/domain"
 type Input struct {
 	Author  string     `query:"author" validate:"omitempty"`
 	Title   string     `query:"title" validate:"omitempty"`
-	GenreId *domain.Id `query:"genreId" validate:"omitempty,uuid"`
+	GenreId *domain.ID `query:"genreId" validate:"omitempty,uuid"`
 	Page    int        `query:"page" validate:"required,min=1"`
 }
 

@@ -29,7 +29,7 @@ type NotificationBookTranslatedData struct {
 }
 
 type NotificationPersonalBookTranslatedData struct {
-	Book *PersonalUserBook `json:"book"`
+	Book *PersonalBook `json:"book"`
 }
 
 type NotificationTestData struct {
@@ -38,7 +38,7 @@ type NotificationTestData struct {
 }
 
 type Notification struct {
-	UserId Id               `json:"user_id"`
+	UserId ID               `json:"user_id"`
 	Type   NotificationType `json:"type"`
 	Data   any              `json:"data"`
 }

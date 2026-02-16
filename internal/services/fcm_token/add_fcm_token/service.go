@@ -5,16 +5,17 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
+	"github.com/nimyab/nim2book-back/ent"
 	"github.com/nimyab/nim2book-back/internal/domain"
 )
 
-type Postgres interface {
-	AddFcmToken(ctx context.Context, data *domain.FcmToken) (*domain.FcmToken, error)
+type FcmTokenRepository interface {
+	Create(ctx context.Context, token *domain.FcmToken) (*domain.FcmToken, error)
+	GetByToken(ctx context.Context, token string) (*domain.FcmToken, error)
 }
 
 type Service struct {
-	pg Postgres
+	fcmTokenRepo FcmTokenRepository
 }
 
 var (
@@ -22,21 +23,31 @@ var (
 	ErrTokenAlreadyAdd = errors.New("token already add")
 )
 
-func New(pg Postgres) *Service {
-	return &Service{pg: pg}
+func New(fcmTokenRepo FcmTokenRepository) *Service {
+	return &Service{fcmTokenRepo: fcmTokenRepo}
 }
 
-func (s *Service) AddFcmToken(input *Input, userId domain.Id) (*Output, error) {
+func (s *Service) AddFcmToken(input *Input, userId domain.ID) (*Output, error) {
 	const operation = "fcm_token.add_fcm_token.AddFcmToken"
 
-	fcmTokenData := &domain.FcmToken{
-		Token:  input.FcmToken,
-		UserId: userId,
+	// Проверяем, существует ли уже токен
+	existingToken, err := s.fcmTokenRepo.GetByToken(context.Background(), input.FcmToken)
+	if err == nil && existingToken != nil {
+		slog.Warn("Token already exists", slog.String("operation", operation), slog.String("token", input.FcmToken))
+		return nil, ErrTokenAlreadyAdd
 	}
-	_, err := s.pg.AddFcmToken(context.Background(), fcmTokenData)
+
+	fcmTokenData := &domain.FcmToken{
+		Token: input.FcmToken,
+		User: &domain.User{
+			ID: userId,
+		},
+	}
+
+	_, err = s.fcmTokenRepo.Create(context.Background(), fcmTokenData)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation), slog.Any("fcmTokenData", fcmTokenData))
-		if errors.Is(err, postgres_sqlc.ErrFcmTokenAlreadyAdd) {
+		if ent.IsConstraintError(err) {
 			return nil, ErrTokenAlreadyAdd
 		}
 		return nil, ErrInternal

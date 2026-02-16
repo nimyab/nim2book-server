@@ -12,7 +12,7 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		payload := jwt.GetUserPayload(c)
 		input := &Input{
-			UserId: payload.Id,
+			UserId: payload.ID,
 		}
 
 		if err := c.Validate(input); err != nil {

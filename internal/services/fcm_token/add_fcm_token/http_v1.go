@@ -11,7 +11,7 @@ import (
 // MakeHTTPv1Handler creates HTTP handler with dependencies
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		userId := jwt.GetUserPayload(c).Id
+		userId := jwt.GetUserPayload(c).ID
 
 		input := new(Input)
 		if err := c.Bind(input); err != nil {

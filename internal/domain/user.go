@@ -1,13 +1,17 @@
 package domain
 
+import "time"
+
 type User struct {
-	Id       Id    `json:"id"`
+	ID        ID        `json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
+
 	IsAdmin  bool  `json:"isAdmin"`
 	IsVIP    bool  `json:"isVIP"`
 	Metadata JsonB `json:"metadata"`
 
-	GoogleAccount        *GoogleAccount        `json:"googleAccount,omitempty"`
-	EmailPasswordAccount *EmailPasswordAccount `json:"emailPasswordAccount,omitempty"`
-	FcmToken             []FcmToken            `json:"-"`
-	PersonalUserBooks    []PersonalUserBook    `json:"personalUserBooks"`
+	GoogleAccount *GoogleAccount  `json:"googleAccount,omitempty"`
+	BasicAccount  *BasicAccount   `json:"basicAccount,omitempty"`
+	PersonalBooks []*PersonalBook `json:"personalBooks"`
+	FcmTokens     []*FcmToken     `json:"-"`
 }

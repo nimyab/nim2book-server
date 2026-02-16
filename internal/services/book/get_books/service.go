@@ -4,45 +4,51 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/nimyab/nim2book-back/internal/adapter/postgres_sqlc"
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/internal/helpers"
+	"github.com/nimyab/nim2book-back/internal/repository"
 )
 
-type Postgres interface {
-	GetBooks(ctx context.Context, query postgres_sqlc.GetBooksQuery) ([]domain.Book, error)
-	GetBookGenres(ctx context.Context, bookId domain.Id) ([]domain.Genre, error)
+const booksPerPage = 10
+
+type BookRepository interface {
+	SearchWithFilters(ctx context.Context, title, authorName string, genreID *domain.ID, opts repository.QueryOptions) ([]*domain.Book, error)
 }
 
 type Service struct {
-	pg Postgres
+	bookRepo BookRepository
 }
 
-func New(pg Postgres) *Service {
+func New(bookRepo BookRepository) *Service {
 	return &Service{
-		pg: pg,
+		bookRepo: bookRepo,
 	}
 }
 
 func (s *Service) GetBooks(input *Input) (*Output, error) {
 	const operation = "book.get_books.GetBooks"
 
-	books, err := s.pg.GetBooks(context.Background(), postgres_sqlc.GetBooksQuery{
-		Author:  input.Author,
-		Title:   input.Title,
-		GenreId: input.GenreId,
-		Page:    input.Page,
-	})
+	offset := (input.Page - 1) * booksPerPage
+
+	books, err := s.bookRepo.SearchWithFilters(
+		context.Background(),
+		input.Title,
+		input.Author,
+		input.GenreId,
+		repository.QueryOptions{
+			Limit:  booksPerPage,
+			Offset: offset,
+		},
+	)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, err
 	}
 
-	// Загружаем жанры для каждой книги
-	if err := helpers.EnrichBooksWithGenres(context.Background(), books, s.pg, operation); err != nil {
-		slog.Error(err.Error(), slog.String("operation", operation))
-		return nil, err
+	// Конвертируем в слайс значений для совместимости с Output
+	result := make([]domain.Book, len(books))
+	for i, book := range books {
+		result[i] = *book
 	}
 
-	return &Output{Books: books}, nil
+	return &Output{Books: result}, nil
 }

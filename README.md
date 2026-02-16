@@ -26,7 +26,6 @@ make install-tools
 Эта команда установит:
 - `swag` - генератор Swagger документации
 - `goose` - инструмент миграций
-- `sqlc` - генератор type-safe Go кода из SQL
 
 Альтернативно, установите зависимости Go:
 
@@ -48,15 +47,7 @@ make docker-up
 make migrate-up
 ```
 
-### 6. Генерация кода
-
-Сгенерируйте Go код из SQL запросов:
-
-```bash
-make sql-gen
-```
-
-### 7. Запуск приложения
+### 6. Запуск приложения
 
 ```bash
 # Режим разработки (с автогенерацией Swagger)
@@ -66,14 +57,6 @@ make dev
 make build
 ./bin/app
 ```
-
-### SQLC - Генерация type-safe кода
-
-1. Создайте SQL запросы в `db/sqlc/queries/`
-2. Сгенерируйте Go код:
-   ```bash
-   make sql-gen
-   ```
 
 ## 📋 Доступные команды
 
@@ -98,11 +81,6 @@ make help
 - `make migrate-create NAME=<name>` - создать новую миграцию
 - `make migrate-up` - применить все миграции
 - `make migrate-down` - откатить миграции
-
-**SQLC:**
-- `make sql-gen` - генерация Go кода
-- `make sql-verify` - проверка конфигурации
-- `make sql-compile` - компиляция SQL запросов
 
 **Тестирование:**
 - `make test` - запуск тестов

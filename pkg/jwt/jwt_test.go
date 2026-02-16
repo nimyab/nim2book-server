@@ -11,7 +11,7 @@ import (
 
 func TestJWT(t *testing.T) {
 	payload := domain.JwtPayload{
-		Id:      uuid.New(),
+		ID:      uuid.New(),
 		IsAdmin: true,
 		IsVIP:   false,
 	}
