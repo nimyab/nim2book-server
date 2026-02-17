@@ -51,42 +51,47 @@ func (r *DictionaryRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, 
 // Create создает новую запись в словаре
 func (r *DictionaryRepository) Create(ctx context.Context, domainDict *domain.DictionaryWord) (*domain.DictionaryWord, error) {
 	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.DictionaryWord, error) {
-		createDictionary := tx.Dictionary.Create().
+		// Создаём примеры, если они есть
+		var exampleIDs []domain.ID
+		if len(domainDict.Examples) > 0 {
+			for _, example := range domainDict.Examples {
+				exampleBuilder := tx.DictionaryExample.Create().
+					SetText(example.Text).
+					SetTranslation(example.TranslatedText)
+
+				if example.WordPositionStart != nil {
+					exampleBuilder = exampleBuilder.SetTargetPositionStart(*example.WordPositionStart)
+				}
+				if example.WordPositionEnd != nil {
+					exampleBuilder = exampleBuilder.SetTargetPositionEnd(*example.WordPositionEnd)
+				}
+
+				entExample, err := exampleBuilder.Save(ctx)
+				if err != nil {
+					return nil, HandleError(err)
+				}
+
+				exampleIDs = append(exampleIDs, entExample.ID)
+			}
+		}
+
+		// Создаём словарную запись
+		dictBuilder := tx.Dictionary.Create().
 			SetText(domainDict.Text).
 			SetFromLangCode(domainDict.FromLangCode).
 			SetToLangCode(domainDict.ToLangCode).
 			SetPartOfSpeech(domainDict.PartOfSpeech).
 			SetTranslations(domainDict.Translations)
 
-		// Устанавливаем транскрипцию, если указана
 		if domainDict.Transcription != nil {
-			createDictionary = createDictionary.SetTranscription(*domainDict.Transcription)
+			dictBuilder = dictBuilder.SetTranscription(*domainDict.Transcription)
 		}
 
-		// Добавляем примеры, если они есть
-		if len(domainDict.Examples) > 0 {
-			for _, example := range domainDict.Examples {
-				dictExample := tx.DictionaryExample.Create().
-					SetText(example.Text).
-					SetTranslation(example.TranslatedText)
-
-				if example.WordPositionStart != nil {
-					dictExample = dictExample.SetTargetPositionStart(*example.WordPositionStart)
-				}
-				if example.WordPositionEnd != nil {
-					dictExample = dictExample.SetTargetPositionEnd(*example.WordPositionEnd)
-				}
-
-				entDict, err := dictExample.Save(ctx)
-				if err != nil {
-					return nil, HandleError(err)
-				}
-
-				createDictionary.AddDictionaryExampleIDs(entDict.ID)
-			}
+		if len(exampleIDs) > 0 {
+			dictBuilder = dictBuilder.AddDictionaryExampleIDs(exampleIDs...)
 		}
 
-		entDict, err := createDictionary.Save(ctx)
+		entDict, err := dictBuilder.Save(ctx)
 		if err != nil {
 			return nil, HandleError(err)
 		}
