@@ -1,6 +1,8 @@
 package app
 
 import (
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/nimyab/nim2book-back/docs"
@@ -43,9 +45,19 @@ func (a *App) setupHTTPServer() {
 
 	// Middleware
 	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
 	e.Use(middleware.RequestID())
 	e.Use(customMiddleware.Logger())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{
+			"http://localhost*",
+			"http://*.nim2book.ru",
+			"http://nim2book.ru",
+			"https://*.nim2book.ru",
+			"https://nim2book.ru",
+		},
+		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch},
+		AllowCredentials: true,
+	}))
 
 	// Validator
 	e.Validator = validator.New()
