@@ -3,6 +3,7 @@ package app
 import (
 	"net/http"
 
+	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/nimyab/nim2book-back/docs"
@@ -64,6 +65,10 @@ func (a *App) setupHTTPServer() {
 
 	// Swagger
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
+
+	// Prometheus metrics
+	e.Use(echoprometheus.NewMiddleware("nim2book"))
+	e.GET("/metrics", echoprometheus.NewHandler())
 
 	// WebSocket
 	e.GET("/ws", websocket.MakeSocketConnHandler(a.config))
