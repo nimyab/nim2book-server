@@ -12,14 +12,12 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v4"
-	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/logger"
 )
 
-type Postgres interface {
-	CreateDictionaryWord(context.Context, *domain.DictionaryWord) (domain.ID, error)
-	CreateDictionaryExample(context.Context, *domain.DictionaryExample) (domain.ID, error)
+type DictionaryRepo interface {
+	Create(ctx context.Context, domainDict *domain.DictionaryWord) (*domain.DictionaryWord, error)
 	GetDictionaryWordsByText(ctx context.Context, text, fromLang, toLang string) ([]*domain.DictionaryWord, error)
 }
 
@@ -29,15 +27,15 @@ type Redis interface {
 }
 
 type Service struct {
-	pg            Postgres
+	dictRepo      DictionaryRepo
 	redis         Redis
 	yandexDictKey string
 	yandexDictURL string
 }
 
-func New(pg Postgres, redis Redis, yandexDictKey, yandexDictURL string) *Service {
+func New(dictRepo DictionaryRepo, redis Redis, yandexDictKey, yandexDictURL string) *Service {
 	return &Service{
-		pg:            pg,
+		dictRepo:      dictRepo,
 		redis:         redis,
 		yandexDictKey: yandexDictKey,
 		yandexDictURL: yandexDictURL,
@@ -80,7 +78,7 @@ func (s *Service) Lookup(ctx context.Context, input *Input) (*Output, error) {
 }
 
 // getFromCache пытается получить данные из кеша
-func (s *Service) getFromCache(ctx context.Context, redisKey string) ([]domain.DictionaryWord, bool) {
+func (s *Service) getFromCache(ctx context.Context, redisKey string) ([]*domain.DictionaryWord, bool) {
 	const operation = "lookup.getFromCache"
 
 	byteData, err := s.redis.Get(ctx, redisKey)
@@ -89,7 +87,7 @@ func (s *Service) getFromCache(ctx context.Context, redisKey string) ([]domain.D
 		return nil, false
 	}
 
-	var dictWords []domain.DictionaryWord
+	var dictWords []*domain.DictionaryWord
 	if err = json.Unmarshal(byteData, &dictWords); err != nil {
 		logger.Error("failed to unmarshal json", err, operation)
 		return nil, false
@@ -105,23 +103,17 @@ func (s *Service) getFromCache(ctx context.Context, redisKey string) ([]domain.D
 }
 
 // getFromDatabase пытается получить данные из базы данных
-func (s *Service) getFromDatabase(ctx context.Context, text, fromLang, toLang, redisKey string) ([]domain.DictionaryWord, bool) {
+func (s *Service) getFromDatabase(ctx context.Context, text, fromLang, toLang, redisKey string) ([]*domain.DictionaryWord, bool) {
 	slog.Info("dictionary cache miss, checking database", slog.String("redisKey", redisKey))
 
-	dictDataPtrs, err := s.pg.GetDictionaryWordsByText(ctx, text, fromLang, toLang)
+	dictData, err := s.dictRepo.GetDictionaryWordsByText(ctx, text, fromLang, toLang)
 	if err != nil {
 		slog.Info("failed to get from postgres", slog.Any("error", err))
 		return nil, false
 	}
 
-	if len(dictDataPtrs) == 0 {
+	if len(dictData) == 0 {
 		return nil, false
-	}
-
-	// Конвертируем []*DictionaryWord в []DictionaryWord
-	dictData := make([]domain.DictionaryWord, len(dictDataPtrs))
-	for i, ptr := range dictDataPtrs {
-		dictData[i] = *ptr
 	}
 
 	slog.Info("dictionary database hit", slog.String("redisKey", redisKey))
@@ -130,7 +122,7 @@ func (s *Service) getFromDatabase(ctx context.Context, text, fromLang, toLang, r
 }
 
 // fetchAndSaveFromYandex получает данные из Yandex API и сохраняет их
-func (s *Service) fetchAndSaveFromYandex(ctx context.Context, text, fromLang, toLang, redisKey string) ([]domain.DictionaryWord, error) {
+func (s *Service) fetchAndSaveFromYandex(ctx context.Context, text, fromLang, toLang, redisKey string) ([]*domain.DictionaryWord, error) {
 	const operation = "lookup.fetchAndSaveFromYandex"
 	slog.Info("dictionary database miss, fetching from yandex api", slog.String("redisKey", redisKey))
 
@@ -196,9 +188,9 @@ func (s *Service) fetchFromYandexAPI(text, fromLang, toLang string) (*Dictionary
 }
 
 // convertAndSaveYandexResponse конвертирует ответ Yandex в доменные объекты и сохраняет в БД
-func (s *Service) convertAndSaveYandexResponse(ctx context.Context, yandexResponse *DictionaryData, fromLang, toLang string) ([]domain.DictionaryWord, error) {
+func (s *Service) convertAndSaveYandexResponse(ctx context.Context, yandexResponse *DictionaryData, fromLang, toLang string) ([]*domain.DictionaryWord, error) {
 	const operation = "lookup.convertAndSaveYandexResponse"
-	var words []domain.DictionaryWord
+	var words []*domain.DictionaryWord
 
 	for _, definition := range yandexResponse.Definitions {
 		if !s.isSupportedPartOfSpeech(definition.PartOfSpeech) {
@@ -211,7 +203,7 @@ func (s *Service) convertAndSaveYandexResponse(ctx context.Context, yandexRespon
 			logger.Error("failed to save word with examples", err, operation)
 			continue
 		}
-		words = append(words, word)
+		words = append(words, &word)
 	}
 
 	return words, nil
@@ -227,6 +219,20 @@ func (s *Service) saveWordWithExamples(ctx context.Context, definition Definitio
 		wordTranslations = append(wordTranslations, translation.Text)
 	}
 
+	// Сохраняем примеры и получаем их доменные объекты
+	var examples []domain.DictionaryExample
+	for _, translation := range definition.Translations {
+		for _, example := range translation.Examples {
+			if len(example.Translation) == 0 {
+				continue
+			}
+			examples = append(examples, domain.DictionaryExample{
+				Text:           example.Text,
+				TranslatedText: example.Translation[0].Text,
+			})
+		}
+	}
+
 	// Создаем объект слова
 	wordData := domain.DictionaryWord{
 		Text:          definition.Text,
@@ -235,58 +241,20 @@ func (s *Service) saveWordWithExamples(ctx context.Context, definition Definitio
 		PartOfSpeech:  definition.PartOfSpeech,
 		Transcription: &definition.Transcription,
 		Translations:  wordTranslations,
+		Examples:      examples,
 	}
 
 	// Сохраняем слово
-	wordID, err := s.pg.CreateDictionaryWord(ctx, &wordData)
+	word, err := s.dictRepo.Create(ctx, &wordData)
 	if err != nil {
 		return domain.DictionaryWord{}, fmt.Errorf("failed to create word: %w", err)
 	}
-	wordData.ID = wordID
 
-	// Сохраняем примеры
-	examples, err := s.saveExamples(ctx, definition.Translations, wordID)
-	if err != nil {
-		logger.Error("failed to save examples", err, operation)
-	}
-	wordData.Examples = examples
-
-	return wordData, nil
-}
-
-// saveExamples сохраняет примеры использования слова
-func (s *Service) saveExamples(ctx context.Context, translations []Translation, wordID uuid.UUID) ([]domain.DictionaryExample, error) {
-	const operation = "lookup.saveExamples"
-	var examples []domain.DictionaryExample
-
-	for _, translation := range translations {
-		for _, example := range translation.Examples {
-			if len(example.Translation) == 0 {
-				continue
-			}
-
-			exampleData := domain.DictionaryExample{
-				Text:           example.Text,
-				TranslatedText: example.Translation[0].Text,
-				DictionaryID:   wordID,
-			}
-
-			exampleID, err := s.pg.CreateDictionaryExample(ctx, &exampleData)
-			if err != nil {
-				logger.Error("failed to create dictionary example", err, operation)
-				continue
-			}
-			exampleData.ID = exampleID
-
-			examples = append(examples, exampleData)
-		}
-	}
-
-	return examples, nil
+	return *word, nil
 }
 
 // saveToCache сохраняет данные в кеш
-func (s *Service) saveToCache(ctx context.Context, words []domain.DictionaryWord, redisKey string) {
+func (s *Service) saveToCache(ctx context.Context, words []*domain.DictionaryWord, redisKey string) {
 	const operation = "lookup.saveToCache"
 
 	if len(words) == 0 {

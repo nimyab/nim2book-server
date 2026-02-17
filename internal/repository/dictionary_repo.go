@@ -178,48 +178,6 @@ func (r *DictionaryRepository) Count(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-// ============================================================================
-// Методы-обертки для совместимости с существующими сервисами
-// ============================================================================
-
-// CreateDictionaryWord - обертка над Create для совместимости
-func (r *DictionaryRepository) CreateDictionaryWord(ctx context.Context, word *domain.DictionaryWord) (domain.ID, error) {
-	created, err := r.Create(ctx, word)
-	if err != nil {
-		return domain.ID{}, err
-	}
-	return created.ID, nil
-}
-
-// CreateDictionaryExample - создает пример использования слова
-// Это упрощенная версия для совместимости с lookup service
-func (r *DictionaryRepository) CreateDictionaryExample(ctx context.Context, example *domain.DictionaryExample) (domain.ID, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (domain.ID, error) {
-		create := tx.DictionaryExample.Create().
-			SetText(example.Text).
-			SetTranslation(example.TranslatedText)
-
-		if example.WordPositionStart != nil {
-			create = create.SetTargetPositionStart(*example.WordPositionStart)
-		}
-		if example.WordPositionEnd != nil {
-			create = create.SetTargetPositionEnd(*example.WordPositionEnd)
-		}
-
-		// Связываем с dictionary, если ID указан
-		if example.DictionaryID != (domain.ID{}) {
-			create = create.SetDictionaryID(example.DictionaryID)
-		}
-
-		entExample, err := create.Save(ctx)
-		if err != nil {
-			return domain.ID{}, HandleError(err)
-		}
-
-		return entExample.ID, nil
-	})
-}
-
 // GetDictionaryWordsByText возвращает слова по тексту и языкам
 func (r *DictionaryRepository) GetDictionaryWordsByText(ctx context.Context, text, fromLang, toLang string) ([]*domain.DictionaryWord, error) {
 	return DoInTx(ctx, r.client, func(tx *ent.Tx) ([]*domain.DictionaryWord, error) {

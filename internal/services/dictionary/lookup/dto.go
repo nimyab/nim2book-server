@@ -9,5 +9,5 @@ type Input struct {
 }
 
 type Output struct {
-	Words []domain.DictionaryWord `json:"words"`
+	Words []*domain.DictionaryWord `json:"words"`
 }
