@@ -140,6 +140,7 @@ func MapPersonalBookToDomain(entBook *ent.PersonalBook) *domain.PersonalBook {
 		CoverURL:       entBook.CoverURL,
 		OriginalLang:   entBook.OriginalLang,
 		TranslatedLang: entBook.TranslatedLang,
+		ProcessStatus:  domain.ProcessStatus(entBook.ProcessStatus),
 	}
 
 	// Маппинг связанных сущностей

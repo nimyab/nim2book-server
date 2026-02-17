@@ -4,6 +4,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 // PersonalBookChapter holds the schema definition for the PersonalBookChapter entity.
@@ -25,5 +26,11 @@ func (PersonalBookChapter) Fields() []ent.Field {
 func (PersonalBookChapter) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("personal_book", PersonalBook.Type).Ref("personal_book_chapters").Unique(),
+	}
+}
+
+func (PersonalBookChapter) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("order").Edges("personal_book").Unique(),
 	}
 }

@@ -7,10 +7,19 @@ import (
 )
 
 type translateStruct struct {
-	UserId    domain.ID
-	Chapters  []epub_parser.FormattedChapter
-	CoverData []byte
-	Book      *pamphlet.Book
-	From      domain.SupportedLang
-	To        domain.SupportedLang
+	UserId       domain.ID
+	Chapters     []epub_parser.FormattedChapter
+	CoverData    []byte
+	Book         *pamphlet.Book
+	From         domain.SupportedLang
+	To           domain.SupportedLang
+	PersonalBook *domain.PersonalBook
+}
+
+type translatedChapterResult struct {
+	Chapter      *domain.ChapterAlignNode
+	ExistChapter *domain.PersonalBookChapter
+	ChapterOrder int
+	Path         string
+	Error        error
 }

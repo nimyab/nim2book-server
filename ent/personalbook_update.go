@@ -74,6 +74,20 @@ func (_u *PersonalBookUpdate) SetNillableTranslatedLang(v *string) *PersonalBook
 	return _u
 }
 
+// SetProcessStatus sets the "process_status" field.
+func (_u *PersonalBookUpdate) SetProcessStatus(v personalbook.ProcessStatus) *PersonalBookUpdate {
+	_u.mutation.SetProcessStatus(v)
+	return _u
+}
+
+// SetNillableProcessStatus sets the "process_status" field if the given value is not nil.
+func (_u *PersonalBookUpdate) SetNillableProcessStatus(v *personalbook.ProcessStatus) *PersonalBookUpdate {
+	if v != nil {
+		_u.SetProcessStatus(*v)
+	}
+	return _u
+}
+
 // SetUserID sets the "user" edge to the User entity by ID.
 func (_u *PersonalBookUpdate) SetUserID(id uuid.UUID) *PersonalBookUpdate {
 	_u.mutation.SetUserID(id)
@@ -228,7 +242,20 @@ func (_u *PersonalBookUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *PersonalBookUpdate) check() error {
+	if v, ok := _u.mutation.ProcessStatus(); ok {
+		if err := personalbook.ProcessStatusValidator(v); err != nil {
+			return &ValidationError{Name: "process_status", err: fmt.Errorf(`ent: validator failed for field "PersonalBook.process_status": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *PersonalBookUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(personalbook.Table, personalbook.Columns, sqlgraph.NewFieldSpec(personalbook.FieldID, field.TypeUUID))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -245,6 +272,9 @@ func (_u *PersonalBookUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.TranslatedLang(); ok {
 		_spec.SetField(personalbook.FieldTranslatedLang, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ProcessStatus(); ok {
+		_spec.SetField(personalbook.FieldProcessStatus, field.TypeEnum, value)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -456,6 +486,20 @@ func (_u *PersonalBookUpdateOne) SetNillableTranslatedLang(v *string) *PersonalB
 	return _u
 }
 
+// SetProcessStatus sets the "process_status" field.
+func (_u *PersonalBookUpdateOne) SetProcessStatus(v personalbook.ProcessStatus) *PersonalBookUpdateOne {
+	_u.mutation.SetProcessStatus(v)
+	return _u
+}
+
+// SetNillableProcessStatus sets the "process_status" field if the given value is not nil.
+func (_u *PersonalBookUpdateOne) SetNillableProcessStatus(v *personalbook.ProcessStatus) *PersonalBookUpdateOne {
+	if v != nil {
+		_u.SetProcessStatus(*v)
+	}
+	return _u
+}
+
 // SetUserID sets the "user" edge to the User entity by ID.
 func (_u *PersonalBookUpdateOne) SetUserID(id uuid.UUID) *PersonalBookUpdateOne {
 	_u.mutation.SetUserID(id)
@@ -623,7 +667,20 @@ func (_u *PersonalBookUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *PersonalBookUpdateOne) check() error {
+	if v, ok := _u.mutation.ProcessStatus(); ok {
+		if err := personalbook.ProcessStatusValidator(v); err != nil {
+			return &ValidationError{Name: "process_status", err: fmt.Errorf(`ent: validator failed for field "PersonalBook.process_status": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *PersonalBookUpdateOne) sqlSave(ctx context.Context) (_node *PersonalBook, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(personalbook.Table, personalbook.Columns, sqlgraph.NewFieldSpec(personalbook.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -657,6 +714,9 @@ func (_u *PersonalBookUpdateOne) sqlSave(ctx context.Context) (_node *PersonalBo
 	}
 	if value, ok := _u.mutation.TranslatedLang(); ok {
 		_spec.SetField(personalbook.FieldTranslatedLang, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ProcessStatus(); ok {
+		_spec.SetField(personalbook.FieldProcessStatus, field.TypeEnum, value)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{

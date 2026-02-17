@@ -23,11 +23,13 @@ type PersonalBook struct {
 	// Title holds the value of the "title" field.
 	Title string `json:"title,omitempty"`
 	// CoverURL holds the value of the "cover_url" field.
-	CoverURL string `json:"cover_url,omitempty"`
+	CoverURL *string `json:"cover_url,omitempty"`
 	// OriginalLang holds the value of the "original_lang" field.
 	OriginalLang string `json:"original_lang,omitempty"`
 	// TranslatedLang holds the value of the "translated_lang" field.
 	TranslatedLang string `json:"translated_lang,omitempty"`
+	// ProcessStatus holds the value of the "process_status" field.
+	ProcessStatus personalbook.ProcessStatus `json:"process_status,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -98,7 +100,7 @@ func (*PersonalBook) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case personalbook.FieldTitle, personalbook.FieldCoverURL, personalbook.FieldOriginalLang, personalbook.FieldTranslatedLang:
+		case personalbook.FieldTitle, personalbook.FieldCoverURL, personalbook.FieldOriginalLang, personalbook.FieldTranslatedLang, personalbook.FieldProcessStatus:
 			values[i] = new(sql.NullString)
 		case personalbook.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -139,7 +141,8 @@ func (_m *PersonalBook) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field cover_url", values[i])
 			} else if value.Valid {
-				_m.CoverURL = value.String
+				_m.CoverURL = new(string)
+				*_m.CoverURL = value.String
 			}
 		case personalbook.FieldOriginalLang:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -152,6 +155,12 @@ func (_m *PersonalBook) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field translated_lang", values[i])
 			} else if value.Valid {
 				_m.TranslatedLang = value.String
+			}
+		case personalbook.FieldProcessStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field process_status", values[i])
+			} else if value.Valid {
+				_m.ProcessStatus = personalbook.ProcessStatus(value.String)
 			}
 		case personalbook.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -232,14 +241,19 @@ func (_m *PersonalBook) String() string {
 	builder.WriteString("title=")
 	builder.WriteString(_m.Title)
 	builder.WriteString(", ")
-	builder.WriteString("cover_url=")
-	builder.WriteString(_m.CoverURL)
+	if v := _m.CoverURL; v != nil {
+		builder.WriteString("cover_url=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("original_lang=")
 	builder.WriteString(_m.OriginalLang)
 	builder.WriteString(", ")
 	builder.WriteString("translated_lang=")
 	builder.WriteString(_m.TranslatedLang)
+	builder.WriteString(", ")
+	builder.WriteString("process_status=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProcessStatus))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

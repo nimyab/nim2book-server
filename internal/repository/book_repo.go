@@ -88,9 +88,13 @@ func (r *BookRepository) Create(ctx context.Context, domainBook *domain.Book) (*
 		// Создаем книгу
 		create := tx.Book.Create().
 			SetTitle(domainBook.Title).
-			SetCoverURL(domainBook.CoverURL).
 			SetOriginalLang(domainBook.OriginalLang).
 			SetTranslatedLang(domainBook.TranslatedLang)
+
+		// Устанавливаем обложку, если указано
+		if domainBook.CoverURL != nil {
+			create = create.SetCoverURL(*domainBook.CoverURL)
+		}
 
 		// Устанавливаем автора, если указан
 		if domainBook.Author != nil {
@@ -146,7 +150,7 @@ func (r *BookRepository) Update(ctx context.Context, domainBook *domain.Book) (*
 	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.Book, error) {
 		// title - immutable поле, поэтому обновляем только mutable поля
 		update := tx.Book.UpdateOneID(domainBook.ID).
-			SetCoverURL(domainBook.CoverURL).
+			SetNillableCoverURL(domainBook.CoverURL).
 			SetOriginalLang(domainBook.OriginalLang).
 			SetTranslatedLang(domainBook.TranslatedLang)
 

@@ -15,9 +15,14 @@ type PersonalBook struct {
 func (PersonalBook) Fields() []ent.Field {
 	return append([]ent.Field{
 		field.String("title").Immutable().SchemaType(varchar255),
-		field.String("cover_url").SchemaType(varchar255),
+		field.String("cover_url").Nillable().SchemaType(varchar255),
 		field.String("original_lang").Default("en").SchemaType(varchar10),
 		field.String("translated_lang").Default("ru").SchemaType(varchar10),
+		field.
+			Enum("process_status").
+			Values("not_started", "in_progress", "completed", "failed").
+			Default("not_started").
+			SchemaType(varchar30),
 	}, defaultFields...)
 }
 

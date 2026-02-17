@@ -25,3 +25,7 @@ var varchar10 = map[string]string{
 var varchar50 = map[string]string{
 	dialect.Postgres: "VARCHAR(50)",
 }
+
+var varchar30 = map[string]string{
+	dialect.Postgres: "VARCHAR(30)",
+}

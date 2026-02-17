@@ -11,6 +11,7 @@ import (
 	"github.com/nimyab/nim2book-back/ent/personalbookchapter"
 	"github.com/nimyab/nim2book-back/ent/user"
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/samber/lo"
 )
 
 // PersonalBookRepository реализует domain.PersonalBookRepository
@@ -91,9 +92,13 @@ func (r *PersonalBookRepository) Create(ctx context.Context, domainBook *domain.
 		// Создаем личную книгу
 		create := tx.PersonalBook.Create().
 			SetTitle(domainBook.Title).
-			SetCoverURL(domainBook.CoverURL).
 			SetOriginalLang(domainBook.OriginalLang).
-			SetTranslatedLang(domainBook.TranslatedLang)
+			SetTranslatedLang(domainBook.TranslatedLang).
+			SetProcessStatus(personalbook.ProcessStatus(domainBook.ProcessStatus))
+
+		if domainBook.CoverURL != nil {
+			create = create.SetCoverURL(*domainBook.CoverURL)
+		}
 
 		// Устанавливаем пользователя, если указан
 		if domainBook.User != nil {
@@ -105,21 +110,18 @@ func (r *PersonalBookRepository) Create(ctx context.Context, domainBook *domain.
 			create = create.SetAuthorID(domainBook.Author.ID)
 		}
 
+		// Добавляем жанры, если указаны
+		if len(domainBook.Genres) > 0 {
+			create.AddGenreIDs(
+				lo.Map(domainBook.Genres, func(g *domain.Genre, index int) domain.ID {
+					return g.ID
+				})...,
+			)
+		}
+
 		entBook, err := create.Save(ctx)
 		if err != nil {
 			return nil, HandleError(err)
-		}
-
-		// Добавляем жанры, если указаны
-		if len(domainBook.Genres) > 0 {
-			genreIDs := make([]domain.ID, len(domainBook.Genres))
-			for i, g := range domainBook.Genres {
-				genreIDs[i] = g.ID
-			}
-			err = tx.PersonalBook.UpdateOne(entBook).AddGenreIDs(genreIDs...).Exec(ctx)
-			if err != nil {
-				return nil, HandleError(err)
-			}
 		}
 
 		return r.getByIDInternal(ctx, tx, entBook.ID)
@@ -155,7 +157,7 @@ func (r *PersonalBookRepository) Update(ctx context.Context, domainBook *domain.
 	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.PersonalBook, error) {
 		// title - immutable поле, поэтому обновляем только mutable поля
 		update := tx.PersonalBook.UpdateOneID(domainBook.ID).
-			SetCoverURL(domainBook.CoverURL).
+			SetNillableCoverURL(domainBook.CoverURL).
 			SetOriginalLang(domainBook.OriginalLang).
 			SetTranslatedLang(domainBook.TranslatedLang)
 
@@ -367,21 +369,12 @@ func (r *PersonalBookRepository) DeleteChapter(ctx context.Context, id domain.ID
 }
 
 // ListChaptersByPersonalBookID возвращает главы личной книги
-func (r *PersonalBookRepository) ListChaptersByPersonalBookID(ctx context.Context, personalBookID domain.ID, opts QueryOptions) ([]*domain.PersonalBookChapter, error) {
-	query := r.client.PersonalBookChapter.Query().
+func (r *PersonalBookRepository) ListChaptersByPersonalBookID(ctx context.Context, personalBookID domain.ID) ([]*domain.PersonalBookChapter, error) {
+	entChapters, err := r.client.PersonalBookChapter.Query().
 		Where(personalbookchapter.HasPersonalBookWith(personalbook.ID(personalBookID))).
-		WithPersonalBook().
-		Order(ent.Asc(personalbookchapter.FieldOrder))
+		Order(ent.Asc(personalbookchapter.FieldOrder)).
+		All(ctx)
 
-	// Применяем опции пагинации
-	if opts.Limit > 0 {
-		query = query.Limit(opts.Limit)
-	}
-	if opts.Offset > 0 {
-		query = query.Offset(opts.Offset)
-	}
-
-	entChapters, err := query.All(ctx)
 	if err != nil {
 		return nil, HandleError(err)
 	}
@@ -389,12 +382,15 @@ func (r *PersonalBookRepository) ListChaptersByPersonalBookID(ctx context.Contex
 	return MapPersonalBookChaptersToDomain(entChapters), nil
 }
 
-// CountChapters возвращает количество глав
-func (r *PersonalBookRepository) CountChapters(ctx context.Context) (int, error) {
-	count, err := r.client.PersonalBookChapter.Query().Count(ctx)
+func (r *PersonalBookRepository) GetChapterByPersonalBookIDAndOrder(ctx context.Context, personalBookID domain.ID, orderChapter int) (*domain.PersonalBookChapter, error) {
+	entChapter, err := r.client.PersonalBookChapter.Query().Where(
+		personalbookchapter.HasPersonalBookWith(personalbook.ID(personalBookID)),
+		personalbookchapter.OrderEQ(orderChapter),
+	).Only(ctx)
+
 	if err != nil {
-		return 0, HandleError(err)
+		return nil, HandleError(err)
 	}
 
-	return count, nil
+	return MapPersonalBookChapterToDomain(entChapter), nil
 }

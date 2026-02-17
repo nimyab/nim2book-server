@@ -150,11 +150,11 @@ func init() {
 	// personalbook.DefaultTranslatedLang holds the default value on creation for the translated_lang field.
 	personalbook.DefaultTranslatedLang = personalbookDescTranslatedLang.Default.(string)
 	// personalbookDescCreatedAt is the schema descriptor for created_at field.
-	personalbookDescCreatedAt := personalbookFields[5].Descriptor()
+	personalbookDescCreatedAt := personalbookFields[6].Descriptor()
 	// personalbook.DefaultCreatedAt holds the default value on creation for the created_at field.
 	personalbook.DefaultCreatedAt = personalbookDescCreatedAt.Default.(func() time.Time)
 	// personalbookDescID is the schema descriptor for id field.
-	personalbookDescID := personalbookFields[4].Descriptor()
+	personalbookDescID := personalbookFields[5].Descriptor()
 	// personalbook.DefaultID holds the default value on creation for the id field.
 	personalbook.DefaultID = personalbookDescID.Default.(func() uuid.UUID)
 	personalbookchapterFields := schema.PersonalBookChapter{}.Fields()

@@ -32,6 +32,7 @@ type PersonalBookRepository interface {
 	GetByUserAndAuthorAndTitle(ctx context.Context, userID domain.ID, authorName, title string) (*domain.PersonalBook, error)
 	Create(ctx context.Context, book *domain.PersonalBook) (*domain.PersonalBook, error)
 	CreateChapter(ctx context.Context, chapter *domain.PersonalBookChapter) (*domain.PersonalBookChapter, error)
+	GetChapterByPersonalBookIDAndOrder(ctx context.Context, personalBookID domain.ID, orderChapter int) (*domain.PersonalBookChapter, error)
 }
 
 type AuthorRepository interface {
@@ -66,17 +67,11 @@ type Service struct {
 	notificationSignal NotificationSender
 }
 
-type translatedChapterResult struct {
-	Chapter      *domain.ChapterAlignNode
-	ChapterOrder int
-	Path         string
-	Error        error
-}
-
 var (
 	ErrFailedTranslateChapter   = errors.New("failed translate chapter")
 	ErrFailedSaveToStorage      = errors.New("failed save to storage")
 	ErrFailedSaveBookToDatabase = errors.New("failed save book to database")
+	ErrFailedGetOrCreateAuthor  = errors.New("failed get or create author")
 )
 
 func New(
@@ -135,7 +130,7 @@ func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, b
 	)
 
 	existedBook, err := s.personalBookRepo.GetByUserAndAuthorAndTitle(ctx, userId, parsedBook.Author, parsedBook.Title)
-	if existedBook != nil {
+	if existedBook != nil && (existedBook.ProcessStatus == domain.ProcessStatusCompleted || existedBook.ProcessStatus == domain.ProcessStatusInProgress) {
 		return &Output{Book: existedBook}, nil
 	}
 	if err != nil && !errors.Is(err, repository.ErrNotFound) {
@@ -144,12 +139,13 @@ func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, b
 	}
 
 	translatedData := &translateStruct{
-		Book:      parsedBook,
-		Chapters:  chapters,
-		CoverData: coverData,
-		UserId:    userId,
-		From:      input.From,
-		To:        input.To,
+		Book:         parsedBook,
+		Chapters:     chapters,
+		CoverData:    coverData,
+		UserId:       userId,
+		From:         input.From,
+		To:           input.To,
+		PersonalBook: existedBook,
 	}
 
 	go func() {
@@ -214,13 +210,62 @@ func (s *Service) startTranslate(
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var coverURL *string
+	if data.CoverData != nil {
+		coverPath, err := s.saveCoverToS3(data.CoverData, data.Book.Title, data.UserId)
+		if err != nil {
+			slog.Error(err.Error(), slog.String("operation", operation))
+		} else {
+			coverURL = &coverPath
+		}
+	}
+
+	// Получаем или создаём автора
+	author, err := s.authorRepo.GetOrCreate(ctx, data.Book.Author)
+	if err != nil {
+		logger.Error(
+			fmt.Sprintf("failed to get or create author: %s", data.Book.Author),
+			err,
+			operation,
+		)
+		return ErrFailedGetOrCreateAuthor
+	}
+
+	newBook := data.PersonalBook
+	// если книга не существует, то создаем её
+	if newBook == nil {
+		newBook = &domain.PersonalBook{
+			Author:         author,
+			Title:          data.Book.Title,
+			CoverURL:       coverURL,
+			OriginalLang:   string(data.From),
+			TranslatedLang: string(data.To),
+			User: &domain.User{
+				ID: data.UserId,
+			},
+		}
+		newBook, err = s.personalBookRepo.Create(ctx, newBook)
+		if err != nil {
+			logger.Error(
+				fmt.Sprintf("failed to create personal book to database, title: %s, author: %s", data.Book.Title, data.Book.Author),
+				err,
+				operation,
+			)
+			return ErrFailedSaveBookToDatabase
+		}
+	}
+
 	// use buffer chan to saveChapterToS3 non block translateChapters goroutine
 	resultChan := make(chan translatedChapterResult, len(data.Chapters))
 
 	go s.translateChapters(ctx, resultChan, data)
 
-	paths := make([]string, 0, len(data.Chapters))
 	for result := range resultChan {
+		if result.ExistChapter != nil {
+			slog.Info(fmt.Sprintf("chapter %d already exist", result.ChapterOrder), slog.String("operation", operation), slog.Any("chapter", result.ExistChapter))
+			continue
+		}
+
 		if result.Error != nil {
 			logger.Error(
 				fmt.Sprintf("failed to translate chapter, title: %s, author: %s", data.Book.Title, data.Book.Author),
@@ -254,8 +299,22 @@ func (s *Service) startTranslate(
 			}
 		}
 
-		paths = append(paths, path)
-		slog.Info(fmt.Sprintf("paths is %v now", paths), slog.String("operation", operation))
+		chapter := &domain.PersonalBookChapter{
+			PersonalBook:    newBook,
+			Order:           result.ChapterOrder,
+			ContentURL:      path,
+			Title:           result.Chapter.Title,
+			TranslatedTitle: result.Chapter.TranslatedTitle,
+		}
+		newChapter, err := s.personalBookRepo.CreateChapter(ctx, chapter)
+		if err != nil {
+			logger.Error(
+				fmt.Sprintf("failed to create personal book chapter, title: %s, author: %s", data.Book.Title, data.Book.Author),
+				err,
+				operation,
+			)
+		}
+		slog.Info("chapter created and added", slog.String("operation", operation), slog.Any("chapter", newChapter))
 
 		// отправляем уведомления о переведенной главе
 		s.notificationSignal.Emit(ctx, &domain.Notification{
@@ -269,70 +328,6 @@ func (s *Service) startTranslate(
 				TotalChapterCount: len(data.Book.Chapters),
 			},
 		})
-	}
-
-	var cover *string = nil
-	if data.CoverData != nil {
-		coverPath, err := s.saveCoverToS3(data.CoverData, data.Book.Title, data.UserId)
-		if err != nil {
-			slog.Error(err.Error(), slog.String("operation", operation))
-		} else {
-			cover = &coverPath
-		}
-	}
-
-	// Получаем или создаём автора
-	author, err := s.authorRepo.GetOrCreate(ctx, data.Book.Author)
-	if err != nil {
-		logger.Error(
-			fmt.Sprintf("failed to get or create author: %s", data.Book.Author),
-			err,
-			operation,
-		)
-		return ErrFailedSaveBookToDatabase
-	}
-
-	var coverURL string
-	if cover != nil {
-		coverURL = *cover
-	}
-
-	newBook := &domain.PersonalBook{
-		Author:         author,
-		Title:          data.Book.Title,
-		CoverURL:       coverURL,
-		OriginalLang:   string(data.From),
-		TranslatedLang: string(data.To),
-		User: &domain.User{
-			ID: data.UserId,
-		},
-	}
-	newBook, err = s.personalBookRepo.Create(ctx, newBook)
-	if err != nil {
-		logger.Error(
-			fmt.Sprintf("failed to save personal book to database, title: %s, author: %s", data.Book.Title, data.Book.Author),
-			err,
-			operation,
-		)
-		return ErrFailedSaveBookToDatabase
-	}
-
-	// Создаём главы книги
-	for i, path := range paths {
-		chapter := &domain.PersonalBookChapter{
-			PersonalBook: newBook,
-			Order:        i,
-			ContentURL:   path,
-		}
-		_, err := s.personalBookRepo.CreateChapter(ctx, chapter)
-		if err != nil {
-			logger.Error(
-				fmt.Sprintf("failed to save chapter %d to database, title: %s", i, data.Book.Title),
-				err,
-				operation,
-			)
-			// Продолжаем даже при ошибке создания главы
-		}
 	}
 
 	// уведомление что книга создана
@@ -362,6 +357,20 @@ func (s *Service) translateChapters(
 			slog.Debug("context cancelled", slog.String("operation", operation))
 			return
 		default:
+		}
+
+		existChapter, err := s.personalBookRepo.GetChapterByPersonalBookIDAndOrder(ctx, data.PersonalBook.ID, i)
+		if existChapter != nil {
+			resultChan <- translatedChapterResult{
+				ExistChapter: existChapter,
+				ChapterOrder: i,
+				Error:        nil,
+			}
+			continue
+		}
+		if err != nil {
+			slog.Error(err.Error(), slog.String("operation", operation))
+			continue
 		}
 
 		path := s.checkChapterInStorage(i, data.Book.Title, data.UserId)

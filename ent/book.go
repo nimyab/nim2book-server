@@ -22,7 +22,7 @@ type Book struct {
 	// Title holds the value of the "title" field.
 	Title string `json:"title,omitempty"`
 	// CoverURL holds the value of the "cover_url" field.
-	CoverURL string `json:"cover_url,omitempty"`
+	CoverURL *string `json:"cover_url,omitempty"`
 	// OriginalLang holds the value of the "original_lang" field.
 	OriginalLang string `json:"original_lang,omitempty"`
 	// TranslatedLang holds the value of the "translated_lang" field.
@@ -122,7 +122,8 @@ func (_m *Book) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field cover_url", values[i])
 			} else if value.Valid {
-				_m.CoverURL = value.String
+				_m.CoverURL = new(string)
+				*_m.CoverURL = value.String
 			}
 		case book.FieldOriginalLang:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -203,8 +204,10 @@ func (_m *Book) String() string {
 	builder.WriteString("title=")
 	builder.WriteString(_m.Title)
 	builder.WriteString(", ")
-	builder.WriteString("cover_url=")
-	builder.WriteString(_m.CoverURL)
+	if v := _m.CoverURL; v != nil {
+		builder.WriteString("cover_url=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("original_lang=")
 	builder.WriteString(_m.OriginalLang)

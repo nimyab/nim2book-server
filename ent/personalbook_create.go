@@ -65,6 +65,20 @@ func (_c *PersonalBookCreate) SetNillableTranslatedLang(v *string) *PersonalBook
 	return _c
 }
 
+// SetProcessStatus sets the "process_status" field.
+func (_c *PersonalBookCreate) SetProcessStatus(v personalbook.ProcessStatus) *PersonalBookCreate {
+	_c.mutation.SetProcessStatus(v)
+	return _c
+}
+
+// SetNillableProcessStatus sets the "process_status" field if the given value is not nil.
+func (_c *PersonalBookCreate) SetNillableProcessStatus(v *personalbook.ProcessStatus) *PersonalBookCreate {
+	if v != nil {
+		_c.SetProcessStatus(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *PersonalBookCreate) SetCreatedAt(v time.Time) *PersonalBookCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -204,6 +218,10 @@ func (_c *PersonalBookCreate) defaults() {
 		v := personalbook.DefaultTranslatedLang
 		_c.mutation.SetTranslatedLang(v)
 	}
+	if _, ok := _c.mutation.ProcessStatus(); !ok {
+		v := personalbook.DefaultProcessStatus
+		_c.mutation.SetProcessStatus(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := personalbook.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -227,6 +245,14 @@ func (_c *PersonalBookCreate) check() error {
 	}
 	if _, ok := _c.mutation.TranslatedLang(); !ok {
 		return &ValidationError{Name: "translated_lang", err: errors.New(`ent: missing required field "PersonalBook.translated_lang"`)}
+	}
+	if _, ok := _c.mutation.ProcessStatus(); !ok {
+		return &ValidationError{Name: "process_status", err: errors.New(`ent: missing required field "PersonalBook.process_status"`)}
+	}
+	if v, ok := _c.mutation.ProcessStatus(); ok {
+		if err := personalbook.ProcessStatusValidator(v); err != nil {
+			return &ValidationError{Name: "process_status", err: fmt.Errorf(`ent: validator failed for field "PersonalBook.process_status": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "PersonalBook.created_at"`)}
@@ -272,7 +298,7 @@ func (_c *PersonalBookCreate) createSpec() (*PersonalBook, *sqlgraph.CreateSpec)
 	}
 	if value, ok := _c.mutation.CoverURL(); ok {
 		_spec.SetField(personalbook.FieldCoverURL, field.TypeString, value)
-		_node.CoverURL = value
+		_node.CoverURL = &value
 	}
 	if value, ok := _c.mutation.OriginalLang(); ok {
 		_spec.SetField(personalbook.FieldOriginalLang, field.TypeString, value)
@@ -281,6 +307,10 @@ func (_c *PersonalBookCreate) createSpec() (*PersonalBook, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.TranslatedLang(); ok {
 		_spec.SetField(personalbook.FieldTranslatedLang, field.TypeString, value)
 		_node.TranslatedLang = value
+	}
+	if value, ok := _c.mutation.ProcessStatus(); ok {
+		_spec.SetField(personalbook.FieldProcessStatus, field.TypeEnum, value)
+		_node.ProcessStatus = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(personalbook.FieldCreatedAt, field.TypeTime, value)

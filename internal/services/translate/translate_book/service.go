@@ -18,7 +18,6 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/services/word_aligner/align"
 	"github.com/nimyab/nim2book-back/pkg/contains_letters"
-	"github.com/nimyab/nim2book-back/pkg/logger"
 	"github.com/nimyab/nim2book-back/pkg/parsers/epub_parser"
 	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
 	"golang.org/x/sync/errgroup"
@@ -47,10 +46,6 @@ type Translator interface {
 	Translate(input *translate.Input) (*translate.Output, error)
 }
 
-type NotificationSender interface {
-	Emit(ctx context.Context, notification *domain.Notification)
-}
-
 type Service struct {
 	maxRequestCount int
 	waitDuration    time.Duration
@@ -63,8 +58,6 @@ type Service struct {
 	authorRepo  AuthorRepository
 	wordAligner pb.AlignmentServiceClient
 	translator  Translator
-
-	notificationSignal NotificationSender
 }
 
 var (
@@ -81,7 +74,6 @@ func New(
 	translator Translator,
 	maxRequestCount int,
 	waitDuration time.Duration,
-	notificationSignal NotificationSender,
 ) *Service {
 	return &Service{
 		s3:                          s3,
@@ -92,7 +84,6 @@ func New(
 		maxRequestCount:             maxRequestCount,
 		waitDuration:                waitDuration,
 		currentCountBookTranslating: 0,
-		notificationSignal:          notificationSignal,
 	}
 }
 
@@ -149,40 +140,7 @@ func (s *Service) TranslateBook(ctx context.Context, input *Input, book *multipa
 	go func() {
 		err := s.startTranslate(translatedData)
 		if err != nil {
-			switch {
-			case errors.Is(err, ErrFailedSaveToStorage):
-				s.notificationSignal.Emit(context.Background(), &domain.Notification{
-					UserId: userId,
-					Type:   domain.NotificationError,
-					Data: &domain.NotificationErrorData{
-						Title:        parsedBook.Title,
-						Author:       parsedBook.Author,
-						ErrorMessage: "Произошла ошибка во время сохранения главы, попробуйте перевести книгу позже.",
-					},
-				})
-			case errors.Is(err, ErrFailedTranslateChapter):
-				s.notificationSignal.Emit(context.Background(), &domain.Notification{
-					UserId: userId,
-					Type:   domain.NotificationError,
-					Data: &domain.NotificationErrorData{
-						Author:       parsedBook.Author,
-						Title:        parsedBook.Title,
-						ErrorMessage: "Произошла ошибка во время перевода главы, попробуйте перевести книгу позже.",
-					},
-				})
-			case errors.Is(err, ErrFailedSaveBookToDatabase):
-				s.notificationSignal.Emit(context.Background(), &domain.Notification{
-					Type:   domain.NotificationError,
-					UserId: userId,
-					Data: &domain.NotificationErrorData{
-						Title:        parsedBook.Title,
-						Author:       parsedBook.Author,
-						ErrorMessage: "Произошла ошибка во время сохранения книги, попробуйте перевести книгу позже, извините за неудобства.",
-					},
-				})
-			default:
-				logger.Error("unexpected error", err, operation)
-			}
+			slog.Error("failed translate book", slog.String("operation", operation), slog.Any("translated data", translatedData))
 		}
 	}()
 
@@ -216,18 +174,22 @@ func (s *Service) startTranslate(
 	paths := make([]string, 0, len(data.Chapters))
 	for result := range resultChan {
 		if result.Error != nil {
-			logger.Error(
-				fmt.Sprintf("failed to translate chapter, title: %s, author: %s", data.Book.Title, data.Book.Author),
-				result.Error,
-				operation,
+			slog.Error(
+				"failed to translate chapter",
+				slog.String("operation", operation),
+				slog.String("title", data.Book.Title),
+				slog.String("author", data.Book.Author),
+				slog.Any("error", result.Error),
 			)
 			return ErrFailedTranslateChapter
 		}
 		if result.Chapter == nil && result.Path == "" {
-			logger.Error(
-				fmt.Sprintf("translated chapter is nil, title: %s, author: %s", data.Book.Title, data.Book.Author),
-				result.Error,
-				operation,
+			slog.Error(
+				"translated chapter is nil",
+				slog.String("operation", operation),
+				slog.String("title", data.Book.Title),
+				slog.String("author", data.Book.Author),
+				slog.Int("chapter order", result.ChapterOrder),
 			)
 			return ErrFailedTranslateChapter
 		}
@@ -239,10 +201,13 @@ func (s *Service) startTranslate(
 			var err error
 			path, err = s.saveChapterToS3(result.Chapter, data.Book.Title)
 			if err != nil {
-				logger.Error(
-					fmt.Sprintf("failed to save to s3 chapter %d order, title: %s, author: %s", result.Chapter.Order, data.Book.Title, data.Book.Author),
-					err,
-					operation,
+				slog.Error(
+					"failed to save chapter to s3",
+					slog.String("operation", operation),
+					slog.String("title", data.Book.Title),
+					slog.String("author", data.Book.Author),
+					slog.Int("chapter order", result.Chapter.Order),
+					slog.Any("error", err),
 				)
 				return ErrFailedSaveToStorage
 			}
@@ -252,37 +217,31 @@ func (s *Service) startTranslate(
 		slog.Info(fmt.Sprintf("paths is %v now", paths), slog.String("operation", operation))
 
 		// отправляем уведомления о переведенной главе
-		s.notificationSignal.Emit(ctx, &domain.Notification{
-			UserId: data.UserId,
-			Type:   domain.NotificationChapterTranslateSucceed,
-			Data: &domain.NotificationChapterTranslateSucceedData{
-				Author:            data.Book.Author,
-				ChapterPath:       path,
-				Title:             data.Book.Title,
-				ChapterOrder:      result.ChapterOrder,
-				TotalChapterCount: len(data.Book.Chapters),
-			},
-		})
+		slog.Info(
+			"chapter translate",
+			slog.String("operation", operation),
+			slog.String("title", data.Book.Title),
+			slog.String("author", data.Book.Author),
+			slog.Int("chapter order", result.ChapterOrder),
+			slog.String("chapter path", path),
+			slog.Int("total translated chapter count", len(paths)),
+		)
 	}
 
 	// Получаем или создаём автора
 	author, err := s.authorRepo.GetOrCreate(ctx, data.Book.Author)
 	if err != nil {
-		logger.Error(
-			fmt.Sprintf("failed to get or create author: %s", data.Book.Author),
-			err,
-			operation,
-		)
+		slog.Error("failed to get or create author", slog.String("author", data.Book.Author), slog.Any("error", err), slog.String("operation", operation))
 		return ErrFailedSaveBookToDatabase
 	}
 
-	var coverURL string
+	var coverURL *string
 	if data.CoverData != nil {
 		coverPath, err := s.saveCoverToS3(data.CoverData, data.Book.Title)
 		if err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation))
 		} else {
-			coverURL = coverPath
+			coverURL = &coverPath
 		}
 	}
 
@@ -295,10 +254,12 @@ func (s *Service) startTranslate(
 	}
 	newBook, err = s.bookRepo.Create(ctx, newBook)
 	if err != nil {
-		logger.Error(
-			fmt.Sprintf("failed to save book to database, title: %s, author: %s", data.Book.Title, data.Book.Author),
-			err,
-			operation,
+		slog.Error(
+			"failed to save book to database",
+			slog.String("title", data.Book.Title),
+			slog.String("author", data.Book.Author),
+			slog.Any("error", err),
+			slog.String("operation", operation),
 		)
 		return ErrFailedSaveBookToDatabase
 	}
@@ -312,22 +273,22 @@ func (s *Service) startTranslate(
 		}
 		_, err := s.bookRepo.CreateChapter(ctx, chapter)
 		if err != nil {
-			logger.Error(
-				fmt.Sprintf("failed to save chapter %d to database, title: %s", i, data.Book.Title),
-				err,
-				operation,
+			slog.Error(
+				"failed to save chapter to database",
+				slog.Int("chapter order", i),
+				slog.String("title", data.Book.Title),
+				slog.Any("error", err),
+				slog.String("operation", operation),
 			)
 		}
 	}
 
 	// уведомление что книга создана
-	s.notificationSignal.Emit(ctx, &domain.Notification{
-		UserId: data.UserId,
-		Type:   domain.NotificationBookTranslated,
-		Data: &domain.NotificationBookTranslatedData{
-			Book: newBook,
-		},
-	})
+	slog.Info(
+		"book is translated successfully",
+		slog.String("operation", operation),
+		slog.Any("book", newBook),
+	)
 
 	return nil
 }

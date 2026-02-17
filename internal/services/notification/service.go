@@ -33,7 +33,7 @@ func New(
 
 // Emit sends notification (implements NotificationSender interface for translate services)
 func (s *Service) Emit(ctx context.Context, notification *domain.Notification) {
-	s.ProcessNotification(ctx, notification)
+	go s.ProcessNotification(ctx, notification)
 }
 
 func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notification) {

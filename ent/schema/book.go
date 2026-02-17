@@ -15,7 +15,7 @@ type Book struct {
 func (Book) Fields() []ent.Field {
 	return append([]ent.Field{
 		field.String("title").Immutable().SchemaType(varchar255),
-		field.String("cover_url").SchemaType(varchar255),
+		field.String("cover_url").Nillable().SchemaType(varchar255),
 		field.String("original_lang").Default("en").SchemaType(varchar10),
 		field.String("translated_lang").Default("ru").SchemaType(varchar10),
 	}, defaultFields...)

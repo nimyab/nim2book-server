@@ -252,7 +252,7 @@ func (_c *BookCreate) createSpec() (*Book, *sqlgraph.CreateSpec) {
 	}
 	if value, ok := _c.mutation.CoverURL(); ok {
 		_spec.SetField(book.FieldCoverURL, field.TypeString, value)
-		_node.CoverURL = value
+		_node.CoverURL = &value
 	}
 	if value, ok := _c.mutation.OriginalLang(); ok {
 		_spec.SetField(book.FieldOriginalLang, field.TypeString, value)

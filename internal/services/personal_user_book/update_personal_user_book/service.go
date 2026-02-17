@@ -98,7 +98,7 @@ func (s *Service) UpdatePersonalUserBook(ctx context.Context, input *Input, cove
 			return nil, ErrFailedToUploadFile
 		}
 
-		book.CoverURL = path
+		book.CoverURL = &path
 	}
 
 	if input.Title != nil {

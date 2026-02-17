@@ -1409,7 +1409,7 @@ func (m *BookMutation) CoverURL() (r string, exists bool) {
 // OldCoverURL returns the old "cover_url" field's value of the Book entity.
 // If the Book object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *BookMutation) OldCoverURL(ctx context.Context) (v string, err error) {
+func (m *BookMutation) OldCoverURL(ctx context.Context) (v *string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldCoverURL is only allowed on UpdateOne operations")
 	}
@@ -5804,6 +5804,7 @@ type PersonalBookMutation struct {
 	cover_url                     *string
 	original_lang                 *string
 	translated_lang               *string
+	process_status                *personalbook.ProcessStatus
 	created_at                    *time.Time
 	clearedFields                 map[string]struct{}
 	user                          *uuid.UUID
@@ -5978,7 +5979,7 @@ func (m *PersonalBookMutation) CoverURL() (r string, exists bool) {
 // OldCoverURL returns the old "cover_url" field's value of the PersonalBook entity.
 // If the PersonalBook object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *PersonalBookMutation) OldCoverURL(ctx context.Context) (v string, err error) {
+func (m *PersonalBookMutation) OldCoverURL(ctx context.Context) (v *string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldCoverURL is only allowed on UpdateOne operations")
 	}
@@ -6067,6 +6068,42 @@ func (m *PersonalBookMutation) OldTranslatedLang(ctx context.Context) (v string,
 // ResetTranslatedLang resets all changes to the "translated_lang" field.
 func (m *PersonalBookMutation) ResetTranslatedLang() {
 	m.translated_lang = nil
+}
+
+// SetProcessStatus sets the "process_status" field.
+func (m *PersonalBookMutation) SetProcessStatus(ps personalbook.ProcessStatus) {
+	m.process_status = &ps
+}
+
+// ProcessStatus returns the value of the "process_status" field in the mutation.
+func (m *PersonalBookMutation) ProcessStatus() (r personalbook.ProcessStatus, exists bool) {
+	v := m.process_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProcessStatus returns the old "process_status" field's value of the PersonalBook entity.
+// If the PersonalBook object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PersonalBookMutation) OldProcessStatus(ctx context.Context) (v personalbook.ProcessStatus, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProcessStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProcessStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProcessStatus: %w", err)
+	}
+	return oldValue.ProcessStatus, nil
+}
+
+// ResetProcessStatus resets all changes to the "process_status" field.
+func (m *PersonalBookMutation) ResetProcessStatus() {
+	m.process_status = nil
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -6325,7 +6362,7 @@ func (m *PersonalBookMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PersonalBookMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.title != nil {
 		fields = append(fields, personalbook.FieldTitle)
 	}
@@ -6337,6 +6374,9 @@ func (m *PersonalBookMutation) Fields() []string {
 	}
 	if m.translated_lang != nil {
 		fields = append(fields, personalbook.FieldTranslatedLang)
+	}
+	if m.process_status != nil {
+		fields = append(fields, personalbook.FieldProcessStatus)
 	}
 	if m.created_at != nil {
 		fields = append(fields, personalbook.FieldCreatedAt)
@@ -6357,6 +6397,8 @@ func (m *PersonalBookMutation) Field(name string) (ent.Value, bool) {
 		return m.OriginalLang()
 	case personalbook.FieldTranslatedLang:
 		return m.TranslatedLang()
+	case personalbook.FieldProcessStatus:
+		return m.ProcessStatus()
 	case personalbook.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -6376,6 +6418,8 @@ func (m *PersonalBookMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldOriginalLang(ctx)
 	case personalbook.FieldTranslatedLang:
 		return m.OldTranslatedLang(ctx)
+	case personalbook.FieldProcessStatus:
+		return m.OldProcessStatus(ctx)
 	case personalbook.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -6414,6 +6458,13 @@ func (m *PersonalBookMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTranslatedLang(v)
+		return nil
+	case personalbook.FieldProcessStatus:
+		v, ok := value.(personalbook.ProcessStatus)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProcessStatus(v)
 		return nil
 	case personalbook.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -6482,6 +6533,9 @@ func (m *PersonalBookMutation) ResetField(name string) error {
 		return nil
 	case personalbook.FieldTranslatedLang:
 		m.ResetTranslatedLang()
+		return nil
+	case personalbook.FieldProcessStatus:
+		m.ResetProcessStatus()
 		return nil
 	case personalbook.FieldCreatedAt:
 		m.ResetCreatedAt()

@@ -83,7 +83,7 @@ func (s *Service) UpdateBook(ctx context.Context, input *Input, cover *multipart
 			return nil, ErrFailedToUploadFile
 		}
 
-		book.CoverURL = path
+		book.CoverURL = &path
 	}
 
 	if input.Title != nil {
