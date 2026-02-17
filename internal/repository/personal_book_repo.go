@@ -25,6 +25,66 @@ func NewPersonalBookRepository(client *ent.Client) *PersonalBookRepository {
 	}
 }
 
+// getByIDInternal возвращает личную книгу по ID, может работать внутри транзакции
+func (r *PersonalBookRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.PersonalBook, error) {
+	if tx != nil {
+		// Используем транзакцию, если она передана
+		entBook, err := tx.PersonalBook.Query().
+			Where(personalbook.ID(id)).
+			WithUser().
+			WithAuthor().
+			WithGenres().
+			Only(ctx)
+
+		if err != nil {
+			return nil, HandleError(err)
+		}
+
+		return MapPersonalBookToDomain(entBook), nil
+	}
+
+	// Используем обычный клиент без транзакции
+	entBook, err := r.client.PersonalBook.Query().
+		Where(personalbook.ID(id)).
+		WithUser().
+		WithAuthor().
+		WithGenres().
+		Only(ctx)
+
+	if err != nil {
+		return nil, HandleError(err)
+	}
+
+	return MapPersonalBookToDomain(entBook), nil
+}
+
+// getChapterByIDInternal возвращает главу личной книги по ID, может работать внутри транзакции
+func (r *PersonalBookRepository) getChapterByIDInternal(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.PersonalBookChapter, error) {
+	if tx != nil {
+		entChapter, err := tx.PersonalBookChapter.Query().
+			Where(personalbookchapter.ID(id)).
+			WithPersonalBook().
+			Only(ctx)
+
+		if err != nil {
+			return nil, HandleError(err)
+		}
+
+		return MapPersonalBookChapterToDomain(entChapter), nil
+	}
+
+	entChapter, err := r.client.PersonalBookChapter.Query().
+		Where(personalbookchapter.ID(id)).
+		WithPersonalBook().
+		Only(ctx)
+
+	if err != nil {
+		return nil, HandleError(err)
+	}
+
+	return MapPersonalBookChapterToDomain(entChapter), nil
+}
+
 // Create создает новую личную книгу
 func (r *PersonalBookRepository) Create(ctx context.Context, domainBook *domain.PersonalBook) (*domain.PersonalBook, error) {
 	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.PersonalBook, error) {
@@ -62,47 +122,32 @@ func (r *PersonalBookRepository) Create(ctx context.Context, domainBook *domain.
 			}
 		}
 
-		return r.GetByID(ctx, entBook.ID)
+		return r.getByIDInternal(ctx, tx, entBook.ID)
 	})
 }
 
 // GetByID возвращает личную книгу по ID
 func (r *PersonalBookRepository) GetByID(ctx context.Context, id domain.ID) (*domain.PersonalBook, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.PersonalBook, error) {
-		entBook, err := tx.PersonalBook.Query().
-			Where(personalbook.ID(id)).
-			WithUser().
-			WithAuthor().
-			WithGenres().
-			Only(ctx)
-
-		if err != nil {
-			return nil, HandleError(err)
-		}
-
-		return MapPersonalBookToDomain(entBook), nil
-	})
+	return r.getByIDInternal(ctx, nil, id)
 }
 
 // GetByIDWithChapters возвращает личную книгу с главами
 func (r *PersonalBookRepository) GetByIDWithChapters(ctx context.Context, id domain.ID) (*domain.PersonalBook, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.PersonalBook, error) {
-		entBook, err := tx.PersonalBook.Query().
-			Where(personalbook.ID(id)).
-			WithUser().
-			WithAuthor().
-			WithGenres().
-			WithPersonalBookChapters(func(q *ent.PersonalBookChapterQuery) {
-				q.Order(ent.Asc("order"))
-			}).
-			Only(ctx)
+	entBook, err := r.client.PersonalBook.Query().
+		Where(personalbook.ID(id)).
+		WithUser().
+		WithAuthor().
+		WithGenres().
+		WithPersonalBookChapters(func(q *ent.PersonalBookChapterQuery) {
+			q.Order(ent.Asc("order"))
+		}).
+		Only(ctx)
 
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapPersonalBookToDomain(entBook), nil
-	})
+	return MapPersonalBookToDomain(entBook), nil
 }
 
 // Update обновляет личную книгу
@@ -146,7 +191,7 @@ func (r *PersonalBookRepository) Update(ctx context.Context, domainBook *domain.
 		}
 
 		// Загружаем полную информацию о книге
-		return r.GetByID(ctx, entBook.ID)
+		return r.getByIDInternal(ctx, tx, entBook.ID)
 	})
 }
 
@@ -164,102 +209,94 @@ func (r *PersonalBookRepository) Delete(ctx context.Context, id domain.ID) error
 
 // ListByUserID возвращает личные книги пользователя
 func (r *PersonalBookRepository) ListByUserID(ctx context.Context, userID domain.ID, opts QueryOptions) ([]*domain.PersonalBook, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) ([]*domain.PersonalBook, error) {
-		query := tx.PersonalBook.Query().
-			Where(personalbook.HasUserWith(user.ID(userID))).
-			WithUser().
-			WithAuthor().
-			WithGenres()
+	query := r.client.PersonalBook.Query().
+		Where(personalbook.HasUserWith(user.ID(userID))).
+		WithUser().
+		WithAuthor().
+		WithGenres()
 
-		// Применяем опции пагинации
-		if opts.Limit > 0 {
-			query = query.Limit(opts.Limit)
-		}
-		if opts.Offset > 0 {
-			query = query.Offset(opts.Offset)
-		}
+	// Применяем опции пагинации
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
 
-		entBooks, err := query.All(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entBooks, err := query.All(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapPersonalBooksToDomain(entBooks), nil
-	})
+	return MapPersonalBooksToDomain(entBooks), nil
 }
 
 // SearchByUserWithFilters ищет личные книги пользователя с возможностью комбинирования фильтров
 func (r *PersonalBookRepository) SearchByUserWithFilters(ctx context.Context, userID domain.ID, title, authorName string, genreID *domain.ID, opts QueryOptions) ([]*domain.PersonalBook, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) ([]*domain.PersonalBook, error) {
-		query := tx.PersonalBook.Query().
-			Where(personalbook.HasUserWith(user.ID(userID))).
-			WithUser().
-			WithAuthor().
-			WithGenres()
+	query := r.client.PersonalBook.Query().
+		Where(personalbook.HasUserWith(user.ID(userID))).
+		WithUser().
+		WithAuthor().
+		WithGenres()
 
-		// Фильтрация по названию книги
-		if title != "" {
-			query = query.Where(personalbook.TitleContainsFold(strings.TrimSpace(title)))
-		}
+	// Фильтрация по названию книги
+	if title != "" {
+		query = query.Where(personalbook.TitleContainsFold(strings.TrimSpace(title)))
+	}
 
-		// Фильтрация по имени автора
-		if authorName != "" {
-			query = query.Where(personalbook.HasAuthorWith(author.NameContainsFold(strings.TrimSpace(authorName))))
-		}
+	// Фильтрация по имени автора
+	if authorName != "" {
+		query = query.Where(personalbook.HasAuthorWith(author.NameContainsFold(strings.TrimSpace(authorName))))
+	}
 
-		// Фильтрация по жанру
-		if genreID != nil {
-			query = query.Where(personalbook.HasGenresWith(genre.ID(*genreID)))
-		}
+	// Фильтрация по жанру
+	if genreID != nil {
+		query = query.Where(personalbook.HasGenresWith(genre.ID(*genreID)))
+	}
 
-		// Применяем опции пагинации
-		if opts.Limit > 0 {
-			query = query.Limit(opts.Limit)
-		}
-		if opts.Offset > 0 {
-			query = query.Offset(opts.Offset)
-		}
+	// Применяем опции пагинации
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
 
-		entBooks, err := query.All(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entBooks, err := query.All(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapPersonalBooksToDomain(entBooks), nil
-	})
+	return MapPersonalBooksToDomain(entBooks), nil
 }
 
 // GetByUserAndAuthorAndTitle возвращает личную книгу пользователя по имени автора и названию
 func (r *PersonalBookRepository) GetByUserAndAuthorAndTitle(ctx context.Context, userID domain.ID, authorName, title string) (*domain.PersonalBook, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.PersonalBook, error) {
-		entBook, err := tx.PersonalBook.Query().
-			Where(
-				personalbook.TitleEQ(title),
-				personalbook.HasUserWith(user.ID(userID)),
-				personalbook.HasAuthorWith(author.NameEQ(authorName)),
-			).
-			WithAuthor().
-			WithGenres().
-			WithUser().
-			Only(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entBook, err := r.client.PersonalBook.Query().
+		Where(
+			personalbook.TitleEQ(title),
+			personalbook.HasUserWith(user.ID(userID)),
+			personalbook.HasAuthorWith(author.NameEQ(authorName)),
+		).
+		WithAuthor().
+		WithGenres().
+		WithUser().
+		Only(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapPersonalBookToDomain(entBook), nil
-	})
+	return MapPersonalBookToDomain(entBook), nil
 }
 
 // Count возвращает количество личных книг
 func (r *PersonalBookRepository) Count(ctx context.Context) (int, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (int, error) {
-		count, err := tx.PersonalBook.Query().Count(ctx)
-		if err != nil {
-			return 0, HandleError(err)
-		}
+	count, err := r.client.PersonalBook.Query().Count(ctx)
+	if err != nil {
+		return 0, HandleError(err)
+	}
 
-		return count, nil
-	})
+	return count, nil
 }
 
 // ============================================================================
@@ -285,24 +322,13 @@ func (r *PersonalBookRepository) CreateChapter(ctx context.Context, domainChapte
 			return nil, HandleError(err)
 		}
 
-		return r.GetChapterByID(ctx, entChapter.ID)
+		return r.getChapterByIDInternal(ctx, tx, entChapter.ID)
 	})
 }
 
 // GetChapterByID возвращает главу по ID
 func (r *PersonalBookRepository) GetChapterByID(ctx context.Context, id domain.ID) (*domain.PersonalBookChapter, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.PersonalBookChapter, error) {
-		entChapter, err := tx.PersonalBookChapter.Query().
-			Where(personalbookchapter.ID(id)).
-			WithPersonalBook().
-			Only(ctx)
-
-		if err != nil {
-			return nil, HandleError(err)
-		}
-
-		return MapPersonalBookChapterToDomain(entChapter), nil
-	})
+	return r.getChapterByIDInternal(ctx, nil, id)
 }
 
 // UpdateChapter обновляет главу
@@ -324,7 +350,7 @@ func (r *PersonalBookRepository) UpdateChapter(ctx context.Context, domainChapte
 			return nil, HandleError(err)
 		}
 
-		return r.GetChapterByID(ctx, entChapter.ID)
+		return r.getChapterByIDInternal(ctx, tx, entChapter.ID)
 	})
 }
 
@@ -342,37 +368,33 @@ func (r *PersonalBookRepository) DeleteChapter(ctx context.Context, id domain.ID
 
 // ListChaptersByPersonalBookID возвращает главы личной книги
 func (r *PersonalBookRepository) ListChaptersByPersonalBookID(ctx context.Context, personalBookID domain.ID, opts QueryOptions) ([]*domain.PersonalBookChapter, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) ([]*domain.PersonalBookChapter, error) {
-		query := tx.PersonalBookChapter.Query().
-			Where(personalbookchapter.HasPersonalBookWith(personalbook.ID(personalBookID))).
-			WithPersonalBook().
-			Order(ent.Asc(personalbookchapter.FieldOrder))
+	query := r.client.PersonalBookChapter.Query().
+		Where(personalbookchapter.HasPersonalBookWith(personalbook.ID(personalBookID))).
+		WithPersonalBook().
+		Order(ent.Asc(personalbookchapter.FieldOrder))
 
-		// Применяем опции пагинации
-		if opts.Limit > 0 {
-			query = query.Limit(opts.Limit)
-		}
-		if opts.Offset > 0 {
-			query = query.Offset(opts.Offset)
-		}
+	// Применяем опции пагинации
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
 
-		entChapters, err := query.All(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entChapters, err := query.All(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapPersonalBookChaptersToDomain(entChapters), nil
-	})
+	return MapPersonalBookChaptersToDomain(entChapters), nil
 }
 
 // CountChapters возвращает количество глав
 func (r *PersonalBookRepository) CountChapters(ctx context.Context) (int, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (int, error) {
-		count, err := tx.PersonalBookChapter.Query().Count(ctx)
-		if err != nil {
-			return 0, HandleError(err)
-		}
+	count, err := r.client.PersonalBookChapter.Query().Count(ctx)
+	if err != nil {
+		return 0, HandleError(err)
+	}
 
-		return count, nil
-	})
+	return count, nil
 }

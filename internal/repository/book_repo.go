@@ -24,6 +24,64 @@ func NewBookRepository(client *ent.Client) *BookRepository {
 	}
 }
 
+// getByIDInternal возвращает книгу по ID, может работать внутри транзакции
+func (r *BookRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.Book, error) {
+	if tx != nil {
+		// Используем транзакцию, если она передана
+		entBook, err := tx.Book.Query().
+			Where(book.ID(id)).
+			WithAuthor().
+			WithGenres().
+			Only(ctx)
+
+		if err != nil {
+			return nil, HandleError(err)
+		}
+
+		return MapBookToDomain(entBook), nil
+	}
+
+	// Используем обычный клиент без транзакции
+	entBook, err := r.client.Book.Query().
+		Where(book.ID(id)).
+		WithAuthor().
+		WithGenres().
+		Only(ctx)
+
+	if err != nil {
+		return nil, HandleError(err)
+	}
+
+	return MapBookToDomain(entBook), nil
+}
+
+// getChapterByIDInternal возвращает главу по ID, может работать внутри транзакции
+func (r *BookRepository) getChapterByIDInternal(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.BookChapter, error) {
+	if tx != nil {
+		entChapter, err := tx.BookChapter.Query().
+			Where(bookchapter.ID(id)).
+			WithBook().
+			Only(ctx)
+
+		if err != nil {
+			return nil, HandleError(err)
+		}
+
+		return MapBookChapterToDomain(entChapter), nil
+	}
+
+	entChapter, err := r.client.BookChapter.Query().
+		Where(bookchapter.ID(id)).
+		WithBook().
+		Only(ctx)
+
+	if err != nil {
+		return nil, HandleError(err)
+	}
+
+	return MapBookChapterToDomain(entChapter), nil
+}
+
 // Create создает новую книгу
 func (r *BookRepository) Create(ctx context.Context, domainBook *domain.Book) (*domain.Book, error) {
 	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.Book, error) {
@@ -56,45 +114,31 @@ func (r *BookRepository) Create(ctx context.Context, domainBook *domain.Book) (*
 			}
 		}
 
-		return r.GetByID(ctx, entBook.ID)
+		return r.getByIDInternal(ctx, tx, entBook.ID)
 	})
 }
 
 // GetByID возвращает книгу по ID
 func (r *BookRepository) GetByID(ctx context.Context, id domain.ID) (*domain.Book, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.Book, error) {
-		entBook, err := tx.Book.Query().
-			Where(book.ID(id)).
-			WithAuthor().
-			WithGenres().
-			Only(ctx)
-
-		if err != nil {
-			return nil, HandleError(err)
-		}
-
-		return MapBookToDomain(entBook), nil
-	})
+	return r.getByIDInternal(ctx, nil, id)
 }
 
 // GetByIDWithChapters возвращает книгу с главами
 func (r *BookRepository) GetByIDWithChapters(ctx context.Context, id domain.ID) (*domain.Book, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.Book, error) {
-		entBook, err := tx.Book.Query().
-			Where(book.ID(id)).
-			WithAuthor().
-			WithGenres().
-			WithBookChapters(func(q *ent.BookChapterQuery) {
-				q.Order(ent.Asc("order"))
-			}).
-			Only(ctx)
+	entBook, err := r.client.Book.Query().
+		Where(book.ID(id)).
+		WithAuthor().
+		WithGenres().
+		WithBookChapters(func(q *ent.BookChapterQuery) {
+			q.Order(ent.Asc("order"))
+		}).
+		Only(ctx)
 
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapBookToDomain(entBook), nil
-	})
+	return MapBookToDomain(entBook), nil
 }
 
 // Update обновляет книгу
@@ -138,7 +182,7 @@ func (r *BookRepository) Update(ctx context.Context, domainBook *domain.Book) (*
 		}
 
 		// Загружаем полную информацию о книге
-		return r.GetByID(ctx, entBook.ID)
+		return r.getByIDInternal(ctx, tx, entBook.ID)
 	})
 }
 
@@ -156,176 +200,162 @@ func (r *BookRepository) Delete(ctx context.Context, id domain.ID) error {
 
 // List возвращает список книг с пагинацией
 func (r *BookRepository) List(ctx context.Context, opts QueryOptions) ([]*domain.Book, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) ([]*domain.Book, error) {
-		query := tx.Book.Query().
-			WithAuthor().
-			WithGenres()
+	query := r.client.Book.Query().
+		WithAuthor().
+		WithGenres()
 
-		// Применяем опции пагинации
-		if opts.Limit > 0 {
-			query = query.Limit(opts.Limit)
-		}
-		if opts.Offset > 0 {
-			query = query.Offset(opts.Offset)
-		}
+	// Применяем опции пагинации
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
 
-		// Фильтрация по ID, если указаны
-		if len(opts.IDs) > 0 {
-			query = query.Where(book.IDIn(opts.IDs...))
-		}
+	// Фильтрация по ID, если указаны
+	if len(opts.IDs) > 0 {
+		query = query.Where(book.IDIn(opts.IDs...))
+	}
 
-		entBooks, err := query.All(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entBooks, err := query.All(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapBooksToDomain(entBooks), nil
-	})
+	return MapBooksToDomain(entBooks), nil
 }
 
 // ListByAuthorID возвращает книги автора
 func (r *BookRepository) ListByAuthorID(ctx context.Context, authorID domain.ID, opts QueryOptions) ([]*domain.Book, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) ([]*domain.Book, error) {
-		query := tx.Book.Query().
-			Where(book.HasAuthorWith(author.ID(authorID))).
-			WithAuthor().
-			WithGenres()
+	query := r.client.Book.Query().
+		Where(book.HasAuthorWith(author.ID(authorID))).
+		WithAuthor().
+		WithGenres()
 
-		// Применяем опции пагинации
-		if opts.Limit > 0 {
-			query = query.Limit(opts.Limit)
-		}
-		if opts.Offset > 0 {
-			query = query.Offset(opts.Offset)
-		}
+	// Применяем опции пагинации
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
 
-		entBooks, err := query.All(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entBooks, err := query.All(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapBooksToDomain(entBooks), nil
-	})
+	return MapBooksToDomain(entBooks), nil
 }
 
 // ListByGenreID возвращает книги по жанру
 func (r *BookRepository) ListByGenreID(ctx context.Context, genreID domain.ID, opts QueryOptions) ([]*domain.Book, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) ([]*domain.Book, error) {
-		query := tx.Book.Query().
-			Where(book.HasGenresWith(genre.ID(genreID))).
-			WithAuthor().
-			WithGenres()
+	query := r.client.Book.Query().
+		Where(book.HasGenresWith(genre.ID(genreID))).
+		WithAuthor().
+		WithGenres()
 
-		// Применяем опции пагинации
-		if opts.Limit > 0 {
-			query = query.Limit(opts.Limit)
-		}
-		if opts.Offset > 0 {
-			query = query.Offset(opts.Offset)
-		}
+	// Применяем опции пагинации
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
 
-		entBooks, err := query.All(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entBooks, err := query.All(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapBooksToDomain(entBooks), nil
-	})
+	return MapBooksToDomain(entBooks), nil
 }
 
 // Search ищет книги по названию
 func (r *BookRepository) Search(ctx context.Context, searchQuery string, opts QueryOptions) ([]*domain.Book, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) ([]*domain.Book, error) {
-		query := tx.Book.Query().
-			Where(book.TitleContainsFold(strings.TrimSpace(searchQuery))).
-			WithAuthor().
-			WithGenres()
+	query := r.client.Book.Query().
+		Where(book.TitleContainsFold(strings.TrimSpace(searchQuery))).
+		WithAuthor().
+		WithGenres()
 
-		// Применяем опции пагинации
-		if opts.Limit > 0 {
-			query = query.Limit(opts.Limit)
-		}
-		if opts.Offset > 0 {
-			query = query.Offset(opts.Offset)
-		}
+	// Применяем опции пагинации
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
 
-		entBooks, err := query.All(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entBooks, err := query.All(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapBooksToDomain(entBooks), nil
-	})
+	return MapBooksToDomain(entBooks), nil
 }
 
 // SearchWithFilters ищет книги с возможностью комбинирования фильтров
 func (r *BookRepository) SearchWithFilters(ctx context.Context, title, authorName string, genreID *domain.ID, opts QueryOptions) ([]*domain.Book, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) ([]*domain.Book, error) {
-		query := tx.Book.Query().
-			WithAuthor().
-			WithGenres()
+	query := r.client.Book.Query().
+		WithAuthor().
+		WithGenres()
 
-		// Фильтрация по названию книги
-		if title != "" {
-			query = query.Where(book.TitleContainsFold(strings.TrimSpace(title)))
-		}
+	// Фильтрация по названию книги
+	if title != "" {
+		query = query.Where(book.TitleContainsFold(strings.TrimSpace(title)))
+	}
 
-		// Фильтрация по имени автора
-		if authorName != "" {
-			query = query.Where(book.HasAuthorWith(author.NameContainsFold(strings.TrimSpace(authorName))))
-		}
+	// Фильтрация по имени автора
+	if authorName != "" {
+		query = query.Where(book.HasAuthorWith(author.NameContainsFold(strings.TrimSpace(authorName))))
+	}
 
-		// Фильтрация по жанру
-		if genreID != nil {
-			query = query.Where(book.HasGenresWith(genre.ID(*genreID)))
-		}
+	// Фильтрация по жанру
+	if genreID != nil {
+		query = query.Where(book.HasGenresWith(genre.ID(*genreID)))
+	}
 
-		// Применяем опции пагинации
-		if opts.Limit > 0 {
-			query = query.Limit(opts.Limit)
-		}
-		if opts.Offset > 0 {
-			query = query.Offset(opts.Offset)
-		}
+	// Применяем опции пагинации
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
 
-		entBooks, err := query.All(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entBooks, err := query.All(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapBooksToDomain(entBooks), nil
-	})
+	return MapBooksToDomain(entBooks), nil
 }
 
 // GetByAuthorAndTitle возвращает книгу по имени автора и названию
 func (r *BookRepository) GetByAuthorAndTitle(ctx context.Context, authorName, title string) (*domain.Book, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.Book, error) {
-		entBook, err := tx.Book.Query().
-			Where(
-				book.TitleEQ(title),
-				book.HasAuthorWith(author.NameEQ(authorName)),
-			).
-			WithAuthor().
-			WithGenres().
-			Only(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entBook, err := r.client.Book.Query().
+		Where(
+			book.TitleEQ(title),
+			book.HasAuthorWith(author.NameEQ(authorName)),
+		).
+		WithAuthor().
+		WithGenres().
+		Only(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapBookToDomain(entBook), nil
-	})
+	return MapBookToDomain(entBook), nil
 }
 
 // Count возвращает количество книг
 func (r *BookRepository) Count(ctx context.Context) (int, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (int, error) {
-		count, err := tx.Book.Query().Count(ctx)
-		if err != nil {
-			return 0, HandleError(err)
-		}
+	count, err := r.client.Book.Query().Count(ctx)
+	if err != nil {
+		return 0, HandleError(err)
+	}
 
-		return count, nil
-	})
+	return count, nil
 }
 
 // ============================================================================
@@ -351,24 +381,13 @@ func (r *BookRepository) CreateChapter(ctx context.Context, domainChapter *domai
 			return nil, HandleError(err)
 		}
 
-		return r.GetChapterByID(ctx, entChapter.ID)
+		return r.getChapterByIDInternal(ctx, tx, entChapter.ID)
 	})
 }
 
 // GetChapterByID возвращает главу по ID
 func (r *BookRepository) GetChapterByID(ctx context.Context, id domain.ID) (*domain.BookChapter, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.BookChapter, error) {
-		entChapter, err := tx.BookChapter.Query().
-			Where(bookchapter.ID(id)).
-			WithBook().
-			Only(ctx)
-
-		if err != nil {
-			return nil, HandleError(err)
-		}
-
-		return MapBookChapterToDomain(entChapter), nil
-	})
+	return r.getChapterByIDInternal(ctx, nil, id)
 }
 
 // UpdateChapter обновляет главу
@@ -390,7 +409,7 @@ func (r *BookRepository) UpdateChapter(ctx context.Context, domainChapter *domai
 			return nil, HandleError(err)
 		}
 
-		return r.GetChapterByID(ctx, entChapter.ID)
+		return r.getChapterByIDInternal(ctx, tx, entChapter.ID)
 	})
 }
 
@@ -408,37 +427,33 @@ func (r *BookRepository) DeleteChapter(ctx context.Context, id domain.ID) error 
 
 // ListChaptersByBookID возвращает главы книги
 func (r *BookRepository) ListChaptersByBookID(ctx context.Context, bookID domain.ID, opts QueryOptions) ([]*domain.BookChapter, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) ([]*domain.BookChapter, error) {
-		query := tx.BookChapter.Query().
-			Where(bookchapter.HasBookWith(book.ID(bookID))).
-			WithBook().
-			Order(ent.Asc(bookchapter.FieldOrder))
+	query := r.client.BookChapter.Query().
+		Where(bookchapter.HasBookWith(book.ID(bookID))).
+		WithBook().
+		Order(ent.Asc(bookchapter.FieldOrder))
 
-		// Применяем опции пагинации
-		if opts.Limit > 0 {
-			query = query.Limit(opts.Limit)
-		}
-		if opts.Offset > 0 {
-			query = query.Offset(opts.Offset)
-		}
+	// Применяем опции пагинации
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
 
-		entChapters, err := query.All(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entChapters, err := query.All(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapBookChaptersToDomain(entChapters), nil
-	})
+	return MapBookChaptersToDomain(entChapters), nil
 }
 
 // CountChapters возвращает количество глав
 func (r *BookRepository) CountChapters(ctx context.Context) (int, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (int, error) {
-		count, err := tx.BookChapter.Query().Count(ctx)
-		if err != nil {
-			return 0, HandleError(err)
-		}
+	count, err := r.client.BookChapter.Query().Count(ctx)
+	if err != nil {
+		return 0, HandleError(err)
+	}
 
-		return count, nil
-	})
+	return count, nil
 }

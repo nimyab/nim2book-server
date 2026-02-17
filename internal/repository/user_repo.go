@@ -22,27 +22,11 @@ func NewUserRepository(client *ent.Client) *UserRepository {
 	}
 }
 
-// Create создает нового пользователя
-func (r *UserRepository) Create(ctx context.Context, domainUser *domain.User) (*domain.User, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.User, error) {
-		// Создаем пользователя
-		create := tx.User.Create().
-			SetIsVip(domainUser.IsVIP).
-			SetIsAdmin(domainUser.IsAdmin).
-			SetMetadata(domainUser.Metadata)
-
-		entUser, err := create.Save(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
-
-		return MapUserToDomain(entUser), nil
-	})
-}
-
-// GetByID возвращает пользователя по ID
-func (r *UserRepository) GetByID(ctx context.Context, id domain.ID) (*domain.User, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.User, error) {
+// getByIDInternal возвращает пользователя по ID, может работать внутри транзакции
+func (r *UserRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.User, error) {
+	client := r.client
+	if tx != nil {
+		// Используем транзакцию, если она передана
 		entUser, err := tx.User.Query().
 			Where(user.ID(id)).
 			WithGoogleAccount().
@@ -58,49 +42,67 @@ func (r *UserRepository) GetByID(ctx context.Context, id domain.ID) (*domain.Use
 		}
 
 		return MapUserToDomain(entUser), nil
-	})
+	}
+
+	// Используем обычный клиент без транзакции
+	entUser, err := client.User.Query().
+		Where(user.ID(id)).
+		WithGoogleAccount().
+		WithBasicAccount().
+		WithPersonalBooks(func(q *ent.PersonalBookQuery) {
+			q.WithAuthor().WithGenres()
+		}).
+		WithFcmTokens().
+		Only(ctx)
+
+	if err != nil {
+		return nil, HandleError(err)
+	}
+
+	return MapUserToDomain(entUser), nil
+}
+
+// GetByID возвращает пользователя по ID
+func (r *UserRepository) GetByID(ctx context.Context, id domain.ID) (*domain.User, error) {
+	return r.getByIDInternal(ctx, nil, id)
 }
 
 // GetByGoogleAccountID возвращает пользователя по Google Account ID
 func (r *UserRepository) GetByGoogleAccountID(ctx context.Context, googleAccountID domain.ID) (*domain.User, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.User, error) {
-		entUser, err := tx.User.Query().
-			Where(user.HasGoogleAccountWith(googleaccount.ID(googleAccountID))).
-			WithGoogleAccount().
-			WithBasicAccount().
-			WithPersonalBooks(func(q *ent.PersonalBookQuery) {
-				q.WithAuthor().WithGenres()
-			}).
-			WithFcmTokens().
-			Only(ctx)
+	entUser, err := r.client.User.Query().
+		Where(user.HasGoogleAccountWith(googleaccount.ID(googleAccountID))).
+		WithGoogleAccount().
+		WithBasicAccount().
+		WithPersonalBooks(func(q *ent.PersonalBookQuery) {
+			q.WithAuthor().WithGenres()
+		}).
+		WithFcmTokens().
+		Only(ctx)
 
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapUserToDomain(entUser), nil
-	})
+	return MapUserToDomain(entUser), nil
 }
 
 // GetByBasicAccountEmail возвращает пользователя по email базового аккаунта
 func (r *UserRepository) GetByBasicAccountEmail(ctx context.Context, email string) (*domain.User, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.User, error) {
-		entUser, err := tx.User.Query().
-			Where(user.HasBasicAccountWith(basicaccount.Email(email))).
-			WithGoogleAccount().
-			WithBasicAccount().
-			WithPersonalBooks(func(q *ent.PersonalBookQuery) {
-				q.WithAuthor().WithGenres()
-			}).
-			WithFcmTokens().
-			Only(ctx)
+	entUser, err := r.client.User.Query().
+		Where(user.HasBasicAccountWith(basicaccount.Email(email))).
+		WithGoogleAccount().
+		WithBasicAccount().
+		WithPersonalBooks(func(q *ent.PersonalBookQuery) {
+			q.WithAuthor().WithGenres()
+		}).
+		WithFcmTokens().
+		Only(ctx)
 
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapUserToDomain(entUser), nil
-	})
+	return MapUserToDomain(entUser), nil
 }
 
 // Update обновляет пользователя
@@ -117,7 +119,7 @@ func (r *UserRepository) Update(ctx context.Context, domainUser *domain.User) (*
 		}
 
 		// Загружаем полную информацию о пользователе
-		return r.GetByID(ctx, entUser.ID)
+		return r.getByIDInternal(ctx, tx, entUser.ID)
 	})
 }
 
@@ -135,43 +137,39 @@ func (r *UserRepository) Delete(ctx context.Context, id domain.ID) error {
 
 // List возвращает список пользователей с пагинацией
 func (r *UserRepository) List(ctx context.Context, opts QueryOptions) ([]*domain.User, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) ([]*domain.User, error) {
-		query := tx.User.Query().
-			WithGoogleAccount().
-			WithBasicAccount()
+	query := r.client.User.Query().
+		WithGoogleAccount().
+		WithBasicAccount()
 
-		// Применяем опции пагинации
-		if opts.Limit > 0 {
-			query = query.Limit(opts.Limit)
-		}
-		if opts.Offset > 0 {
-			query = query.Offset(opts.Offset)
-		}
+	// Применяем опции пагинации
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
 
-		// Фильтрация по ID, если указаны
-		if len(opts.IDs) > 0 {
-			query = query.Where(user.IDIn(opts.IDs...))
-		}
+	// Фильтрация по ID, если указаны
+	if len(opts.IDs) > 0 {
+		query = query.Where(user.IDIn(opts.IDs...))
+	}
 
-		entUsers, err := query.All(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entUsers, err := query.All(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapUsersToDomain(entUsers), nil
-	})
+	return MapUsersToDomain(entUsers), nil
 }
 
 // Count возвращает количество пользователей
 func (r *UserRepository) Count(ctx context.Context) (int, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (int, error) {
-		count, err := tx.User.Query().Count(ctx)
-		if err != nil {
-			return 0, HandleError(err)
-		}
+	count, err := r.client.User.Query().Count(ctx)
+	if err != nil {
+		return 0, HandleError(err)
+	}
 
-		return count, nil
-	})
+	return count, nil
 }
 
 // CreateWithGoogleAccount создает пользователя с Google аккаунтом атомарно
@@ -203,7 +201,7 @@ func (r *UserRepository) CreateWithGoogleAccount(ctx context.Context, domainUser
 		}
 
 		// Загружаем полную информацию
-		return r.GetByID(ctx, entUser.ID)
+		return r.getByIDInternal(ctx, tx, entUser.ID)
 	})
 }
 
@@ -235,7 +233,7 @@ func (r *UserRepository) CreateWithBasicAccount(ctx context.Context, domainUser 
 		}
 
 		// Загружаем полную информацию
-		return r.GetByID(ctx, entUser.ID)
+		return r.getByIDInternal(ctx, tx, entUser.ID)
 	})
 }
 
@@ -342,66 +340,58 @@ func (r *UserRepository) UpdateBasicAccount(ctx context.Context, basicAccount *d
 
 // GetGoogleAccountBySub возвращает Google аккаунт по sub (Google ID)
 func (r *UserRepository) GetGoogleAccountBySub(ctx context.Context, sub string) (*domain.GoogleAccount, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.GoogleAccount, error) {
-		entAccount, err := tx.GoogleAccount.Query().
-			Where(googleaccount.Sub(sub)).
-			WithUser().
-			Only(ctx)
+	entAccount, err := r.client.GoogleAccount.Query().
+		Where(googleaccount.Sub(sub)).
+		WithUser().
+		Only(ctx)
 
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapGoogleAccountToDomain(entAccount), nil
-	})
+	return MapGoogleAccountToDomain(entAccount), nil
 }
 
 // GetGoogleAccountByEmail возвращает Google аккаунт по email
 func (r *UserRepository) GetGoogleAccountByEmail(ctx context.Context, email string) (*domain.GoogleAccount, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.GoogleAccount, error) {
-		entAccount, err := tx.GoogleAccount.Query().
-			Where(googleaccount.Email(email)).
-			WithUser().
-			Only(ctx)
+	entAccount, err := r.client.GoogleAccount.Query().
+		Where(googleaccount.Email(email)).
+		WithUser().
+		Only(ctx)
 
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapGoogleAccountToDomain(entAccount), nil
-	})
+	return MapGoogleAccountToDomain(entAccount), nil
 }
 
 // GetBasicAccountByEmail возвращает базовый аккаунт по email (с паролем для проверки)
 func (r *UserRepository) GetBasicAccountByEmail(ctx context.Context, email string) (*domain.BasicAccount, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.BasicAccount, error) {
-		entAccount, err := tx.BasicAccount.Query().
-			Where(basicaccount.Email(email)).
-			WithUser().
-			Only(ctx)
+	entAccount, err := r.client.BasicAccount.Query().
+		Where(basicaccount.Email(email)).
+		WithUser().
+		Only(ctx)
 
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapBasicAccountToDomain(entAccount), nil
-	})
+	return MapBasicAccountToDomain(entAccount), nil
 }
 
 // GetBasicAccountByVerifyLink возвращает базовый аккаунт по токену верификации
 func (r *UserRepository) GetBasicAccountByVerifyLink(ctx context.Context, verifyLink string) (*domain.BasicAccount, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.BasicAccount, error) {
-		entAccount, err := tx.BasicAccount.Query().
-			Where(basicaccount.VerifyLink(verifyLink)).
-			WithUser().
-			Only(ctx)
+	entAccount, err := r.client.BasicAccount.Query().
+		Where(basicaccount.VerifyLink(verifyLink)).
+		WithUser().
+		Only(ctx)
 
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapBasicAccountToDomain(entAccount), nil
-	})
+	return MapBasicAccountToDomain(entAccount), nil
 }
 
 // DeleteGoogleAccount удаляет Google аккаунт пользователя

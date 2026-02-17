@@ -20,6 +20,27 @@ func NewGenreRepository(client *ent.Client) *GenreRepository {
 	}
 }
 
+// getByIDInternal возвращает жанр по ID, работает как с транзакцией, так и без неё
+func (r *GenreRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.Genre, error) {
+	if tx != nil {
+		entGenre, err := tx.Genre.Query().
+			Where(genre.ID(id)).
+			Only(ctx)
+		if err != nil {
+			return nil, HandleError(err)
+		}
+		return MapGenreToDomain(entGenre), nil
+	}
+
+	entGenre, err := r.client.Genre.Query().
+		Where(genre.ID(id)).
+		Only(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
+	return MapGenreToDomain(entGenre), nil
+}
+
 // Create создает новый жанр
 func (r *GenreRepository) Create(ctx context.Context, domainGenre *domain.Genre) (*domain.Genre, error) {
 	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.Genre, error) {
@@ -31,38 +52,26 @@ func (r *GenreRepository) Create(ctx context.Context, domainGenre *domain.Genre)
 			return nil, HandleError(err)
 		}
 
-		return MapGenreToDomain(entGenre), nil
+		return r.getByIDInternal(ctx, tx, entGenre.ID)
 	})
 }
 
 // GetByID возвращает жанр по ID
 func (r *GenreRepository) GetByID(ctx context.Context, id domain.ID) (*domain.Genre, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.Genre, error) {
-		entGenre, err := tx.Genre.Query().
-			Where(genre.ID(id)).
-			Only(ctx)
-
-		if err != nil {
-			return nil, HandleError(err)
-		}
-
-		return MapGenreToDomain(entGenre), nil
-	})
+	return r.getByIDInternal(ctx, nil, id)
 }
 
 // GetByName возвращает жанр по названию
 func (r *GenreRepository) GetByName(ctx context.Context, name string) (*domain.Genre, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.Genre, error) {
-		entGenre, err := tx.Genre.Query().
-			Where(genre.Name(name)).
-			Only(ctx)
+	entGenre, err := r.client.Genre.Query().
+		Where(genre.Name(name)).
+		Only(ctx)
 
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapGenreToDomain(entGenre), nil
-	})
+	return MapGenreToDomain(entGenre), nil
 }
 
 // Update обновляет жанр
@@ -88,39 +97,35 @@ func (r *GenreRepository) Delete(ctx context.Context, id domain.ID) error {
 
 // List возвращает список жанров
 func (r *GenreRepository) List(ctx context.Context, opts QueryOptions) ([]*domain.Genre, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) ([]*domain.Genre, error) {
-		query := tx.Genre.Query()
+	query := r.client.Genre.Query()
 
-		// Применяем опции пагинации
-		if opts.Limit > 0 {
-			query = query.Limit(opts.Limit)
-		}
-		if opts.Offset > 0 {
-			query = query.Offset(opts.Offset)
-		}
+	// Применяем опции пагинации
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
 
-		// Фильтрация по ID, если указаны
-		if len(opts.IDs) > 0 {
-			query = query.Where(genre.IDIn(opts.IDs...))
-		}
+	// Фильтрация по ID, если указаны
+	if len(opts.IDs) > 0 {
+		query = query.Where(genre.IDIn(opts.IDs...))
+	}
 
-		entGenres, err := query.All(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entGenres, err := query.All(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapGenresToDomain(entGenres), nil
-	})
+	return MapGenresToDomain(entGenres), nil
 }
 
 // Count возвращает количество жанров
 func (r *GenreRepository) Count(ctx context.Context) (int, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (int, error) {
-		count, err := tx.Genre.Query().Count(ctx)
-		if err != nil {
-			return 0, HandleError(err)
-		}
+	count, err := r.client.Genre.Query().Count(ctx)
+	if err != nil {
+		return 0, HandleError(err)
+	}
 
-		return count, nil
-	})
+	return count, nil
 }

@@ -57,6 +57,9 @@ func HandleError(err error) error {
 // DoInTx выполняет функцию внутри транзакции
 // Если функция возвращает ошибку, транзакция откатывается
 // Если функция завершается успешно, транзакция коммитится
+// ВАЖНО: Используйте эту функцию ТОЛЬКО для операций записи (Create, Update, Delete)
+// или когда нужно несколько операций атомарно.
+// Для read-only операций используйте обычный client напрямую.
 func DoInTx[T any](ctx context.Context, client *entclient.Client, fn func(tx *entclient.Tx) (T, error)) (T, error) {
 	var zero T
 
@@ -89,4 +92,28 @@ func DoInTx[T any](ctx context.Context, client *entclient.Client, fn func(tx *en
 	}
 
 	return result, nil
+}
+
+// TxClient возвращает Client из транзакции или обычный Client
+// Используется для универсальных функций, которые могут работать
+// как внутри транзакции, так и вне её
+type TxClient interface {
+	User() interface{}
+	Book() interface{}
+	PersonalBook() interface{}
+	Dictionary() interface{}
+	DictionaryExample() interface{}
+	Author() interface{}
+	Genre() interface{}
+	GoogleAccount() interface{}
+	BasicAccount() interface{}
+	FCMToken() interface{}
+}
+
+// GetClientOrTx возвращает tx.Client(), если tx не nil, иначе client
+func GetClientOrTx(client *entclient.Client, tx *entclient.Tx) *entclient.Client {
+	if tx != nil {
+		return tx.Client()
+	}
+	return client
 }

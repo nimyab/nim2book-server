@@ -21,6 +21,33 @@ func NewDictionaryRepository(client *ent.Client) *DictionaryRepository {
 	}
 }
 
+// getByIDInternal возвращает запись словаря по ID, может работать внутри транзакции
+func (r *DictionaryRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.DictionaryWord, error) {
+	if tx != nil {
+		entDict, err := tx.Dictionary.Query().
+			Where(dictionary.ID(id)).
+			WithDictionaryExamples().
+			Only(ctx)
+
+		if err != nil {
+			return nil, HandleError(err)
+		}
+
+		return MapDictionaryToDomain(entDict), nil
+	}
+
+	entDict, err := r.client.Dictionary.Query().
+		Where(dictionary.ID(id)).
+		WithDictionaryExamples().
+		Only(ctx)
+
+	if err != nil {
+		return nil, HandleError(err)
+	}
+
+	return MapDictionaryToDomain(entDict), nil
+}
+
 // Create создает новую запись в словаре
 func (r *DictionaryRepository) Create(ctx context.Context, domainDict *domain.DictionaryWord) (*domain.DictionaryWord, error) {
 	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.DictionaryWord, error) {
@@ -64,24 +91,13 @@ func (r *DictionaryRepository) Create(ctx context.Context, domainDict *domain.Di
 			return nil, HandleError(err)
 		}
 
-		return r.GetByID(ctx, entDict.ID)
+		return r.getByIDInternal(ctx, tx, entDict.ID)
 	})
 }
 
 // GetByID возвращает запись словаря по ID
 func (r *DictionaryRepository) GetByID(ctx context.Context, id domain.ID) (*domain.DictionaryWord, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.DictionaryWord, error) {
-		entDict, err := tx.Dictionary.Query().
-			Where(dictionary.ID(id)).
-			WithDictionaryExamples().
-			Only(ctx)
-
-		if err != nil {
-			return nil, HandleError(err)
-		}
-
-		return MapDictionaryToDomain(entDict), nil
-	})
+	return r.getByIDInternal(ctx, nil, id)
 }
 
 // Update обновляет запись словаря
@@ -106,7 +122,7 @@ func (r *DictionaryRepository) Update(ctx context.Context, domainDict *domain.Di
 			return nil, HandleError(err)
 		}
 
-		return r.GetByID(ctx, entDict.ID)
+		return r.getByIDInternal(ctx, tx, entDict.ID)
 	})
 }
 
@@ -124,41 +140,37 @@ func (r *DictionaryRepository) Delete(ctx context.Context, id domain.ID) error {
 
 // List возвращает список записей словаря
 func (r *DictionaryRepository) List(ctx context.Context, opts QueryOptions) ([]*domain.DictionaryWord, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) ([]*domain.DictionaryWord, error) {
-		query := tx.Dictionary.Query().WithDictionaryExamples()
+	query := r.client.Dictionary.Query().WithDictionaryExamples()
 
-		// Применяем опции пагинации
-		if opts.Limit > 0 {
-			query = query.Limit(opts.Limit)
-		}
-		if opts.Offset > 0 {
-			query = query.Offset(opts.Offset)
-		}
+	// Применяем опции пагинации
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
 
-		// Фильтрация по ID, если указаны
-		if len(opts.IDs) > 0 {
-			query = query.Where(dictionary.IDIn(opts.IDs...))
-		}
+	// Фильтрация по ID, если указаны
+	if len(opts.IDs) > 0 {
+		query = query.Where(dictionary.IDIn(opts.IDs...))
+	}
 
-		entDicts, err := query.All(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
+	entDicts, err := query.All(ctx)
+	if err != nil {
+		return nil, HandleError(err)
+	}
 
-		return MapDictionariesToDomain(entDicts), nil
-	})
+	return MapDictionariesToDomain(entDicts), nil
 }
 
 // Count возвращает количество записей
 func (r *DictionaryRepository) Count(ctx context.Context) (int, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (int, error) {
-		count, err := tx.Dictionary.Query().Count(ctx)
-		if err != nil {
-			return 0, HandleError(err)
-		}
+	count, err := r.client.Dictionary.Query().Count(ctx)
+	if err != nil {
+		return 0, HandleError(err)
+	}
 
-		return count, nil
-	})
+	return count, nil
 }
 
 // ============================================================================
