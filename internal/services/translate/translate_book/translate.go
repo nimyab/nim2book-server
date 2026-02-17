@@ -14,3 +14,10 @@ type translateStruct struct {
 	From      domain.SupportedLang
 	To        domain.SupportedLang
 }
+
+type translatedChapterResult struct {
+	Chapter      *domain.ChapterAlignNode
+	ChapterOrder int
+	Path         string
+	Error        error
+}

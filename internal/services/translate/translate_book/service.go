@@ -67,13 +67,6 @@ type Service struct {
 	notificationSignal NotificationSender
 }
 
-type translatedChapterResult struct {
-	Chapter      *domain.ChapterAlignNode
-	ChapterOrder int
-	Path         string
-	Error        error
-}
-
 var (
 	ErrFailedTranslateChapter   = errors.New("failed translate chapter")
 	ErrFailedSaveToStorage      = errors.New("failed save to storage")
