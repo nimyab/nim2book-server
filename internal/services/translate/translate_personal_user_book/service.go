@@ -16,11 +16,11 @@ import (
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/repository"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
-	"github.com/nimyab/nim2book-back/pkg/contains_letters"
+	"github.com/nimyab/nim2book-back/internal/services/translate/dto"
+	"github.com/nimyab/nim2book-back/internal/services/translate/logic"
 	"github.com/nimyab/nim2book-back/pkg/logger"
 	"github.com/nimyab/nim2book-back/pkg/parsers/epub_parser"
 	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
-	"golang.org/x/sync/errgroup"
 )
 
 type S3 interface {
@@ -52,8 +52,7 @@ type NotificationSender interface {
 }
 
 type Service struct {
-	maxRequestCount int
-	waitDuration    time.Duration
+	config dto.Config
 
 	mu                          sync.Mutex
 	currentCountBookTranslating int
@@ -65,6 +64,8 @@ type Service struct {
 	translator       Translator
 
 	notificationSignal NotificationSender
+
+	logic *logic.Logic
 }
 
 var (
@@ -80,8 +81,7 @@ func New(
 	authorRepo AuthorRepository,
 	wordAligner pb.AlignmentServiceClient,
 	translator Translator,
-	maxRequestCount int,
-	waitDuration time.Duration,
+	config dto.Config,
 	notificationSignal NotificationSender,
 ) *Service {
 	return &Service{
@@ -90,11 +90,15 @@ func New(
 		authorRepo:                  authorRepo,
 		wordAligner:                 wordAligner,
 		translator:                  translator,
-		maxRequestCount:             maxRequestCount,
-		waitDuration:                waitDuration,
+		config:                      config,
 		currentCountBookTranslating: 0,
 		notificationSignal:          notificationSignal,
+		logic:                       logic.New(translator, wordAligner),
 	}
+}
+
+func (s *Service) Throttle() {
+	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.config.WaitDuration)
 }
 
 func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, book *multipart.FileHeader, userId domain.ID) (*Output, error) {
@@ -138,11 +142,11 @@ func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, b
 		return nil, errors.New("failed to find book")
 	}
 
-	translatedData := &translateStruct{
+	translatedData := &dto.TranslationContext{
 		Book:         parsedBook,
 		Chapters:     chapters,
 		CoverData:    coverData,
-		UserId:       userId,
+		UserID:       userId,
 		From:         input.From,
 		To:           input.To,
 		PersonalBook: existedBook,
@@ -192,7 +196,7 @@ func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, b
 }
 
 func (s *Service) startTranslate(
-	data *translateStruct,
+	data *dto.TranslationContext,
 ) error {
 	const operation = "translate_personal_user_book.startTranslate"
 
@@ -212,7 +216,7 @@ func (s *Service) startTranslate(
 
 	var coverURL *string
 	if data.CoverData != nil {
-		coverPath, err := s.saveCoverToS3(data.CoverData, data.Book.Title, data.UserId)
+		coverPath, err := s.saveCoverToS3(data.CoverData, data.Book.Title, data.UserID)
 		if err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation))
 		} else {
@@ -241,7 +245,7 @@ func (s *Service) startTranslate(
 			OriginalLang:   string(data.From),
 			TranslatedLang: string(data.To),
 			User: &domain.User{
-				ID: data.UserId,
+				ID: data.UserID,
 			},
 		}
 		newBook, err = s.personalBookRepo.Create(ctx, newBook)
@@ -256,7 +260,7 @@ func (s *Service) startTranslate(
 	}
 
 	// use buffer chan to saveChapterToS3 non block translateChapters goroutine
-	resultChan := make(chan translatedChapterResult, len(data.Chapters))
+	resultChan := make(chan dto.ChapterResult, len(data.Chapters))
 
 	go s.translateChapters(ctx, resultChan, data)
 
@@ -288,7 +292,7 @@ func (s *Service) startTranslate(
 			path = result.Path
 		} else {
 			var err error
-			path, err = s.saveChapterToS3(result.Chapter, data.Book.Title, data.UserId)
+			path, err = s.saveChapterToS3(result.Chapter, data.Book.Title, data.UserID)
 			if err != nil {
 				logger.Error(
 					fmt.Sprintf("failed to save to s3 chapter %d order, title: %s, author: %s", result.Chapter.Order, data.Book.Title, data.Book.Author),
@@ -318,7 +322,7 @@ func (s *Service) startTranslate(
 
 		// отправляем уведомления о переведенной главе
 		s.notificationSignal.Emit(ctx, &domain.Notification{
-			UserId: data.UserId,
+			UserId: data.UserID,
 			Type:   domain.NotificationChapterTranslateSucceed,
 			Data: &domain.NotificationChapterTranslateSucceedData{
 				Author:            data.Book.Author,
@@ -332,7 +336,7 @@ func (s *Service) startTranslate(
 
 	// уведомление что книга создана
 	s.notificationSignal.Emit(ctx, &domain.Notification{
-		UserId: data.UserId,
+		UserId: data.UserID,
 		Type:   domain.NotificationPersonalBookTranslated,
 		Data: &domain.NotificationPersonalBookTranslatedData{
 			Book: newBook,
@@ -344,8 +348,8 @@ func (s *Service) startTranslate(
 
 func (s *Service) translateChapters(
 	ctx context.Context,
-	resultChan chan<- translatedChapterResult,
-	data *translateStruct,
+	resultChan chan<- dto.ChapterResult,
+	data *dto.TranslationContext,
 ) {
 	const operation = "translate_personal_user_book.Service.translateChapters"
 
@@ -361,7 +365,7 @@ func (s *Service) translateChapters(
 
 		existChapter, err := s.personalBookRepo.GetChapterByPersonalBookIDAndOrder(ctx, data.PersonalBook.ID, i)
 		if existChapter != nil {
-			resultChan <- translatedChapterResult{
+			resultChan <- dto.ChapterResult{
 				ExistChapter: existChapter,
 				ChapterOrder: i,
 				Error:        nil,
@@ -373,10 +377,10 @@ func (s *Service) translateChapters(
 			continue
 		}
 
-		path := s.checkChapterInStorage(i, data.Book.Title, data.UserId)
+		path := s.checkChapterInStorage(i, data.Book.Title, data.UserID)
 		if path != "" {
 			slog.Info(fmt.Sprintf("chapter %d already exist", i), slog.String("operation", operation), slog.String("path", path))
-			resultChan <- translatedChapterResult{
+			resultChan <- dto.ChapterResult{
 				Path:         path,
 				ChapterOrder: i,
 				Chapter:      nil,
@@ -385,52 +389,10 @@ func (s *Service) translateChapters(
 			continue
 		}
 
-		startTime := time.Now()
-
-		translatedChapter := make([]domain.ParagraphAlignNode, len(chapter.Paragraphs))
-
-		g, ctxErrGroup := errgroup.WithContext(ctx)
-		g.SetLimit(s.maxRequestCount)
-
-		for idx, paragraph := range chapter.Paragraphs {
-			idx, paragraph := idx, paragraph
-			g.Go(func() error {
-				select {
-				case <-ctxErrGroup.Done():
-					return ctxErrGroup.Err()
-				default:
-				}
-
-				startTranslateParagraphTime := time.Now()
-				slog.Info(
-					"start translate paragraph",
-					slog.Int("paragraph length", len([]rune(paragraph))),
-					slog.Int("chapter order", i),
-					slog.Int("paragraph index", idx),
-					slog.String("operation", operation),
-				)
-
-				alignedParagraph, err := s.translateAndAlignParagraph(ctxErrGroup, paragraph, data.From, data.To)
-				if err != nil {
-					return err
-				}
-				translatedChapter[idx] = alignedParagraph
-
-				slog.Info(
-					"translated paragraph",
-					slog.Int("chapter order", i),
-					slog.Int("paragraph index", idx),
-					slog.String("duration", time.Since(startTranslateParagraphTime).String()),
-					slog.String("operation", operation),
-				)
-
-				return nil
-			})
-		}
-
-		if err := g.Wait(); err != nil {
+		chapterNode, err := s.logic.TranslateChapter(ctx, chapter, data.From, data.To, s, s.config.MaxRequestCount)
+		if err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation))
-			resultChan <- translatedChapterResult{
+			resultChan <- dto.ChapterResult{
 				Chapter:      nil,
 				Error:        ErrFailedTranslateChapter,
 				ChapterOrder: i,
@@ -438,119 +400,14 @@ func (s *Service) translateChapters(
 			return
 		}
 
-		var translatedTitle string
-		if len(chapter.Title) > 0 {
-			translatedTitleOutput, err := s.translator.Translate(&translate.Input{
-				Q:      chapter.Title,
-				Source: data.From,
-				Target: data.To,
-			})
-			if err != nil {
-				slog.Error(err.Error(), slog.String("operation", operation))
-				resultChan <- translatedChapterResult{
-					ChapterOrder: i,
-					Chapter:      nil,
-					Error:        ErrFailedTranslateChapter,
-				}
-				return
-			}
-			translatedTitle = translatedTitleOutput.TranslatedText
-		} else {
-			translatedTitle = ""
-		}
+		chapterNode.Order = i
 
-		chapterNode := domain.ChapterAlignNode{
-			Id:              chapter.ID,
-			Content:         translatedChapter,
-			Order:           i,
-			Title:           chapter.Title,
-			TranslatedTitle: translatedTitle,
-		}
-
-		resultChan <- translatedChapterResult{
+		resultChan <- dto.ChapterResult{
 			ChapterOrder: i,
-			Chapter:      &chapterNode,
+			Chapter:      chapterNode,
 			Error:        nil,
 		}
-
-		duration := time.Since(startTime)
-		slog.Info(
-			fmt.Sprintf("translated chapter %d", chapterNode.Order),
-			slog.String("duration", duration.String()),
-			slog.String("title", data.Book.Title),
-			slog.String("author", data.Book.Author),
-		)
 	}
-}
-
-func (s *Service) translateAndAlignParagraph(ctx context.Context, paragraph string, from domain.SupportedLang, to domain.SupportedLang) (domain.ParagraphAlignNode, error) {
-	const operation = "translate_personal_user_book.Service.translateAndAlignParagraph"
-
-	translateOutput, err := s.translator.Translate(&translate.Input{
-		Q:      paragraph,
-		Source: from,
-		Target: to,
-	})
-	if err != nil {
-		slog.Error(err.Error(), slog.String("operation", operation))
-		return domain.ParagraphAlignNode{}, errors.New("failed to translate paragraph")
-	}
-
-	if !contains_letters.ContainsLetters(paragraph) || !contains_letters.ContainsLetters(translateOutput.TranslatedText) {
-		alignedParagraph := domain.ParagraphAlignNode{
-			OriginalParagraph:   paragraph,
-			TranslatedParagraph: translateOutput.TranslatedText,
-			AlignmentWords: []domain.WordAlignNode{{
-				IndexesOriginalWord:   [2]int{0, len([]rune(paragraph)) - 1},
-				IndexesTranslatedWord: [2]int{0, len([]rune(translateOutput.TranslatedText)) - 1},
-			}},
-		}
-		return alignedParagraph, nil
-	}
-	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.waitDuration)
-
-	alignOutput, err := s.wordAligner.Align(ctx, &pb.AlignRequest{
-		SourceText: paragraph,
-		TargetText: translateOutput.TranslatedText,
-	})
-	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.waitDuration)
-
-	if err != nil {
-		slog.Error(
-			err.Error(),
-			slog.String("operation", operation),
-			slog.String("source text", paragraph),
-			slog.String("target text", translateOutput.TranslatedText),
-		)
-		return domain.ParagraphAlignNode{}, errors.New("failed to align words")
-	}
-
-	alignWords := make([]domain.WordAlignNode, 0, len(alignOutput.Alignments))
-	for _, alignment := range alignOutput.Alignments {
-		alignWord := domain.WordAlignNode{
-			IndexesOriginalWord:   [2]int{int(alignment.SrcStart), int(alignment.SrcEnd)},
-			IndexesTranslatedWord: [2]int{int(alignment.TargetStart), int(alignment.TargetEnd)},
-		}
-		exist := false
-		for _, addedAlignWord := range alignWords {
-			if alignWord.IndexesOriginalWord[0] == addedAlignWord.IndexesOriginalWord[0] &&
-				alignWord.IndexesOriginalWord[1] == addedAlignWord.IndexesOriginalWord[1] {
-				exist = true
-				break
-			}
-		}
-		if !exist {
-			alignWords = append(alignWords, alignWord)
-		}
-	}
-
-	alignedParagraph := domain.ParagraphAlignNode{
-		OriginalParagraph:   paragraph,
-		TranslatedParagraph: translateOutput.TranslatedText,
-		AlignmentWords:      alignWords,
-	}
-
-	return alignedParagraph, nil
 }
 
 func (s *Service) saveChapterToS3(chapter *domain.ChapterAlignNode, bookTitle string, userId domain.ID) (string, error) {
