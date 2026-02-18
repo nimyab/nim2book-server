@@ -190,6 +190,8 @@ definitions:
         items:
           $ref: '#/definitions/domain.PersonalBookChapter'
         type: array
+      processStatus:
+        $ref: '#/definitions/domain.ProcessStatus'
       title:
         type: string
       translatedLang:
@@ -214,6 +216,18 @@ definitions:
       translatedTitle:
         type: string
     type: object
+  domain.ProcessStatus:
+    enum:
+    - not_started
+    - in_progress
+    - completed
+    - failed
+    type: string
+    x-enum-varnames:
+    - ProcessStatusNotStarted
+    - ProcessStatusInProgress
+    - ProcessStatusCompleted
+    - ProcessStatusFailed
   domain.User:
     properties:
       basicAccount:

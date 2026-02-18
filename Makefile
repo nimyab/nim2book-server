@@ -1,15 +1,14 @@
-.PHONY: swagger dev build install-tools test test-coverage atlasdiff atlasapply ent-generate
+.PHONY: swagger dev build install-tools test test-coverage atlasdiff atlasapply ent-generate mocks
 
 include .env
 
-# Install development tools
-install-tools:
-	go install github.com/swaggo/swag/cmd/swag@latest
-	go install github.com/pressly/goose/v3/cmd/goose@latest
+# Mocks generation
+mocks:
+	go run github.com/vektra/mockery/v3@latest
 
 # Swagger documentation generation
 swagger:
-	swag init -g cmd/app/main.go
+	go run github.com/swaggo/swag/cmd/swag@latest init -g cmd/app/main.go
 
 # Development server
 dev: swagger

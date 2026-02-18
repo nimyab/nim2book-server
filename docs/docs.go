@@ -832,6 +832,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/domain.PersonalBookChapter"
                     }
                 },
+                "processStatus": {
+                    "$ref": "#/definitions/domain.ProcessStatus"
+                },
                 "title": {
                     "type": "string"
                 },
@@ -868,6 +871,21 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "domain.ProcessStatus": {
+            "type": "string",
+            "enum": [
+                "not_started",
+                "in_progress",
+                "completed",
+                "failed"
+            ],
+            "x-enum-varnames": [
+                "ProcessStatusNotStarted",
+                "ProcessStatusInProgress",
+                "ProcessStatusCompleted",
+                "ProcessStatusFailed"
+            ]
         },
         "domain.User": {
             "type": "object",
