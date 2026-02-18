@@ -24,27 +24,8 @@ func NewUserRepository(client *ent.Client) *UserRepository {
 
 // getByIDInternal возвращает пользователя по ID, может работать внутри транзакции
 func (r *UserRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.User, error) {
-	client := r.client
-	if tx != nil {
-		// Используем транзакцию, если она передана
-		entUser, err := tx.User.Query().
-			Where(user.ID(id)).
-			WithGoogleAccount().
-			WithBasicAccount().
-			WithPersonalBooks(func(q *ent.PersonalBookQuery) {
-				q.WithAuthor().WithGenres()
-			}).
-			WithFcmTokens().
-			Only(ctx)
+	client := GetClientOrTx(r.client, tx)
 
-		if err != nil {
-			return nil, HandleError(err)
-		}
-
-		return MapUserToDomain(entUser), nil
-	}
-
-	// Используем обычный клиент без транзакции
 	entUser, err := client.User.Query().
 		Where(user.ID(id)).
 		WithGoogleAccount().
@@ -107,7 +88,12 @@ func (r *UserRepository) GetByBasicAccountEmail(ctx context.Context, email strin
 
 // Update обновляет пользователя
 func (r *UserRepository) Update(ctx context.Context, domainUser *domain.User) (*domain.User, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.User, error) {
+	return r.UpdateTx(ctx, nil, domainUser)
+}
+
+// UpdateTx обновляет пользователя внутри транзакции (если передана)
+func (r *UserRepository) UpdateTx(ctx context.Context, tx *ent.Tx, domainUser *domain.User) (*domain.User, error) {
+	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.User, error) {
 		update := tx.User.UpdateOneID(domainUser.ID).
 			SetIsVip(domainUser.IsVIP).
 			SetIsAdmin(domainUser.IsAdmin).
@@ -125,7 +111,12 @@ func (r *UserRepository) Update(ctx context.Context, domainUser *domain.User) (*
 
 // Delete удаляет пользователя
 func (r *UserRepository) Delete(ctx context.Context, id domain.ID) error {
-	_, err := DoInTx(ctx, r.client, func(tx *ent.Tx) (struct{}, error) {
+	return r.DeleteTx(ctx, nil, id)
+}
+
+// DeleteTx удаляет пользователя внутри транзакции (если передана)
+func (r *UserRepository) DeleteTx(ctx context.Context, tx *ent.Tx, id domain.ID) error {
+	_, err := DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (struct{}, error) {
 		err := tx.User.DeleteOneID(id).Exec(ctx)
 		if err != nil {
 			return struct{}{}, HandleError(err)
@@ -174,7 +165,12 @@ func (r *UserRepository) Count(ctx context.Context) (int, error) {
 
 // CreateWithGoogleAccount создает пользователя с Google аккаунтом атомарно
 func (r *UserRepository) CreateWithGoogleAccount(ctx context.Context, domainUser *domain.User, googleAccount *domain.GoogleAccount) (*domain.User, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.User, error) {
+	return r.CreateWithGoogleAccountTx(ctx, nil, domainUser, googleAccount)
+}
+
+// CreateWithGoogleAccountTx создает пользователя с Google аккаунтом атомарно (внутри транзакции)
+func (r *UserRepository) CreateWithGoogleAccountTx(ctx context.Context, tx *ent.Tx, domainUser *domain.User, googleAccount *domain.GoogleAccount) (*domain.User, error) {
+	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.User, error) {
 		// Создаем Google аккаунт
 		entGoogleAccount, err := tx.GoogleAccount.Create().
 			SetSub(googleAccount.Sub).
@@ -207,7 +203,12 @@ func (r *UserRepository) CreateWithGoogleAccount(ctx context.Context, domainUser
 
 // CreateWithBasicAccount создает пользователя с базовым аккаунтом атомарно
 func (r *UserRepository) CreateWithBasicAccount(ctx context.Context, domainUser *domain.User, basicAccount *domain.BasicAccount) (*domain.User, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.User, error) {
+	return r.CreateWithBasicAccountTx(ctx, nil, domainUser, basicAccount)
+}
+
+// CreateWithBasicAccountTx создает пользователя с базовым аккаунтом атомарно (внутри транзакции)
+func (r *UserRepository) CreateWithBasicAccountTx(ctx context.Context, tx *ent.Tx, domainUser *domain.User, basicAccount *domain.BasicAccount) (*domain.User, error) {
+	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.User, error) {
 		// Создаем базовый аккаунт
 		entBasicAccount, err := tx.BasicAccount.Create().
 			SetEmail(basicAccount.Email).

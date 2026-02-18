@@ -19,7 +19,10 @@ func (a *App) registerAdapters() {
 	// PostgreSQL
 	do.Provide(a.injector, func(i do.Injector) (*ent.Client, error) {
 		cfg := do.MustInvoke[*config.Config](i)
-		return postgres.New(&postgres.Config{PostgresURL: cfg.PostgresURL})
+		return postgres.New(&postgres.Config{
+			PostgresURL: cfg.PostgresURL,
+			IsDebug:     cfg.Env == config.EnvLocal || cfg.Env == config.EnvDev,
+		})
 	})
 
 	// MinIO

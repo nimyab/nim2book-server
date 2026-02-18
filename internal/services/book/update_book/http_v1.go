@@ -25,13 +25,13 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 		}
 
 		input := new(Input)
-		if err := c.Bind(input); err != nil {
+		if err = c.Bind(input); err != nil {
 			return c.JSON(http.StatusBadRequest, echo.Map{
 				"error": "invalid input",
 			})
 		}
 
-		if err := c.Validate(input); err != nil {
+		if err = c.Validate(input); err != nil {
 			return c.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
 			})

@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/repository"
 )
 
 var (
@@ -54,8 +55,11 @@ func (s *Service) UpdateBook(ctx context.Context, input *Input, cover *multipart
 
 	book, err := s.bookRepo.GetByID(ctx, input.Id)
 	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrBookNotFound
+		}
 		slog.Error(err.Error(), slog.String("operation", operation))
-		return nil, ErrBookNotFound
+		return nil, ErrInternalServer
 	}
 
 	if cover != nil {

@@ -60,7 +60,7 @@ func (s *Service) UpdatePersonalUserBook(ctx context.Context, input *Input, cove
 	}
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
-		return nil, ErrBookNotFound
+		return nil, ErrInternalServer
 	}
 
 	// Проверяем, что книга принадлежит пользователю

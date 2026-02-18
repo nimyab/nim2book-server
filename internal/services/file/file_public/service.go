@@ -18,12 +18,12 @@ func New(s3 S3) *Service {
 }
 
 func (s *Service) GetFile(input *Input) (Output, error) {
-	const operation = "book.get_chapter.GetChapter"
+	const operation = "file.file_public.GetFile"
 
 	chapterData, err := s.s3.Get(input.Path)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("path", input.Path), slog.String("operation", operation))
-		return nil, errors.New("failed to get chapter")
+		return nil, errors.New("failed to get file")
 	}
 
 	return chapterData, nil

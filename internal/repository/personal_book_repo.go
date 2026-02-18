@@ -28,24 +28,9 @@ func NewPersonalBookRepository(client *ent.Client) *PersonalBookRepository {
 
 // getByIDInternal возвращает личную книгу по ID, может работать внутри транзакции
 func (r *PersonalBookRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.PersonalBook, error) {
-	if tx != nil {
-		// Используем транзакцию, если она передана
-		entBook, err := tx.PersonalBook.Query().
-			Where(personalbook.ID(id)).
-			WithUser().
-			WithAuthor().
-			WithGenres().
-			Only(ctx)
+	client := GetClientOrTx(r.client, tx)
 
-		if err != nil {
-			return nil, HandleError(err)
-		}
-
-		return MapPersonalBookToDomain(entBook), nil
-	}
-
-	// Используем обычный клиент без транзакции
-	entBook, err := r.client.PersonalBook.Query().
+	entBook, err := client.PersonalBook.Query().
 		Where(personalbook.ID(id)).
 		WithUser().
 		WithAuthor().
@@ -61,20 +46,9 @@ func (r *PersonalBookRepository) getByIDInternal(ctx context.Context, tx *ent.Tx
 
 // getChapterByIDInternal возвращает главу личной книги по ID, может работать внутри транзакции
 func (r *PersonalBookRepository) getChapterByIDInternal(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.PersonalBookChapter, error) {
-	if tx != nil {
-		entChapter, err := tx.PersonalBookChapter.Query().
-			Where(personalbookchapter.ID(id)).
-			WithPersonalBook().
-			Only(ctx)
+	client := GetClientOrTx(r.client, tx)
 
-		if err != nil {
-			return nil, HandleError(err)
-		}
-
-		return MapPersonalBookChapterToDomain(entChapter), nil
-	}
-
-	entChapter, err := r.client.PersonalBookChapter.Query().
+	entChapter, err := client.PersonalBookChapter.Query().
 		Where(personalbookchapter.ID(id)).
 		WithPersonalBook().
 		Only(ctx)
@@ -88,7 +62,12 @@ func (r *PersonalBookRepository) getChapterByIDInternal(ctx context.Context, tx 
 
 // Create создает новую личную книгу
 func (r *PersonalBookRepository) Create(ctx context.Context, domainBook *domain.PersonalBook) (*domain.PersonalBook, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.PersonalBook, error) {
+	return r.CreateTx(ctx, nil, domainBook)
+}
+
+// CreateTx создает новую личную книгу внутри транзакции (если передана)
+func (r *PersonalBookRepository) CreateTx(ctx context.Context, tx *ent.Tx, domainBook *domain.PersonalBook) (*domain.PersonalBook, error) {
+	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.PersonalBook, error) {
 		// Создаем личную книгу
 		create := tx.PersonalBook.Create().
 			SetTitle(domainBook.Title).
@@ -154,7 +133,12 @@ func (r *PersonalBookRepository) GetByIDWithChapters(ctx context.Context, id dom
 
 // Update обновляет личную книгу
 func (r *PersonalBookRepository) Update(ctx context.Context, domainBook *domain.PersonalBook) (*domain.PersonalBook, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.PersonalBook, error) {
+	return r.UpdateTx(ctx, nil, domainBook)
+}
+
+// UpdateTx обновляет личную книгу внутри транзакции (если передана)
+func (r *PersonalBookRepository) UpdateTx(ctx context.Context, tx *ent.Tx, domainBook *domain.PersonalBook) (*domain.PersonalBook, error) {
+	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.PersonalBook, error) {
 		// title - immutable поле, поэтому обновляем только mutable поля
 		update := tx.PersonalBook.UpdateOneID(domainBook.ID).
 			SetNillableCoverURL(domainBook.CoverURL).
@@ -199,7 +183,12 @@ func (r *PersonalBookRepository) Update(ctx context.Context, domainBook *domain.
 
 // Delete удаляет личную книгу
 func (r *PersonalBookRepository) Delete(ctx context.Context, id domain.ID) error {
-	_, err := DoInTx(ctx, r.client, func(tx *ent.Tx) (struct{}, error) {
+	return r.DeleteTx(ctx, nil, id)
+}
+
+// DeleteTx удаляет личную книгу внутри транзакции (если передана)
+func (r *PersonalBookRepository) DeleteTx(ctx context.Context, tx *ent.Tx, id domain.ID) error {
+	_, err := DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (struct{}, error) {
 		err := tx.PersonalBook.DeleteOneID(id).Exec(ctx)
 		if err != nil {
 			return struct{}{}, HandleError(err)
@@ -307,7 +296,12 @@ func (r *PersonalBookRepository) Count(ctx context.Context) (int, error) {
 
 // CreateChapter создает новую главу личной книги
 func (r *PersonalBookRepository) CreateChapter(ctx context.Context, domainChapter *domain.PersonalBookChapter) (*domain.PersonalBookChapter, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.PersonalBookChapter, error) {
+	return r.CreateChapterTx(ctx, nil, domainChapter)
+}
+
+// CreateChapterTx создает новую главу личной книги внутри транзакции (если передана)
+func (r *PersonalBookRepository) CreateChapterTx(ctx context.Context, tx *ent.Tx, domainChapter *domain.PersonalBookChapter) (*domain.PersonalBookChapter, error) {
+	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.PersonalBookChapter, error) {
 		create := tx.PersonalBookChapter.Create().
 			SetOrder(domainChapter.Order).
 			SetTitle(domainChapter.Title).
@@ -335,7 +329,12 @@ func (r *PersonalBookRepository) GetChapterByID(ctx context.Context, id domain.I
 
 // UpdateChapter обновляет главу
 func (r *PersonalBookRepository) UpdateChapter(ctx context.Context, domainChapter *domain.PersonalBookChapter) (*domain.PersonalBookChapter, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.PersonalBookChapter, error) {
+	return r.UpdateChapterTx(ctx, nil, domainChapter)
+}
+
+// UpdateChapterTx обновляет главу внутри транзакции (если передана)
+func (r *PersonalBookRepository) UpdateChapterTx(ctx context.Context, tx *ent.Tx, domainChapter *domain.PersonalBookChapter) (*domain.PersonalBookChapter, error) {
+	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.PersonalBookChapter, error) {
 		// order - immutable поле, поэтому обновляем только mutable поля
 		update := tx.PersonalBookChapter.UpdateOneID(domainChapter.ID).
 			SetTitle(domainChapter.Title).
@@ -358,7 +357,12 @@ func (r *PersonalBookRepository) UpdateChapter(ctx context.Context, domainChapte
 
 // DeleteChapter удаляет главу
 func (r *PersonalBookRepository) DeleteChapter(ctx context.Context, id domain.ID) error {
-	_, err := DoInTx(ctx, r.client, func(tx *ent.Tx) (struct{}, error) {
+	return r.DeleteChapterTx(ctx, nil, id)
+}
+
+// DeleteChapterTx удаляет главу внутри транзакции (если передана)
+func (r *PersonalBookRepository) DeleteChapterTx(ctx context.Context, tx *ent.Tx, id domain.ID) error {
+	_, err := DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (struct{}, error) {
 		err := tx.PersonalBookChapter.DeleteOneID(id).Exec(ctx)
 		if err != nil {
 			return struct{}{}, HandleError(err)

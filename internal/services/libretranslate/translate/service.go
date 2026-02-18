@@ -12,12 +12,12 @@ import (
 )
 
 type Service struct {
-	ULR string
+	URL string
 }
 
 func New(libretranslateURL string) *Service {
 	return &Service{
-		ULR: libretranslateURL,
+		URL: libretranslateURL,
 	}
 }
 
@@ -36,7 +36,7 @@ func (s *Service) Translate(input *Input) (*Output, error) {
 	}
 
 	resp, err := retry.DoWithData(func() (*http.Response, error) {
-		return http.PostForm(fmt.Sprintf("%s/%s", s.ULR, "translate"), formData)
+		return http.PostForm(fmt.Sprintf("%s/%s", s.URL, "translate"), formData)
 	}, retry.Attempts(5))
 
 	if err != nil {

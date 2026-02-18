@@ -7,6 +7,7 @@ import (
 
 	"github.com/nimyab/nim2book-back/ent"
 	"github.com/nimyab/nim2book-back/internal/domain"
+	"github.com/nimyab/nim2book-back/internal/repository"
 )
 
 type FcmTokenRepository interface {
@@ -35,6 +36,10 @@ func (s *Service) AddFcmToken(ctx context.Context, input *Input, userId domain.I
 	if err == nil && existingToken != nil {
 		slog.Warn("Token already exists", slog.String("operation", operation), slog.String("token", input.FcmToken))
 		return nil, ErrTokenAlreadyAdd
+	}
+	if err != nil && !ent.IsNotFound(err) && !errors.Is(err, repository.ErrNotFound) {
+		slog.Error(err.Error(), slog.String("operation", operation))
+		return nil, ErrInternal
 	}
 
 	fcmTokenData := &domain.FcmToken{

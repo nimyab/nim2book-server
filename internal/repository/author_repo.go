@@ -23,17 +23,9 @@ func NewAuthorRepository(client *ent.Client) *AuthorRepository {
 
 // getByIDInternal возвращает автора по ID, работает как с транзакцией, так и без неё
 func (r *AuthorRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.Author, error) {
-	if tx != nil {
-		entAuthor, err := tx.Author.Query().
-			Where(author.ID(id)).
-			Only(ctx)
-		if err != nil {
-			return nil, HandleError(err)
-		}
-		return MapAuthorToDomain(entAuthor), nil
-	}
+	client := GetClientOrTx(r.client, tx)
 
-	entAuthor, err := r.client.Author.Query().
+	entAuthor, err := client.Author.Query().
 		Where(author.ID(id)).
 		Only(ctx)
 	if err != nil {
@@ -44,7 +36,12 @@ func (r *AuthorRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, id d
 
 // Create создает нового автора
 func (r *AuthorRepository) Create(ctx context.Context, domainAuthor *domain.Author) (*domain.Author, error) {
-	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.Author, error) {
+	return r.CreateTx(ctx, nil, domainAuthor)
+}
+
+// CreateTx создает нового автора внутри транзакции (если передана)
+func (r *AuthorRepository) CreateTx(ctx context.Context, tx *ent.Tx, domainAuthor *domain.Author) (*domain.Author, error) {
+	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.Author, error) {
 		entAuthor, err := tx.Author.Create().
 			SetName(domainAuthor.Name).
 			Save(ctx)
@@ -103,7 +100,12 @@ func (r *AuthorRepository) GetOrCreate(ctx context.Context, name string) (*domai
 
 // Delete удаляет автора
 func (r *AuthorRepository) Delete(ctx context.Context, id domain.ID) error {
-	_, err := DoInTx(ctx, r.client, func(tx *ent.Tx) (struct{}, error) {
+	return r.DeleteTx(ctx, nil, id)
+}
+
+// DeleteTx удаляет автора внутри транзакции (если передана)
+func (r *AuthorRepository) DeleteTx(ctx context.Context, tx *ent.Tx, id domain.ID) error {
+	_, err := DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (struct{}, error) {
 		err := tx.Author.DeleteOneID(id).Exec(ctx)
 		if err != nil {
 			return struct{}{}, HandleError(err)

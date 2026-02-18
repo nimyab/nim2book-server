@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -50,10 +51,25 @@ type Config struct {
 
 // Load loads configuration from environment variables
 func Load() (*Config, error) {
-	maxRequestCount, _ := strconv.Atoi(os.Getenv("MAX_REQUEST_COUNT"))
-	jwtAccessTime, _ := strconv.Atoi(os.Getenv("JWT_ACCESS_TIME"))
-	jwtRefreshTime, _ := strconv.Atoi(os.Getenv("JWT_REFRESH_TIME"))
-	waitMilliseconds, _ := strconv.Atoi(os.Getenv("WAIT_MILLISECONDS"))
+	maxRequestCount, err := strconv.Atoi(os.Getenv("MAX_REQUEST_COUNT"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse MAX_REQUEST_COUNT: %w", err)
+	}
+
+	jwtAccessTime, err := strconv.Atoi(os.Getenv("JWT_ACCESS_TIME"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JWT_ACCESS_TIME: %w", err)
+	}
+
+	jwtRefreshTime, err := strconv.Atoi(os.Getenv("JWT_REFRESH_TIME"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JWT_REFRESH_TIME: %w", err)
+	}
+
+	waitMilliseconds, err := strconv.Atoi(os.Getenv("WAIT_MILLISECONDS"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse WAIT_MILLISECONDS: %w", err)
+	}
 
 	cfg := &Config{
 		Env:                 getEnvOrDefault("ENV", EnvDev),

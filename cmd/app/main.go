@@ -6,7 +6,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	_ "github.com/lib/pq"
 	"github.com/nimyab/nim2book-back/config"
 	"github.com/nimyab/nim2book-back/internal/app"
 	"github.com/nimyab/nim2book-back/pkg/logger"
@@ -55,7 +57,10 @@ func main() {
 	<-sig
 
 	// Graceful shutdown
-	if err := application.Shutdown(context.Background()); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := application.Shutdown(ctx); err != nil {
 		slog.Error("Shutdown error", slog.Any("error", err))
 		os.Exit(1)
 	}

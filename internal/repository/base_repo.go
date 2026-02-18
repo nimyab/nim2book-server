@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	entclient "github.com/nimyab/nim2book-back/ent"
 	"github.com/nimyab/nim2book-back/internal/domain"
@@ -51,7 +52,7 @@ func HandleError(err error) error {
 	}
 
 	// Любая другая ошибка
-	return ErrInternal
+	return fmt.Errorf("%w: %v", ErrInternal, err)
 }
 
 // DoInTx выполняет функцию внутри транзакции
@@ -61,6 +62,17 @@ func HandleError(err error) error {
 // или когда нужно несколько операций атомарно.
 // Для read-only операций используйте обычный client напрямую.
 func DoInTx[T any](ctx context.Context, client *entclient.Client, fn func(tx *entclient.Tx) (T, error)) (T, error) {
+	return DoInTxOrUse(ctx, client, nil, fn)
+}
+
+// DoInTxOrUse выполняет функцию внутри существующей транзакции (если tx != nil)
+// или создает новую транзакцию (если tx == nil)
+func DoInTxOrUse[T any](ctx context.Context, client *entclient.Client, tx *entclient.Tx, fn func(tx *entclient.Tx) (T, error)) (T, error) {
+	if tx != nil {
+		// Используем существующую транзакцию
+		return fn(tx)
+	}
+
 	var zero T
 
 	tx, err := client.Tx(ctx)
@@ -92,22 +104,6 @@ func DoInTx[T any](ctx context.Context, client *entclient.Client, fn func(tx *en
 	}
 
 	return result, nil
-}
-
-// TxClient возвращает Client из транзакции или обычный Client
-// Используется для универсальных функций, которые могут работать
-// как внутри транзакции, так и вне её
-type TxClient interface {
-	User() interface{}
-	Book() interface{}
-	PersonalBook() interface{}
-	Dictionary() interface{}
-	DictionaryExample() interface{}
-	Author() interface{}
-	Genre() interface{}
-	GoogleAccount() interface{}
-	BasicAccount() interface{}
-	FCMToken() interface{}
 }
 
 // GetClientOrTx возвращает tx.Client(), если tx не nil, иначе client

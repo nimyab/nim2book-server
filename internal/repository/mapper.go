@@ -11,13 +11,7 @@ func MapUserToDomain(entUser *ent.User) *domain.User {
 		return nil
 	}
 
-	user := &domain.User{
-		ID:        entUser.ID,
-		CreatedAt: entUser.CreatedAt,
-		IsAdmin:   entUser.IsAdmin,
-		IsVIP:     entUser.IsVip,
-		Metadata:  entUser.Metadata,
-	}
+	user := MapUserToDomainShallow(entUser)
 
 	// Маппинг связанных сущностей
 	if entUser.Edges.GoogleAccount != nil {
@@ -45,6 +39,20 @@ func MapUserToDomain(entUser *ent.User) *domain.User {
 	return user
 }
 
+// MapUserToDomainShallow преобразует ent.User в domain.User без вложенных сущностей
+func MapUserToDomainShallow(entUser *ent.User) *domain.User {
+	if entUser == nil {
+		return nil
+	}
+	return &domain.User{
+		ID:        entUser.ID,
+		CreatedAt: entUser.CreatedAt,
+		IsAdmin:   entUser.IsAdmin,
+		IsVIP:     entUser.IsVip,
+		Metadata:  entUser.Metadata,
+	}
+}
+
 // MapGoogleAccountToDomain преобразует ent.GoogleAccount в domain.GoogleAccount
 func MapGoogleAccountToDomain(entAccount *ent.GoogleAccount) *domain.GoogleAccount {
 	if entAccount == nil {
@@ -62,7 +70,7 @@ func MapGoogleAccountToDomain(entAccount *ent.GoogleAccount) *domain.GoogleAccou
 	}
 
 	if entAccount.Edges.User != nil {
-		account.User = MapUserToDomain(entAccount.Edges.User)
+		account.User = MapUserToDomainShallow(entAccount.Edges.User)
 	}
 
 	return account
@@ -84,7 +92,7 @@ func MapBasicAccountToDomain(entAccount *ent.BasicAccount) *domain.BasicAccount 
 	}
 
 	if entAccount.Edges.User != nil {
-		account.User = MapUserToDomain(entAccount.Edges.User)
+		account.User = MapUserToDomainShallow(entAccount.Edges.User)
 	}
 
 	return account
@@ -107,7 +115,7 @@ func MapBookToDomain(entBook *ent.Book) *domain.Book {
 
 	// Маппинг связанных сущностей
 	if entBook.Edges.Author != nil {
-		book.Author = MapAuthorToDomain(entBook.Edges.Author)
+		book.Author = MapAuthorToDomainShallow(entBook.Edges.Author)
 	}
 
 	if entBook.Edges.Genres != nil {
@@ -145,11 +153,11 @@ func MapPersonalBookToDomain(entBook *ent.PersonalBook) *domain.PersonalBook {
 
 	// Маппинг связанных сущностей
 	if entBook.Edges.User != nil {
-		book.User = MapUserToDomain(entBook.Edges.User)
+		book.User = MapUserToDomainShallow(entBook.Edges.User)
 	}
 
 	if entBook.Edges.Author != nil {
-		book.Author = MapAuthorToDomain(entBook.Edges.Author)
+		book.Author = MapAuthorToDomainShallow(entBook.Edges.Author)
 	}
 
 	if entBook.Edges.Genres != nil {
@@ -167,6 +175,22 @@ func MapPersonalBookToDomain(entBook *ent.PersonalBook) *domain.PersonalBook {
 	}
 
 	return book
+}
+
+// MapPersonalBookToDomainShallow преобразует ent.PersonalBook в domain.PersonalBook без вложенных сущностей
+func MapPersonalBookToDomainShallow(entBook *ent.PersonalBook) *domain.PersonalBook {
+	if entBook == nil {
+		return nil
+	}
+	return &domain.PersonalBook{
+		ID:             entBook.ID,
+		CreatedAt:      entBook.CreatedAt,
+		Title:          entBook.Title,
+		CoverURL:       entBook.CoverURL,
+		OriginalLang:   entBook.OriginalLang,
+		TranslatedLang: entBook.TranslatedLang,
+		ProcessStatus:  domain.ProcessStatus(entBook.ProcessStatus),
+	}
 }
 
 // MapAuthorToDomain преобразует ent.Author в domain.Author
@@ -199,6 +223,18 @@ func MapAuthorToDomain(entAuthor *ent.Author) *domain.Author {
 	return author
 }
 
+// MapAuthorToDomainShallow преобразует ent.Author в domain.Author без вложенных сущностей
+func MapAuthorToDomainShallow(entAuthor *ent.Author) *domain.Author {
+	if entAuthor == nil {
+		return nil
+	}
+	return &domain.Author{
+		ID:        entAuthor.ID,
+		CreatedAt: entAuthor.CreatedAt,
+		Name:      entAuthor.Name,
+	}
+}
+
 // MapGenreToDomain преобразует ent.Genre в domain.Genre
 func MapGenreToDomain(entGenre *ent.Genre) *domain.Genre {
 	if entGenre == nil {
@@ -215,18 +251,30 @@ func MapGenreToDomain(entGenre *ent.Genre) *domain.Genre {
 	if entGenre.Edges.Books != nil {
 		genre.Books = make([]*domain.Book, len(entGenre.Edges.Books))
 		for i, book := range entGenre.Edges.Books {
-			genre.Books[i] = MapBookToDomain(book)
+			genre.Books[i] = MapBookToDomainShallow(book)
 		}
 	}
 
 	if entGenre.Edges.PersonalBooks != nil {
 		genre.PersonalBooks = make([]*domain.PersonalBook, len(entGenre.Edges.PersonalBooks))
 		for i, book := range entGenre.Edges.PersonalBooks {
-			genre.PersonalBooks[i] = MapPersonalBookToDomain(book)
+			genre.PersonalBooks[i] = MapPersonalBookToDomainShallow(book)
 		}
 	}
 
 	return genre
+}
+
+// MapGenreToDomainShallow преобразует ent.Genre в domain.Genre без вложенных сущностей
+func MapGenreToDomainShallow(entGenre *ent.Genre) *domain.Genre {
+	if entGenre == nil {
+		return nil
+	}
+	return &domain.Genre{
+		ID:        entGenre.ID,
+		CreatedAt: entGenre.CreatedAt,
+		Name:      entGenre.Name,
+	}
 }
 
 // MapBookChapterToDomain преобразует ent.BookChapter в domain.BookChapter
@@ -245,10 +293,25 @@ func MapBookChapterToDomain(entChapter *ent.BookChapter) *domain.BookChapter {
 	}
 
 	if entChapter.Edges.Book != nil {
-		chapter.Book = MapBookToDomain(entChapter.Edges.Book)
+		chapter.Book = MapBookToDomainShallow(entChapter.Edges.Book)
 	}
 
 	return chapter
+}
+
+// MapBookToDomainShallow преобразует ent.Book в domain.Book без вложенных сущностей
+func MapBookToDomainShallow(entBook *ent.Book) *domain.Book {
+	if entBook == nil {
+		return nil
+	}
+	return &domain.Book{
+		ID:             entBook.ID,
+		CreatedAt:      entBook.CreatedAt,
+		Title:          entBook.Title,
+		CoverURL:       entBook.CoverURL,
+		OriginalLang:   entBook.OriginalLang,
+		TranslatedLang: entBook.TranslatedLang,
+	}
 }
 
 // MapPersonalBookChapterToDomain преобразует ent.PersonalBookChapter в domain.PersonalBookChapter
@@ -267,7 +330,7 @@ func MapPersonalBookChapterToDomain(entChapter *ent.PersonalBookChapter) *domain
 	}
 
 	if entChapter.Edges.PersonalBook != nil {
-		chapter.PersonalBook = MapPersonalBookToDomain(entChapter.Edges.PersonalBook)
+		chapter.PersonalBook = MapPersonalBookToDomainShallow(entChapter.Edges.PersonalBook)
 	}
 
 	return chapter
@@ -327,7 +390,7 @@ func MapFcmTokenToDomain(entToken *ent.FcmToken) *domain.FcmToken {
 	}
 
 	if entToken.Edges.User != nil {
-		token.User = MapUserToDomain(entToken.Edges.User)
+		token.User = MapUserToDomainShallow(entToken.Edges.User)
 	}
 
 	return token

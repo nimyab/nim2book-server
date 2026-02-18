@@ -30,7 +30,7 @@ func MakeHTTPv1Handler(svc *Service, cfg *config.Config) echo.HandlerFunc {
 		}
 
 		output, err := svc.Login(c.Request().Context(), input)
-		if errors.Is(ErrInternal, err) {
+		if errors.Is(err, ErrInternal) {
 			return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 		} else if err != nil {
 			return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
@@ -41,6 +41,7 @@ func MakeHTTPv1Handler(svc *Service, cfg *config.Config) echo.HandlerFunc {
 			Name:     "refresh_token",
 			Value:    output.RefreshToken,
 			Expires:  time.Now().Add(cfg.JWTRefreshTime),
+			Secure:   cfg.Env == config.EnvProd,
 		}
 		c.SetCookie(cookie)
 		return c.JSON(http.StatusOK, output)
