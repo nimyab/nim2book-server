@@ -28,6 +28,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_books"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/update_personal_user_book"
+	"github.com/nimyab/nim2book-back/internal/services/translate/dto"
 	"github.com/nimyab/nim2book-back/internal/services/translate/translate_book"
 	"github.com/nimyab/nim2book-back/internal/services/translate/translate_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/user/me"
@@ -192,8 +193,10 @@ func (a *App) registerServices() {
 			authorRepo,
 			wordAligner,
 			translator,
-			cfg.MaxRequestCount,
-			cfg.WaitMilliseconds,
+			dto.Config{
+				WaitDuration:    cfg.WaitMilliseconds,
+				MaxRequestCount: cfg.MaxRequestCount,
+			},
 		), nil
 	})
 
@@ -212,9 +215,10 @@ func (a *App) registerServices() {
 			personalBookRepo,
 			authorRepo,
 			wordAligner,
-			translator,
-			cfg.MaxRequestCount,
-			cfg.WaitMilliseconds,
+			translator, dto.Config{
+				WaitDuration:    cfg.WaitMilliseconds,
+				MaxRequestCount: cfg.MaxRequestCount,
+			},
 			notificationSvc,
 		), nil
 	})
