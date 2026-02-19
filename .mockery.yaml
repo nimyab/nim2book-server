@@ -1,7 +1,3 @@
-dir: "{{.InterfaceDir}}/mocks"
-filename: "{{.InterfaceName | snakecase }}.go"
-structname: "Mock{{.InterfaceName}}"
-pkgname: "mocks"
 template: testify
 packages:
   github.com/nimyab/nim2book-back/internal/services:

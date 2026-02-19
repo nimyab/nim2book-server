@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/internal/services/book/get_book/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -45,7 +44,7 @@ func TestGetBook(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup
-			mockRepo := mocks.NewMockBookRepository(t)
+			mockRepo := NewMockBookRepository(t)
 			service := New(mockRepo)
 
 			// Expectation
