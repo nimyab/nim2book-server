@@ -1,6 +1,6 @@
 module github.com/nimyab/nim2book-back
 
-go 1.25.7
+go 1.26.0
 
 require (
 	entgo.io/ent v0.14.5
