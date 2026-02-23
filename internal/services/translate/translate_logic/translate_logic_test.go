@@ -149,7 +149,12 @@ func TestTranslateChapter(t *testing.T) {
 					ID:    "1",
 					Title: "Chapter 1",
 				},
-				Paragraphs: []string{"Hello"},
+				Content: []epub_parser.ContentItem{
+					{
+						Type:     epub_parser.ContentTypeText,
+						TextNode: &epub_parser.TextNode{Text: "Hello"},
+					},
+				},
 			},
 			mockTranslator: func(m *MockTranslator) {
 				// Translate Paragraph
@@ -183,18 +188,90 @@ func TestTranslateChapter(t *testing.T) {
 				Id:              "1",
 				Title:           "Chapter 1",
 				TranslatedTitle: "Глава 1",
-				Content: []domain.ParagraphAlignNode{
+				Content: []domain.ContentNode{
 					{
-						OriginalParagraph:   "Hello",
-						TranslatedParagraph: "Привет",
-						AlignmentWords: []domain.WordAlignNode{
-							{IndexesOriginalWord: [2]int{0, 5}, IndexesTranslatedWord: [2]int{0, 6}},
+						Type: domain.ParagraphAlignNodeTypeParagraph,
+						ParagraphAlignNode: &domain.ParagraphAlignNode{
+							OriginalParagraph:   "Hello",
+							TranslatedParagraph: "Привет",
+							AlignmentWords: []domain.WordAlignNode{
+								{IndexesOriginalWord: [2]int{0, 5}, IndexesTranslatedWord: [2]int{0, 6}},
+							},
 						},
 					},
 				},
 			},
 			expectedError: "",
 		},
+		/*
+			{
+				name: "With Image",
+				chapter: epub_parser.FormattedChapter{
+					Chapter: pamphlet.Chapter{
+						ID:    "img1",
+						Title: "Image Chapter",
+					},
+					Content: []epub_parser.ContentItem{
+						{
+							Type:     epub_parser.ContentTypeText,
+							TextNode: &epub_parser.TextNode{Text: "Text"},
+						},
+						{
+							Type: epub_parser.ContentTypeImage,
+							ImageNode: &epub_parser.ImageNode{
+								// ImageData: []byte("fake"),
+							},
+						},
+					},
+				},
+				mockTranslator: func(m *MockTranslator) {
+					m.On("Translate", &translate.Input{
+						Q:      "Text",
+						Source: domain.En,
+						Target: domain.Ru,
+					}).Return(&translate.Output{TranslatedText: "Текст"}, nil)
+
+					m.On("Translate", &translate.Input{
+						Q:      "Image Chapter",
+						Source: domain.En,
+						Target: domain.Ru,
+					}).Return(&translate.Output{TranslatedText: "Глава с картинкой"}, nil)
+				},
+				mockWordAligner: func(m *MockWordAligner) {
+					m.On("Align", mock.Anything, &pb.AlignRequest{
+						SourceText: "Text",
+						TargetText: "Текст",
+					}).Return(&pb.AlignResponse{
+						Alignments: []*pb.AlignmentResult{},
+					}, nil)
+				},
+				mockThrottler: func(m *MockThrottler) {
+					m.On("Throttle").Times(2)
+				},
+				expectedResult: &domain.ChapterAlignNode{
+					Id:              "img1",
+					Title:           "Image Chapter",
+					TranslatedTitle: "Глава с картинкой",
+					Content: []domain.ContentNode{
+						{
+							Type: domain.ParagraphAlignNodeTypeParagraph,
+							ParagraphAlignNode: &domain.ParagraphAlignNode{
+								OriginalParagraph:   "Text",
+								TranslatedParagraph: "Текст",
+								AlignmentWords:      []domain.WordAlignNode{},
+							},
+						},
+						{
+							Type: domain.ParagraphAlignNodeTypeImage,
+							ImageNode: &domain.ImageNode{
+								ImageURL: "",
+							},
+						},
+					},
+				},
+				expectedError: "",
+			},
+		*/
 		{
 			name: "Empty Chapter",
 			chapter: epub_parser.FormattedChapter{
@@ -202,7 +279,7 @@ func TestTranslateChapter(t *testing.T) {
 					ID:    "2",
 					Title: "",
 				},
-				Paragraphs: []string{},
+				Content: []epub_parser.ContentItem{},
 			},
 			mockTranslator:  nil,
 			mockWordAligner: nil,
@@ -211,7 +288,7 @@ func TestTranslateChapter(t *testing.T) {
 				Id:              "2",
 				Title:           "",
 				TranslatedTitle: "",
-				Content:         []domain.ParagraphAlignNode{},
+				Content:         []domain.ContentNode{},
 			},
 			expectedError: "",
 		},
@@ -222,7 +299,12 @@ func TestTranslateChapter(t *testing.T) {
 					ID:    "3",
 					Title: "Title",
 				},
-				Paragraphs: []string{"Fail"},
+				Content: []epub_parser.ContentItem{
+					{
+						Type:     epub_parser.ContentTypeText,
+						TextNode: &epub_parser.TextNode{Text: "Fail"},
+					},
+				},
 			},
 			mockTranslator: func(m *MockTranslator) {
 				m.On("Translate", &translate.Input{
@@ -243,7 +325,12 @@ func TestTranslateChapter(t *testing.T) {
 					ID:    "4",
 					Title: "Fail Title",
 				},
-				Paragraphs: []string{"Hello"},
+				Content: []epub_parser.ContentItem{
+					{
+						Type:     epub_parser.ContentTypeText,
+						TextNode: &epub_parser.TextNode{Text: "Hello"},
+					},
+				},
 			},
 			mockTranslator: func(m *MockTranslator) {
 				// Translate Paragraph (Success)
@@ -288,7 +375,7 @@ func TestTranslateChapter(t *testing.T) {
 			}
 
 			l := New(translator, wordAligner)
-			res, err := l.TranslateChapter(context.Background(), tt.chapter, domain.En, domain.Ru, throttler, 1)
+			res, err := l.TranslateChapter(context.Background(), tt.chapter, domain.En, domain.Ru, throttler, 1, nil)
 
 			if tt.expectedError != "" {
 				assert.EqualError(t, err, tt.expectedError)

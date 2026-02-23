@@ -3,7 +3,7 @@ pre-commit:
   jobs:
     - name: go-fmt
       glob: "*.go"
-      run: go fmt {staged_files}
+      run: gofmt -w {staged_files}
       stage_fixed: true
 
 pre-push:

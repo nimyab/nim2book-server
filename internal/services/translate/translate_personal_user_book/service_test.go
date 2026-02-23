@@ -51,7 +51,12 @@ func TestStartTranslate(t *testing.T) {
 	authorName := "Test Author"
 
 	chapter1 := epub_parser.FormattedChapter{
-		Paragraphs: []string{"Hello world"},
+		Content: []epub_parser.ContentItem{
+			{
+				Type:     epub_parser.ContentTypeText,
+				TextNode: &epub_parser.TextNode{Text: "Hello world"},
+			},
+		},
 	}
 
 	chapters := []epub_parser.FormattedChapter{chapter1}

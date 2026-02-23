@@ -52,48 +52,83 @@ func (l *Logic) TranslateChapter(
 	from, to domain.SupportedLang,
 	throttler Throttler,
 	maxConcurrency int,
+	imageSaver func(data []byte) (string, error),
 ) (*domain.ChapterAlignNode, error) {
 	const operation = "translate.logic.TranslateChapter"
 
 	startTime := time.Now()
 
-	translatedChapter := make([]domain.ParagraphAlignNode, len(chapter.Paragraphs))
+	translatedChapter := make([]domain.ContentNode, len(chapter.Content))
 
 	g, ctxErrGroup := errgroup.WithContext(ctx)
 	g.SetLimit(maxConcurrency)
 
-	for idx, paragraph := range chapter.Paragraphs {
-		idx, paragraph := idx, paragraph
-		g.Go(func() error {
-			select {
-			case <-ctxErrGroup.Done():
-				return ctxErrGroup.Err()
-			default:
-			}
+	for idx, item := range chapter.Content {
+		idx, item := idx, item
 
-			startTranslateParagraphTime := time.Now()
-			slog.Info(
-				"start translate paragraph",
-				slog.Int("paragraph length", len([]rune(paragraph))),
-				slog.Int("paragraph index", idx),
-				slog.String("operation", operation),
-			)
-
-			alignedParagraph, err := l.TranslateAndAlignParagraph(ctxErrGroup, paragraph, from, to, throttler)
+		if item.Type == epub_parser.ContentTypeImage {
+			// Extract image data from zip file
+			data, err := item.ImageNode.ImageFile.GetRawContent()
 			if err != nil {
-				return err
+				slog.Error("failed to open image file", slog.String("error", err.Error()))
+				continue
 			}
-			translatedChapter[idx] = alignedParagraph
 
-			slog.Info(
-				"translated paragraph",
-				slog.Int("paragraph index", idx),
-				slog.String("duration", time.Since(startTranslateParagraphTime).String()),
-				slog.String("operation", operation),
-			)
+			// Save image if saver is provided
+			var imageURL string
+			if imageSaver != nil {
+				url, err := imageSaver(data)
+				if err != nil {
+					slog.Error("failed to save image", slog.String("error", err.Error()))
+				} else {
+					imageURL = url
+				}
+			}
 
-			return nil
-		})
+			translatedChapter[idx] = domain.ContentNode{
+				Type: domain.ParagraphAlignNodeTypeImage,
+				ImageNode: &domain.ImageNode{
+					ImageURL: imageURL,
+				},
+			}
+			continue
+		}
+
+		if item.Type == epub_parser.ContentTypeText {
+			g.Go(func() error {
+				select {
+				case <-ctxErrGroup.Done():
+					return ctxErrGroup.Err()
+				default:
+				}
+
+				startTranslateParagraphTime := time.Now()
+				slog.Info(
+					"start translate paragraph",
+					slog.Int("paragraph length", len([]rune(item.TextNode.Text))),
+					slog.Int("paragraph index", idx),
+					slog.String("operation", operation),
+				)
+
+				alignedParagraph, err := l.TranslateAndAlignParagraph(ctxErrGroup, item.TextNode.Text, from, to, throttler)
+				if err != nil {
+					return err
+				}
+				translatedChapter[idx] = domain.ContentNode{
+					Type:               domain.ParagraphAlignNodeTypeParagraph,
+					ParagraphAlignNode: &alignedParagraph,
+				}
+
+				slog.Info(
+					"end translate paragraph",
+					slog.Duration("duration", time.Since(startTranslateParagraphTime)),
+					slog.Int("paragraph index", idx),
+					slog.String("operation", operation),
+				)
+
+				return nil
+			})
+		}
 	}
 
 	if err := g.Wait(); err != nil {

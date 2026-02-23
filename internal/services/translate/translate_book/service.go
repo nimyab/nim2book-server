@@ -17,7 +17,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/repository"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/services/translate/dto"
-	logic "github.com/nimyab/nim2book-back/internal/services/translate/translated_logic"
+	logic "github.com/nimyab/nim2book-back/internal/services/translate/translate_logic"
 	"github.com/nimyab/nim2book-back/internal/services/word_aligner/align"
 	"github.com/nimyab/nim2book-back/pkg/parsers/epub_parser"
 	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
@@ -328,7 +328,17 @@ func (s *Service) translateChapters(
 			continue
 		}
 
-		chapterNode, err := s.logic.TranslateChapter(ctx, chapter, data.From, data.To, s, s.config.MaxRequestCount)
+		chapterNode, err := s.logic.TranslateChapter(
+			ctx,
+			chapter,
+			data.From,
+			data.To,
+			s,
+			s.config.MaxRequestCount,
+			func(imgData []byte) (string, error) {
+				return s.saveImageToS3(imgData, data.Book.Title)
+			},
+		)
 		if err != nil {
 			slog.Error(err.Error(), slog.String("operation", operation))
 			resultChan <- dto.ChapterResult{
@@ -347,6 +357,20 @@ func (s *Service) translateChapters(
 			Error:        nil,
 		}
 	}
+}
+
+func (s *Service) saveImageToS3(data []byte, bookTitle string) (string, error) {
+	const operation = "translate_book.Service.saveImageToS3"
+
+	// Generate a unique filename
+	filename := uuid.New().String() + ".jpg"
+	path := fmt.Sprintf("book/%s/images/%s", strings.ReplaceAll(bookTitle, " ", "_"), filename)
+
+	if err := s.s3.Upload(path, data); err != nil {
+		return "", fmt.Errorf("%s: failed upload to s3: %w", operation, err)
+	}
+
+	return path, nil
 }
 
 func (s *Service) saveChapterToS3(chapter *domain.ChapterAlignNode, bookTitle string) (string, error) {

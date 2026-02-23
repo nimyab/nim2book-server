@@ -3,6 +3,7 @@ package epub_parser
 import (
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -27,15 +28,35 @@ var (
 		"h4":     true,
 		"h5":     true,
 		"h6":     true,
-		"img":    true,
 		"br":     true,
 		"hr":     true,
 	}
 )
 
+type ContentType string
+
+const (
+	ContentTypeText  ContentType = "text"
+	ContentTypeImage ContentType = "image"
+)
+
+type ContentItem struct {
+	Type      ContentType
+	ImageNode *ImageNode
+	TextNode  *TextNode
+}
+
+type ImageNode struct {
+	ImageFile pamphlet.ZipFile
+}
+
+type TextNode struct {
+	Text string
+}
+
 type FormattedChapter struct {
 	pamphlet.Chapter
-	Paragraphs []string
+	Content []ContentItem
 }
 
 func Parse(data []byte) (*pamphlet.Book, []FormattedChapter, []byte, error) {
@@ -45,7 +66,8 @@ func Parse(data []byte) (*pamphlet.Book, []FormattedChapter, []byte, error) {
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("%s: %w", operation, err)
 	}
-	defer parser.Close()
+	// We do NOT close parser here, because ImageNode needs access to zip files later.
+	// defer parser.Close()
 
 	book := parser.GetBook()
 
@@ -60,65 +82,141 @@ func Parse(data []byte) (*pamphlet.Book, []FormattedChapter, []byte, error) {
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("%s: %w", operation, err)
 		}
-		paragraphs, err := extractTextFromHtml(content)
+		items, err := extractContentFromHtml(book, content)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("%s: %w", operation, err)
 		}
-		if len(paragraphs) == 0 {
+		if len(items) == 0 {
 			continue
 		}
 		formattedChapters = append(formattedChapters, FormattedChapter{
-			Chapter:    chapter,
-			Paragraphs: paragraphs,
+			Chapter: chapter,
+			Content: items,
 		})
 	}
 
 	return book, formattedChapters, coverData, nil
 }
 
-func extractTextFromHtml(xmlText string) ([]string, error) {
-	const operation = "pkg.parsers.epub_parser.extractTextFromHtml"
+func isBlockElement(n string) bool {
+	switch n {
+	case "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote", "section", "article", "header", "footer":
+		return true
+	}
+	return false
+}
+
+func extractContentFromHtml(book *pamphlet.Book, xmlText string) ([]ContentItem, error) {
+	const operation = "pkg.parsers.epub_parser.extractContentFromHtml"
 
 	doc, err := html.Parse(strings.NewReader(xmlText))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
-	var paragraphs []string
+
+	var items []ContentItem
+	var currentTextBuilder strings.Builder
+
+	flushText := func() {
+		if currentTextBuilder.Len() > 0 {
+			text := currentTextBuilder.String()
+			// Clean text
+			text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
+			if strings.TrimSpace(text) != "" {
+				items = append(items, ContentItem{
+					Type: ContentTypeText,
+					TextNode: &TextNode{
+						Text: strings.TrimSpace(text),
+					},
+				})
+			}
+			currentTextBuilder.Reset()
+		}
+	}
+
 	var traverse func(*html.Node)
 	traverse = func(node *html.Node) {
-		if node.Type == html.ElementNode && node.Data == "p" {
-			for c := node.FirstChild; c != nil; {
-				next := c.NextSibling
-				if TagsForRemove[c.Data] {
-					node.RemoveChild(c)
-				}
-				c = next
-			}
-			paragraph := extractTextContent(node)
-			paragraph = string(regexp.MustCompile(`\s+`).ReplaceAll([]byte(paragraph), []byte(" ")))
-			if strings.TrimSpace(paragraph) != "" {
-				paragraphs = append(paragraphs, strings.TrimSpace(paragraph))
-			}
+		if node.Type == html.ElementNode && node.Data == "img" {
+			flushText()
+			processImage(book, node, &items)
+			return
 		}
+
+		if node.Type == html.TextNode {
+			currentTextBuilder.WriteString(node.Data)
+			return
+		}
+
+		// Recurse for other nodes
 		for c := node.FirstChild; c != nil; c = c.NextSibling {
+			if c.Type == html.ElementNode && TagsForRemove[c.Data] {
+				// Special case: allow html and body to be traversed
+				if c.Data != "html" && c.Data != "body" {
+					continue
+				}
+			}
 			traverse(c)
+		}
+
+		if node.Type == html.ElementNode && isBlockElement(node.Data) {
+			flushText()
 		}
 	}
 	traverse(doc)
-	return paragraphs, nil
+
+	flushText()
+
+	return items, nil
 }
 
-func extractTextContent(n *html.Node) string {
-	if n.Type == html.TextNode {
-		return n.Data
+func processImage(book *pamphlet.Book, imgNode *html.Node, items *[]ContentItem) {
+	// Extract src
+	var src string
+	for _, attr := range imgNode.Attr {
+		if attr.Key == "src" || attr.Key == "href" {
+			src = attr.Val
+			break
+		}
+	}
+	if src == "" {
+		return
 	}
 
-	var result strings.Builder
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		result.WriteString(extractTextContent(c))
+	// Resolve image file
+	file, err := resolveImage(book, src)
+	if err != nil {
+		slog.Error("failed to resolve image", slog.String("src", src), slog.String("error", err.Error()))
+		return
 	}
 
-	return result.String()
+	*items = append(*items, ContentItem{
+		Type:      ContentTypeImage,
+		ImageNode: &ImageNode{ImageFile: file},
+	})
+}
+
+func resolveImage(book *pamphlet.Book, src string) (pamphlet.ZipFile, error) {
+	// Try exact match first (if src is full path)
+	// Note: href in manifest might be URI encoded, src might be too.
+	// We assume pamphlet handles some of this or we do basic matching.
+
+	// Normalize src?
+	// If src is "../Images/foo.jpg", and manifest href is "OEBPS/Images/foo.jpg".
+	// Simplest strategy: Match by base filename.
+	base := filepath.Base(src)
+
+	for _, item := range book.ManifestItems {
+		// Try exact match
+		if item.Href == src || item.RealPath == src {
+			return item.ZipFile, nil
+		}
+		// Try base match
+		if filepath.Base(item.Href) == base {
+			return item.ZipFile, nil
+		}
+	}
+
+	return pamphlet.ZipFile{}, fmt.Errorf("image not found: %s", src)
 }
 
 func extractCover(book *pamphlet.Book) ([]byte, error) {
