@@ -1,13 +1,13 @@
 pre-commit:
   parallel: true
-  commands:
-    go-fmt:
+  jobs:
+    - name: go-fmt
       glob: "*.go"
       run: go fmt {staged_files}
       stage_fixed: true
 
 pre-push:
   parallel: true
-  commands:
-    go-test:
+  jobs:
+    - name: go-test
       run: go test -v ./...

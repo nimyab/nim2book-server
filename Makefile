@@ -4,7 +4,7 @@ include .env
 
 # Git hooks
 install-hooks:
-	go run github.com/evilmartians/lefthook@v2 install
+	go tool lefthook install
 
 # Mocks generation
 mocks:
