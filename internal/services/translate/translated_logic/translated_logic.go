@@ -1,4 +1,4 @@
-package logic
+package translated_logic
 
 import (
 	"context"

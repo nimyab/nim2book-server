@@ -17,7 +17,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/repository"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/services/translate/dto"
-	"github.com/nimyab/nim2book-back/internal/services/translate/logic"
+	logic "github.com/nimyab/nim2book-back/internal/services/translate/translated_logic"
 	"github.com/nimyab/nim2book-back/pkg/logger"
 	"github.com/nimyab/nim2book-back/pkg/parsers/epub_parser"
 	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
@@ -257,6 +257,7 @@ func (s *Service) startTranslate(
 			)
 			return ErrFailedSaveBookToDatabase
 		}
+		data.PersonalBook = newBook
 	}
 
 	// use buffer chan to saveChapterToS3 non block translateChapters goroutine

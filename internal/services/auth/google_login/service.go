@@ -12,6 +12,16 @@ import (
 	"google.golang.org/api/idtoken"
 )
 
+type TokenValidator interface {
+	Validate(ctx context.Context, idToken string, audience string) (*idtoken.Payload, error)
+}
+
+type GoogleTokenValidator struct{}
+
+func (v *GoogleTokenValidator) Validate(ctx context.Context, idToken string, audience string) (*idtoken.Payload, error) {
+	return idtoken.Validate(ctx, idToken, audience)
+}
+
 type UserRepository interface {
 	GetGoogleAccountBySub(ctx context.Context, sub string) (*domain.GoogleAccount, error)
 	CreateWithGoogleAccount(ctx context.Context, user *domain.User, googleAccount *domain.GoogleAccount) (*domain.User, error)
@@ -19,6 +29,7 @@ type UserRepository interface {
 
 type Service struct {
 	userRepo       UserRepository
+	tokenValidator TokenValidator
 	secret         string
 	googleClientId string
 	accessTime     time.Duration
@@ -34,6 +45,7 @@ var (
 func New(userRepo UserRepository, googleClientId string, secret string, accessTime, refreshTime time.Duration) *Service {
 	return &Service{
 		userRepo:       userRepo,
+		tokenValidator: &GoogleTokenValidator{},
 		secret:         secret,
 		accessTime:     accessTime,
 		refreshTime:    refreshTime,
@@ -44,7 +56,7 @@ func New(userRepo UserRepository, googleClientId string, secret string, accessTi
 func (s *Service) GoogleLogin(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "auth.login.GoogleLogin"
 
-	payload, err := idtoken.Validate(ctx, input.IdToken, s.googleClientId)
+	payload, err := s.tokenValidator.Validate(ctx, input.IdToken, s.googleClientId)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInvalidToken

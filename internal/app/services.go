@@ -1,10 +1,14 @@
 package app
 
 import (
+	"net/http"
+
 	"firebase.google.com/go/v4/messaging"
 	"github.com/nimyab/nim2book-back/config"
 	"github.com/nimyab/nim2book-back/internal/adapter/minio"
 	"github.com/nimyab/nim2book-back/internal/adapter/redis_cache"
+	"github.com/nimyab/nim2book-back/internal/controller/websocket"
+	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/internal/repository"
 	"github.com/nimyab/nim2book-back/internal/services/auth/google_login"
 	"github.com/nimyab/nim2book-back/internal/services/auth/login"
@@ -145,7 +149,7 @@ func (a *App) registerServices() {
 		dictianaryRepo := do.MustInvoke[*repository.DictionaryRepository](i)
 		redis := do.MustInvoke[*redis_cache.RedisCache](i)
 		cfg := do.MustInvoke[*config.Config](i)
-		return lookup.New(dictianaryRepo, redis, cfg.YandexDictionaryKey, cfg.YandexDictionaryURL), nil
+		return lookup.New(dictianaryRepo, redis, http.DefaultClient, cfg.YandexDictionaryKey, cfg.YandexDictionaryURL), nil
 	})
 
 	// FCM Token services
@@ -169,13 +173,13 @@ func (a *App) registerServices() {
 	do.Provide(a.injector, func(i do.Injector) (*notification.Service, error) {
 		messagingClient := do.MustInvoke[*messaging.Client](i)
 		fcmTokenRepo := do.MustInvoke[*repository.FcmTokenRepository](i)
-		return notification.New(messagingClient, fcmTokenRepo), nil
+		return notification.New(messagingClient, fcmTokenRepo, &wsSender{}), nil
 	})
 
 	// LibreTranslate service
 	do.Provide(a.injector, func(i do.Injector) (*translate.Service, error) {
 		cfg := do.MustInvoke[*config.Config](i)
-		return translate.New(cfg.LibreTranslateURL), nil
+		return translate.New(cfg.LibreTranslateURL, nil), nil
 	})
 
 	// Translate Book service
@@ -207,7 +211,7 @@ func (a *App) registerServices() {
 		authorRepo := do.MustInvoke[*repository.AuthorRepository](i)
 		wordAligner := do.MustInvoke[*word_aligner.Client](i)
 		translator := do.MustInvoke[*translate.Service](i)
-		notificationSvc := do.MustInvoke[*notification.Service](i)
+		notificationService := do.MustInvoke[*notification.Service](i)
 		cfg := do.MustInvoke[*config.Config](i)
 
 		return translate_personal_user_book.New(
@@ -215,11 +219,18 @@ func (a *App) registerServices() {
 			personalBookRepo,
 			authorRepo,
 			wordAligner,
-			translator, dto.Config{
+			translator,
+			dto.Config{
 				WaitDuration:    cfg.WaitMilliseconds,
 				MaxRequestCount: cfg.MaxRequestCount,
 			},
-			notificationSvc,
+			notificationService,
 		), nil
 	})
+}
+
+type wsSender struct{}
+
+func (s *wsSender) SendMessage(userId domain.ID, msg *websocket.Message) {
+	websocket.SendMessage(userId, msg)
 }

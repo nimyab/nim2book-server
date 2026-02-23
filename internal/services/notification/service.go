@@ -16,18 +16,29 @@ type FcmTokenRepository interface {
 	DeleteByToken(ctx context.Context, token string) error
 }
 
+type MessagingClient interface {
+	Send(ctx context.Context, message *messaging.Message) (string, error)
+}
+
+type WebsocketSender interface {
+	SendMessage(userId domain.ID, msg *websocket.Message)
+}
+
 type Service struct {
-	fcmTokenRepo            FcmTokenRepository
-	messagingFirebaseClient *messaging.Client
+	fcmTokenRepo    FcmTokenRepository
+	messagingClient MessagingClient
+	websocketSender WebsocketSender
 }
 
 func New(
-	messagingFirebaseClient *messaging.Client,
+	messagingClient MessagingClient,
 	fcmTokenRepo FcmTokenRepository,
+	websocketSender WebsocketSender,
 ) *Service {
 	return &Service{
-		fcmTokenRepo:            fcmTokenRepo,
-		messagingFirebaseClient: messagingFirebaseClient,
+		fcmTokenRepo:    fcmTokenRepo,
+		messagingClient: messagingClient,
+		websocketSender: websocketSender,
 	}
 }
 
@@ -60,7 +71,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 		}
 
 		for _, fcmToken := range fcmTokens {
-			info, err := s.messagingFirebaseClient.Send(ctx, &messaging.Message{
+			info, err := s.messagingClient.Send(ctx, &messaging.Message{
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
 					Title: "Перевод книги завершился",
@@ -77,7 +88,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 			}
 		}
 
-		websocket.SendMessage(d.UserId, &websocket.Message{
+		s.websocketSender.SendMessage(d.UserId, &websocket.Message{
 			Event: websocket.TranslateSucceedEvent,
 			Body: map[string]interface{}{
 				"book": data.Book,
@@ -91,7 +102,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 		}
 
 		for _, fcmToken := range fcmTokens {
-			info, err := s.messagingFirebaseClient.Send(ctx, &messaging.Message{
+			info, err := s.messagingClient.Send(ctx, &messaging.Message{
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
 					Title: "Перевод книги прервался",
@@ -105,7 +116,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 			}
 		}
 
-		websocket.SendMessage(d.UserId, &websocket.Message{
+		s.websocketSender.SendMessage(d.UserId, &websocket.Message{
 			Event: websocket.ErrorEvent,
 			Body: map[string]interface{}{
 				"author": data.Author,
@@ -121,7 +132,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 		}
 
 		for _, fcmToken := range fcmTokens {
-			info, err := s.messagingFirebaseClient.Send(ctx, &messaging.Message{
+			info, err := s.messagingClient.Send(ctx, &messaging.Message{
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
 					Title: fmt.Sprintf("Переведена глава %d", data.ChapterOrder),
@@ -135,7 +146,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 			}
 		}
 
-		websocket.SendMessage(d.UserId, &websocket.Message{
+		s.websocketSender.SendMessage(d.UserId, &websocket.Message{
 			Event: websocket.ChapterTranslatedEvent,
 			Body: map[string]interface{}{
 				"chapterPath":       data.ChapterPath,
@@ -153,7 +164,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 		}
 
 		for _, fcmToken := range fcmTokens {
-			info, err := s.messagingFirebaseClient.Send(ctx, &messaging.Message{
+			info, err := s.messagingClient.Send(ctx, &messaging.Message{
 				Token: fcmToken.Token,
 				Notification: &messaging.Notification{
 					Title: data.Title,

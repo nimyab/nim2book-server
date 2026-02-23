@@ -32,12 +32,15 @@ func (s *Service) UpdateMetadata(ctx context.Context, input *Input) (*Output, er
 
 	// Получаем пользователя
 	user, err := s.userRepo.GetByID(ctx, input.UserId)
-	if errors.Is(err, repository.ErrNotFound) || user == nil {
-		return nil, ErrUserNotFound
-	}
 	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrUserNotFound
+		}
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternal
+	}
+	if user == nil {
+		return nil, ErrUserNotFound
 	}
 
 	// Обновляем metadata

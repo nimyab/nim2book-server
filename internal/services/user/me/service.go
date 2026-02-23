@@ -30,12 +30,15 @@ func (s *Service) Me(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "user.me.Me"
 
 	user, err := s.userRepo.GetByID(ctx, input.UserId)
-	if errors.Is(err, repository.ErrNotFound) || user == nil {
-		return nil, ErrUserNotFound
-	}
 	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrUserNotFound
+		}
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, ErrInternal
+	}
+	if user == nil {
+		return nil, ErrUserNotFound
 	}
 
 	return &Output{User: user}, nil

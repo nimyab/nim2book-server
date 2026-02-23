@@ -26,17 +26,26 @@ type Redis interface {
 	Get(ctx context.Context, key string) ([]byte, error)
 }
 
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 type Service struct {
 	dictRepo      DictionaryRepo
 	redis         Redis
+	httpClient    HTTPClient
 	yandexDictKey string
 	yandexDictURL string
 }
 
-func New(dictRepo DictionaryRepo, redis Redis, yandexDictKey, yandexDictURL string) *Service {
+func New(dictRepo DictionaryRepo, redis Redis, httpClient HTTPClient, yandexDictKey, yandexDictURL string) *Service {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
 	return &Service{
 		dictRepo:      dictRepo,
 		redis:         redis,
+		httpClient:    httpClient,
 		yandexDictKey: yandexDictKey,
 		yandexDictURL: yandexDictURL,
 	}
@@ -165,7 +174,7 @@ func (s *Service) fetchFromYandexAPI(text, fromLang, toLang string) (*Dictionary
 		q.Add("text", text)
 		req.URL.RawQuery = q.Encode()
 
-		return http.DefaultClient.Do(req)
+		return s.httpClient.Do(req)
 	}, retry.Attempts(5))
 
 	if err != nil {
@@ -274,14 +283,7 @@ func (s *Service) saveToCache(ctx context.Context, words []*domain.DictionaryWor
 
 func (s *Service) isSupportedPartOfSpeech(partOfSpeech string) bool {
 	switch partOfSpeech {
-	case "interjection":
-	case "noun":
-	case "verb":
-	case "pronoun":
-	case "preposition":
-	case "adverb":
-	case "participle":
-	case "adjective":
+	case "interjection", "noun", "verb", "pronoun", "preposition", "adverb", "participle", "adjective":
 		return true
 	}
 	return false
