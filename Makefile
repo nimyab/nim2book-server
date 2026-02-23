@@ -2,6 +2,10 @@
 
 include .env
 
+# Git hooks
+install-hooks:
+	go run github.com/evilmartians/lefthook@v2 install
+
 # Mocks generation
 mocks:
 	go run github.com/vektra/mockery/v3@latest
