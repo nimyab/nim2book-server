@@ -39,8 +39,8 @@ func TestUpdatePersonalUserBook(t *testing.T) {
 			},
 			mockRepo: func(m *MockPersonalBookRepository) {
 				m.On("GetByID", mock.Anything, bookID).Return(&domain.PersonalBook{
-					ID:   bookID,
-					User: &domain.User{ID: userID},
+					ID:    bookID,
+					User:  &domain.User{ID: userID},
 					Title: "Old Title",
 				}, nil)
 				m.On("Update", mock.Anything, mock.MatchedBy(func(b *domain.PersonalBook) bool {
@@ -57,7 +57,7 @@ func TestUpdatePersonalUserBook(t *testing.T) {
 					Name: newAuthor,
 				}, nil)
 			},
-			mockS3: func(m *MockS3) {},
+			mockS3:        func(m *MockS3) {},
 			expectedError: nil,
 			expectedBook: &domain.PersonalBook{
 				ID:     bookID,
@@ -74,8 +74,8 @@ func TestUpdatePersonalUserBook(t *testing.T) {
 			mockRepo: func(m *MockPersonalBookRepository) {
 				m.On("GetByID", mock.Anything, bookID).Return(nil, repository.ErrNotFound)
 			},
-			mockAuthor: func(m *MockAuthorRepository) {},
-			mockS3: func(m *MockS3) {},
+			mockAuthor:    func(m *MockAuthorRepository) {},
+			mockS3:        func(m *MockS3) {},
 			expectedError: ErrBookNotFound,
 		},
 		{
@@ -91,8 +91,8 @@ func TestUpdatePersonalUserBook(t *testing.T) {
 					User: &domain.User{ID: otherUserID},
 				}, nil)
 			},
-			mockAuthor: func(m *MockAuthorRepository) {},
-			mockS3: func(m *MockS3) {},
+			mockAuthor:    func(m *MockAuthorRepository) {},
+			mockS3:        func(m *MockS3) {},
 			expectedError: ErrForbidden,
 		},
 		{
@@ -104,8 +104,8 @@ func TestUpdatePersonalUserBook(t *testing.T) {
 			mockRepo: func(m *MockPersonalBookRepository) {
 				m.On("GetByID", mock.Anything, bookID).Return(nil, errors.New("db error"))
 			},
-			mockAuthor: func(m *MockAuthorRepository) {},
-			mockS3: func(m *MockS3) {},
+			mockAuthor:    func(m *MockAuthorRepository) {},
+			mockS3:        func(m *MockS3) {},
 			expectedError: ErrInternalServer,
 		},
 		{
@@ -122,8 +122,8 @@ func TestUpdatePersonalUserBook(t *testing.T) {
 				}, nil)
 				m.On("Update", mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
 			},
-			mockAuthor: func(m *MockAuthorRepository) {},
-			mockS3: func(m *MockS3) {},
+			mockAuthor:    func(m *MockAuthorRepository) {},
+			mockS3:        func(m *MockS3) {},
 			expectedError: ErrInternalServer,
 		},
 	}

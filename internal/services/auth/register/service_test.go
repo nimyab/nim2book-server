@@ -27,13 +27,13 @@ func TestRegister(t *testing.T) {
 			inputPassword: "password123",
 			mockRepo: func(m *MockUserRepository) {
 				m.On("GetBasicAccountByEmail", mock.Anything, "test@example.com").Return(nil, repository.ErrNotFound)
-				
+
 				newUser := &domain.User{ID: uuid.New()}
-				m.On("CreateWithBasicAccount", 
-					mock.Anything, 
-					mock.MatchedBy(func(u *domain.User) bool { return u != nil }), 
-					mock.MatchedBy(func(b *domain.BasicAccount) bool { 
-						return b.Email == "test@example.com" 
+				m.On("CreateWithBasicAccount",
+					mock.Anything,
+					mock.MatchedBy(func(u *domain.User) bool { return u != nil }),
+					mock.MatchedBy(func(b *domain.BasicAccount) bool {
+						return b.Email == "test@example.com"
 					}),
 				).Return(newUser, nil)
 			},
@@ -64,7 +64,7 @@ func TestRegister(t *testing.T) {
 			inputPassword: "password123",
 			mockRepo: func(m *MockUserRepository) {
 				m.On("GetBasicAccountByEmail", mock.Anything, "test@example.com").Return(nil, repository.ErrNotFound)
-				
+
 				m.On("CreateWithBasicAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
 			},
 			expectedError: ErrInternal,
