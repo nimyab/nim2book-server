@@ -119,7 +119,7 @@ func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, b
 
 	startParse := time.Now()
 
-	parsedBook, chapters, coverData, err := epub_parser.Parse(data)
+	parsedData, err := epub_parser.Parse(data)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, errors.New("failed to parse book file")
@@ -128,12 +128,12 @@ func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, b
 	slog.Info(
 		"Book is parsed successfully",
 		slog.String("duration", time.Since(startParse).String()),
-		slog.Int("chapters count", len(chapters)),
-		slog.String("author", parsedBook.Author),
-		slog.String("title", parsedBook.Title),
+		slog.Int("chapters count", len(parsedData.FormattedChapter)),
+		slog.String("author", parsedData.Book.Author),
+		slog.String("title", parsedData.Book.Title),
 	)
 
-	existedBook, err := s.personalBookRepo.GetByUserAndAuthorAndTitle(ctx, userId, parsedBook.Author, parsedBook.Title)
+	existedBook, err := s.personalBookRepo.GetByUserAndAuthorAndTitle(ctx, userId, parsedData.Book.Author, parsedData.Book.Title)
 	if existedBook != nil && (existedBook.ProcessStatus == domain.ProcessStatusCompleted || existedBook.ProcessStatus == domain.ProcessStatusInProgress) {
 		return &Output{Book: existedBook}, nil
 	}
@@ -143,9 +143,9 @@ func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, b
 	}
 
 	translatedData := &dto.TranslationContext{
-		Book:         parsedBook,
-		Chapters:     chapters,
-		CoverData:    coverData,
+		Book:         parsedData.Book,
+		Chapters:     parsedData.FormattedChapter,
+		CoverData:    parsedData.Cover,
 		UserID:       userId,
 		From:         input.From,
 		To:           input.To,
@@ -161,8 +161,8 @@ func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, b
 					UserId: userId,
 					Type:   domain.NotificationError,
 					Data: &domain.NotificationErrorData{
-						Title:        parsedBook.Title,
-						Author:       parsedBook.Author,
+						Title:        parsedData.Book.Title,
+						Author:       parsedData.Book.Author,
 						ErrorMessage: "Произошла ошибка во время сохранения главы, попробуйте перевести книгу позже.",
 					},
 				})
@@ -171,8 +171,8 @@ func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, b
 					UserId: userId,
 					Type:   domain.NotificationError,
 					Data: &domain.NotificationErrorData{
-						Author:       parsedBook.Author,
-						Title:        parsedBook.Title,
+						Author:       parsedData.Book.Author,
+						Title:        parsedData.Book.Title,
 						ErrorMessage: "Произошла ошибка во время перевода главы, попробуйте перевести книгу позже.",
 					},
 				})
@@ -181,8 +181,8 @@ func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, b
 					Type:   domain.NotificationError,
 					UserId: userId,
 					Data: &domain.NotificationErrorData{
-						Title:        parsedBook.Title,
-						Author:       parsedBook.Author,
+						Title:        parsedData.Book.Title,
+						Author:       parsedData.Book.Author,
 						ErrorMessage: "Произошла ошибка во время сохранения книги, попробуйте перевести книгу позже, извините за неудобства.",
 					},
 				})

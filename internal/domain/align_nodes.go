@@ -17,12 +17,13 @@ const (
 
 type ContentNode struct {
 	Type               ParagraphAlignNodeType `json:"type"`
-	ImageNode          *ImageNode             `json:"image,omitempty"`
-	ParagraphAlignNode *ParagraphAlignNode    `json:"paragraph,omitempty"`
+	ImageNode          *ImageNode             `json:"in,omitempty"`
+	ParagraphAlignNode *ParagraphAlignNode    `json:"pan,omitempty"`
 }
 
 type ImageNode struct {
-	ImageURL string `json:"img"`
+	Path string `json:"path"`
+	Alt  string `json:"alt"`
 }
 
 type ParagraphAlignNode struct {

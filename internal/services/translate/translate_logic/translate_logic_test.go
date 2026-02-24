@@ -149,10 +149,10 @@ func TestTranslateChapter(t *testing.T) {
 					ID:    "1",
 					Title: "Chapter 1",
 				},
-				Content: []epub_parser.ContentItem{
+				Content: []epub_parser.ContentUnit{
 					{
 						Type:     epub_parser.ContentTypeText,
-						TextNode: &epub_parser.TextNode{Text: "Hello"},
+						TextNode: &epub_parser.TextUnit{Text: "Hello"},
 					},
 				},
 			},
@@ -279,7 +279,7 @@ func TestTranslateChapter(t *testing.T) {
 					ID:    "2",
 					Title: "",
 				},
-				Content: []epub_parser.ContentItem{},
+				Content: []epub_parser.ContentUnit{},
 			},
 			mockTranslator:  nil,
 			mockWordAligner: nil,
@@ -299,10 +299,10 @@ func TestTranslateChapter(t *testing.T) {
 					ID:    "3",
 					Title: "Title",
 				},
-				Content: []epub_parser.ContentItem{
+				Content: []epub_parser.ContentUnit{
 					{
 						Type:     epub_parser.ContentTypeText,
-						TextNode: &epub_parser.TextNode{Text: "Fail"},
+						TextNode: &epub_parser.TextUnit{Text: "Fail"},
 					},
 				},
 			},
@@ -325,10 +325,10 @@ func TestTranslateChapter(t *testing.T) {
 					ID:    "4",
 					Title: "Fail Title",
 				},
-				Content: []epub_parser.ContentItem{
+				Content: []epub_parser.ContentUnit{
 					{
 						Type:     epub_parser.ContentTypeText,
-						TextNode: &epub_parser.TextNode{Text: "Hello"},
+						TextNode: &epub_parser.TextUnit{Text: "Hello"},
 					},
 				},
 			},

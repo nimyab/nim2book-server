@@ -108,7 +108,7 @@ func (s *Service) TranslateBook(ctx context.Context, input *Input, book *multipa
 
 	startParse := time.Now()
 
-	parsedBook, chapters, coverData, err := epub_parser.Parse(data)
+	parsedData, err := epub_parser.Parse(data)
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
 		return nil, errors.New("failed to parse book file")
@@ -117,12 +117,12 @@ func (s *Service) TranslateBook(ctx context.Context, input *Input, book *multipa
 	slog.Info(
 		"Book is parsed successfully",
 		slog.String("duration", time.Since(startParse).String()),
-		slog.Int("chapters count", len(chapters)),
-		slog.String("author", parsedBook.Author),
-		slog.String("title", parsedBook.Title),
+		slog.Int("chapters count", len(parsedData.FormattedChapter)),
+		slog.String("author", parsedData.Book.Author),
+		slog.String("title", parsedData.Book.Title),
 	)
 
-	existedBook, err := s.bookRepo.GetByAuthorAndTitle(ctx, parsedBook.Author, parsedBook.Title)
+	existedBook, err := s.bookRepo.GetByAuthorAndTitle(ctx, parsedData.Book.Author, parsedData.Book.Title)
 	if existedBook != nil {
 		return &Output{Book: existedBook}, nil
 	}
@@ -132,9 +132,9 @@ func (s *Service) TranslateBook(ctx context.Context, input *Input, book *multipa
 	}
 
 	translatedData := &dto.TranslationContext{
-		Book:      parsedBook,
-		Chapters:  chapters,
-		CoverData: coverData,
+		Book:      parsedData.Book,
+		Chapters:  parsedData.FormattedChapter,
+		CoverData: parsedData.Cover,
 		UserID:    userId,
 		From:      input.From,
 		To:        input.To,

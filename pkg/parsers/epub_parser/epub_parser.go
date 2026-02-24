@@ -3,7 +3,6 @@ package epub_parser
 import (
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -12,24 +11,25 @@ import (
 )
 
 var (
-	TagsForRemove = map[string]bool{
-		"code":   true,
-		"a":      true,
-		"strong": true,
-		"pre":    true,
-		"html":   true,
-		"body":   true,
-		"head":   true,
-		"script": true,
-		"style":  true,
-		"h1":     true,
-		"h2":     true,
-		"h3":     true,
-		"h4":     true,
-		"h5":     true,
-		"h6":     true,
-		"br":     true,
-		"hr":     true,
+	TagsForRemove = map[string]struct{}{
+		"code":   {},
+		"script": {},
+		"style":  {},
+		"pre":    {},
+		"a":      {},
+		"strong": {},
+		"br":     {},
+		"hr":     {},
+	}
+
+	TagsForExtractTitle = []string{
+		"h1",
+		"h2",
+		"h3",
+		"title",
+		"h4",
+		"h5",
+		"h6",
 	}
 )
 
@@ -40,36 +40,45 @@ const (
 	ContentTypeImage ContentType = "image"
 )
 
-type ContentItem struct {
+type ContentUnit struct {
 	Type      ContentType
-	ImageNode *ImageNode
-	TextNode  *TextNode
+	ImageNode *ImageUnit
+	TextNode  *TextUnit
 }
 
-type ImageNode struct {
-	ImageFile pamphlet.ZipFile
+type ImageUnit struct {
+	File pamphlet.ZipFile
+	Alt  string
 }
 
-type TextNode struct {
+type TextUnit struct {
 	Text string
 }
 
 type FormattedChapter struct {
 	pamphlet.Chapter
-	Content []ContentItem
+	Content     []ContentUnit
+	CapterTitle string
 }
 
-func Parse(data []byte) (*pamphlet.Book, []FormattedChapter, []byte, error) {
+type ParsedData struct {
+	FormattedChapter []FormattedChapter
+	Cover            []byte
+	Book             *pamphlet.Book
+}
+
+func Parse(data []byte) (*ParsedData, error) {
 	const operation = "pkg.parsers.epub_parser.Parse"
 
 	parser, err := pamphlet.OpenBytes(data)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("%s: %w", operation, err)
+		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
-	// We do NOT close parser here, because ImageNode needs access to zip files later.
-	// defer parser.Close()
 
 	book := parser.GetBook()
+	if len(book.Chapters) == 0 {
+		return nil, fmt.Errorf("%s: no chapters found in the book", operation)
+	}
 
 	coverData, err := extractCover(book)
 	if err != nil {
@@ -80,33 +89,39 @@ func Parse(data []byte) (*pamphlet.Book, []FormattedChapter, []byte, error) {
 	for _, chapter := range book.Chapters {
 		content, err := chapter.GetContent()
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("%s: %w", operation, err)
+			return nil, fmt.Errorf("%s: %w", operation, err)
 		}
+
 		items, err := extractContentFromHtml(book, content)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("%s: %w", operation, err)
+			return nil, fmt.Errorf("%s: %w", operation, err)
 		}
+
 		if len(items) == 0 {
 			continue
 		}
+
+		chapterTitle, err := extractChapterTitleFromHtml(content)
+		if err != nil {
+			slog.Warn(fmt.Sprintf("Chapter title not found for chapter with href %s: %v", chapter.Href, err))
+			chapterTitle = chapter.Title
+		}
+
 		formattedChapters = append(formattedChapters, FormattedChapter{
-			Chapter: chapter,
-			Content: items,
+			Chapter:     chapter,
+			Content:     items,
+			CapterTitle: chapterTitle,
 		})
 	}
 
-	return book, formattedChapters, coverData, nil
+	return &ParsedData{
+		FormattedChapter: formattedChapters,
+		Cover:            coverData,
+		Book:             book,
+	}, nil
 }
 
-func isBlockElement(n string) bool {
-	switch n {
-	case "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote", "section", "article", "header", "footer":
-		return true
-	}
-	return false
-}
-
-func extractContentFromHtml(book *pamphlet.Book, xmlText string) ([]ContentItem, error) {
+func extractContentFromHtml(book *pamphlet.Book, xmlText string) ([]ContentUnit, error) {
 	const operation = "pkg.parsers.epub_parser.extractContentFromHtml"
 
 	doc, err := html.Parse(strings.NewReader(xmlText))
@@ -114,104 +129,69 @@ func extractContentFromHtml(book *pamphlet.Book, xmlText string) ([]ContentItem,
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
 
-	var items []ContentItem
-	var currentTextBuilder strings.Builder
-
-	flushText := func() {
-		if currentTextBuilder.Len() > 0 {
-			text := currentTextBuilder.String()
-			// Clean text
-			text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
-			if strings.TrimSpace(text) != "" {
-				items = append(items, ContentItem{
-					Type: ContentTypeText,
-					TextNode: &TextNode{
-						Text: strings.TrimSpace(text),
-					},
-				})
-			}
-			currentTextBuilder.Reset()
-		}
-	}
+	var contentUnits []ContentUnit
 
 	var traverse func(*html.Node)
 	traverse = func(node *html.Node) {
-		if node.Type == html.ElementNode && node.Data == "img" {
-			flushText()
-			processImage(book, node, &items)
-			return
-		}
+		// обработка параграфов
+		if node.Type == html.ElementNode && node.Data == "p" {
+			for c := node.FirstChild; c != nil; {
+				next := c.NextSibling
+				if _, ok := TagsForRemove[c.Data]; ok {
+					node.RemoveChild(c)
+				}
+				c = next
+			}
 
-		if node.Type == html.TextNode {
-			currentTextBuilder.WriteString(node.Data)
-			return
+			paragraph := strings.TrimSpace(extractTextContent(node))
+			paragraph = regexp.MustCompile(`\s+`).ReplaceAllString(paragraph, " ")
+			if paragraph != "" {
+				contentUnits = append(contentUnits, ContentUnit{
+					Type:     ContentTypeText,
+					TextNode: &TextUnit{Text: paragraph},
+				})
+			}
 		}
-
-		// Recurse for other nodes
-		for c := node.FirstChild; c != nil; c = c.NextSibling {
-			if c.Type == html.ElementNode && TagsForRemove[c.Data] {
-				// Special case: allow html and body to be traversed
-				if c.Data != "html" && c.Data != "body" {
-					continue
+		// обработка изображений
+		if node.Type == html.ElementNode && (node.Data == "img" || node.Data == "image") {
+			var href, alt string
+			for _, attr := range node.Attr {
+				switch attr.Key {
+				case "src", "href", "xlink:href":
+					href = attr.Val
+				case "alt":
+					alt = attr.Val
 				}
 			}
-			traverse(c)
+			if href != "" {
+				imageFile, err := resolveImage(book, href)
+				if err != nil {
+					slog.Error("failed to resolve image", slog.String("href", href), slog.String("error", err.Error()))
+				} else {
+					contentUnits = append(contentUnits, ContentUnit{
+						Type: ContentTypeImage,
+						ImageNode: &ImageUnit{
+							File: imageFile,
+							Alt:  strings.TrimSpace(alt),
+						},
+					})
+				}
+			}
 		}
 
-		if node.Type == html.ElementNode && isBlockElement(node.Data) {
-			flushText()
+		for c := node.FirstChild; c != nil; c = c.NextSibling {
+			traverse(c)
 		}
 	}
 	traverse(doc)
 
-	flushText()
-
-	return items, nil
+	return contentUnits, nil
 }
 
-func processImage(book *pamphlet.Book, imgNode *html.Node, items *[]ContentItem) {
-	// Extract src
-	var src string
-	for _, attr := range imgNode.Attr {
-		if attr.Key == "src" || attr.Key == "href" {
-			src = attr.Val
-			break
-		}
-	}
-	if src == "" {
-		return
-	}
-
-	// Resolve image file
-	file, err := resolveImage(book, src)
-	if err != nil {
-		slog.Error("failed to resolve image", slog.String("src", src), slog.String("error", err.Error()))
-		return
-	}
-
-	*items = append(*items, ContentItem{
-		Type:      ContentTypeImage,
-		ImageNode: &ImageNode{ImageFile: file},
-	})
-}
-
+// resolveImage пытаемся найти изображение в манифесте по src
 func resolveImage(book *pamphlet.Book, src string) (pamphlet.ZipFile, error) {
-	// Try exact match first (if src is full path)
-	// Note: href in manifest might be URI encoded, src might be too.
-	// We assume pamphlet handles some of this or we do basic matching.
-
-	// Normalize src?
-	// If src is "../Images/foo.jpg", and manifest href is "OEBPS/Images/foo.jpg".
-	// Simplest strategy: Match by base filename.
-	base := filepath.Base(src)
-
 	for _, item := range book.ManifestItems {
-		// Try exact match
-		if item.Href == src || item.RealPath == src {
-			return item.ZipFile, nil
-		}
-		// Try base match
-		if filepath.Base(item.Href) == base {
+		if item.Href == src || item.RealPath == src || strings.HasSuffix(item.Href, src) || strings.HasSuffix(item.RealPath, src) {
 			return item.ZipFile, nil
 		}
 	}
@@ -219,18 +199,37 @@ func resolveImage(book *pamphlet.Book, src string) (pamphlet.ZipFile, error) {
 	return pamphlet.ZipFile{}, fmt.Errorf("image not found: %s", src)
 }
 
+// extractCover получаем обложку книги. Сначала пытаемся найти изображение на титульной странице, если не находим, то берем первое изображение из manifest
 func extractCover(book *pamphlet.Book) ([]byte, error) {
 	const operation = "pkg.parsers.epub_parser.extractCover"
 
 	var coverItem *pamphlet.ManifestItem
 
-	for _, item := range book.ManifestItems {
-		if strings.HasPrefix(item.MediaType, "image/") {
-			// Ищем файлы с "cover" в имени или пути
-			if strings.Contains(strings.ToLower(item.Href), "cover") ||
-				strings.Contains(strings.ToLower(item.RealPath), "cover") {
-				coverItem = &item
-				break
+	// Ищем обложку в 1 файле, это обычно титульная страница
+	titlePageContent, err := book.Chapters[0].GetContent()
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+
+	doc, err := html.Parse(strings.NewReader(titlePageContent))
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+
+	for node := range doc.Descendants() {
+		if node.Type == html.ElementNode && (node.Data == "img" || node.Data == "image") {
+			for _, attr := range node.Attr {
+				if attr.Key == "src" || attr.Key == "href" {
+					for _, item := range book.ManifestItems {
+						if item.Href == attr.Val || item.RealPath == attr.Val {
+							coverItem = &item
+							break
+						}
+					}
+				}
+				if coverItem != nil {
+					break
+				}
 			}
 		}
 	}
@@ -255,4 +254,43 @@ func extractCover(book *pamphlet.Book) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// extractChapterTitleFromHtml извлекает название главы из HTML-контента главы. Обычно название главы находится в теге <title>, но может быть и в других местах, поэтому функция ищет его рекурсивно по всему дереву HTML.
+func extractChapterTitleFromHtml(xmlText string) (string, error) {
+	const operation = "pkg.parsers.epub_parser.extractChapterTitleFromHtml"
+
+	doc, err := html.Parse(strings.NewReader(xmlText))
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", operation, err)
+	}
+
+	// Сначала ищем h1 потом h2 и так далее, по списку
+	for _, titleTag := range TagsForExtractTitle {
+		for node := range doc.Descendants() {
+			if node.Type == html.ElementNode && node.Data == titleTag {
+				title := strings.TrimSpace(extractTextContent(node))
+				title = regexp.MustCompile(`\s+`).ReplaceAllString(title, " ")
+				if title != "" {
+					return title, nil
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("chapter title not found")
+}
+
+// extractTextContent извлекает текст из узла HTML. Если узел является текстовым узлом, возвращается его данные. В противном случае рекурсивно вызывается для всех дочерних узлов и объединяются их результаты.
+func extractTextContent(n *html.Node) string {
+	if n.Type == html.TextNode {
+		return n.Data
+	}
+
+	var result strings.Builder
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		result.WriteString(extractTextContent(c))
+	}
+
+	return result.String()
 }

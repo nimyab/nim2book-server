@@ -68,7 +68,7 @@ func (l *Logic) TranslateChapter(
 
 		if item.Type == epub_parser.ContentTypeImage {
 			// Extract image data from zip file
-			data, err := item.ImageNode.ImageFile.GetRawContent()
+			data, err := item.ImageNode.File.GetRawContent()
 			if err != nil {
 				slog.Error("failed to open image file", slog.String("error", err.Error()))
 				continue
@@ -88,7 +88,8 @@ func (l *Logic) TranslateChapter(
 			translatedChapter[idx] = domain.ContentNode{
 				Type: domain.ParagraphAlignNodeTypeImage,
 				ImageNode: &domain.ImageNode{
-					ImageURL: imageURL,
+					Path: imageURL,
+					Alt:  item.ImageNode.Alt,
 				},
 			}
 			continue
