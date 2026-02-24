@@ -288,8 +288,41 @@ const docTemplate = `{
                 }
             }
         },
+        "/books/{book_id}/chapters/{chapter_number}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "book"
+                ],
+                "summary": "Get chapter content",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chapter path",
+                        "name": "path",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Chapter content",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/dictionary/lookup": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -316,6 +349,77 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/lookup.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/fcm-tokens": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "fcm-token"
+                ],
+                "summary": "Add FCM token",
+                "parameters": [
+                    {
+                        "description": "FCM token",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/add_fcm_token.Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/add_fcm_token.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/fcm-tokens/{token}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "fcm-token"
+                ],
+                "summary": "Delete FCM token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "FCM token",
+                        "name": "token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/delete_fcm_token.Output"
                         }
                     }
                 }
@@ -540,9 +644,326 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/personal-user-books": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "personal-user-book"
+                ],
+                "summary": "Get personal user books",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Author",
+                        "name": "author",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Title",
+                        "name": "title",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Genre ID",
+                        "name": "genreId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/get_personal_user_books.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/personal-user-books/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "personal-user-book"
+                ],
+                "summary": "Get personal user book",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Book ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/get_personal_user_book.Output"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "personal-user-book"
+                ],
+                "summary": "Update personal user book",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Book ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Author",
+                        "name": "author",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Title",
+                        "name": "title",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Cover",
+                        "name": "cover",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/update_personal_user_book.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/translate/book": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "translate"
+                ],
+                "summary": "Translate book",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Book file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "From language",
+                        "name": "from",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "To language",
+                        "name": "to",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/translate_book.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/translate/personal-user-book": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "translate"
+                ],
+                "summary": "Translate personal user book",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Book file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "From language",
+                        "name": "from",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "To language",
+                        "name": "to",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/translate_personal_user_book.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get current user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/me.Output"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/metadata": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Update user metadata",
+                "parameters": [
+                    {
+                        "description": "Metadata",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/metadata.Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/metadata.Output"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "add_fcm_token.Input": {
+            "type": "object",
+            "required": [
+                "fcmToken"
+            ],
+            "properties": {
+                "fcmToken": {
+                    "type": "string"
+                }
+            }
+        },
+        "add_fcm_token.Output": {
+            "type": "object",
+            "properties": {
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "create_genre.Input": {
             "type": "object",
             "required": [
@@ -561,6 +982,14 @@ const docTemplate = `{
             "properties": {
                 "genre": {
                     "$ref": "#/definitions/domain.Genre"
+                }
+            }
+        },
+        "delete_fcm_token.Output": {
+            "type": "object",
+            "properties": {
+                "success": {
+                    "type": "boolean"
                 }
             }
         },
@@ -957,6 +1386,25 @@ const docTemplate = `{
                 }
             }
         },
+        "get_personal_user_book.Output": {
+            "type": "object",
+            "properties": {
+                "book": {
+                    "$ref": "#/definitions/domain.PersonalBook"
+                }
+            }
+        },
+        "get_personal_user_books.Output": {
+            "type": "object",
+            "properties": {
+                "books": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.PersonalBook"
+                    }
+                }
+            }
+        },
         "google_login.Input": {
             "type": "object",
             "required": [
@@ -1050,6 +1498,33 @@ const docTemplate = `{
                 }
             }
         },
+        "me.Output": {
+            "type": "object",
+            "properties": {
+                "user": {
+                    "$ref": "#/definitions/domain.User"
+                }
+            }
+        },
+        "metadata.Input": {
+            "type": "object",
+            "required": [
+                "metadata"
+            ],
+            "properties": {
+                "metadata": {
+                    "$ref": "#/definitions/domain.JsonB"
+                }
+            }
+        },
+        "metadata.Output": {
+            "type": "object",
+            "properties": {
+                "user": {
+                    "$ref": "#/definitions/domain.User"
+                }
+            }
+        },
         "notification.Input": {
             "type": "object",
             "properties": {
@@ -1107,6 +1582,28 @@ const docTemplate = `{
                 }
             }
         },
+        "translate_book.Output": {
+            "type": "object",
+            "properties": {
+                "book": {
+                    "$ref": "#/definitions/domain.Book"
+                },
+                "messageAboutTranslate": {
+                    "type": "string"
+                }
+            }
+        },
+        "translate_personal_user_book.Output": {
+            "type": "object",
+            "properties": {
+                "book": {
+                    "$ref": "#/definitions/domain.PersonalBook"
+                },
+                "messageAboutTranslate": {
+                    "type": "string"
+                }
+            }
+        },
         "update_book.Output": {
             "type": "object",
             "properties": {
@@ -1137,6 +1634,14 @@ const docTemplate = `{
             "properties": {
                 "genre": {
                     "$ref": "#/definitions/domain.Genre"
+                }
+            }
+        },
+        "update_personal_user_book.Output": {
+            "type": "object",
+            "properties": {
+                "book": {
+                    "$ref": "#/definitions/domain.PersonalBook"
                 }
             }
         }

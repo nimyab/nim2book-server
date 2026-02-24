@@ -409,7 +409,7 @@ func (s *Service) checkChapterInStorage(chapterOrder int, bookTitle string) stri
 	slog.Info(path, slog.String("operation", operation))
 
 	if err := s.s3.Check(path); err != nil {
-		slog.Error(err.Error(), slog.String("operation", operation))
+		slog.Warn(err.Error(), slog.String("operation", operation))
 		return ""
 	}
 

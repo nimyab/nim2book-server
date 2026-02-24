@@ -1,5 +1,17 @@
 basePath: /api/v1
 definitions:
+  add_fcm_token.Input:
+    properties:
+      fcmToken:
+        type: string
+    required:
+    - fcmToken
+    type: object
+  add_fcm_token.Output:
+    properties:
+      success:
+        type: boolean
+    type: object
   create_genre.Input:
     properties:
       name:
@@ -13,6 +25,11 @@ definitions:
     properties:
       genre:
         $ref: '#/definitions/domain.Genre'
+    type: object
+  delete_fcm_token.Output:
+    properties:
+      success:
+        type: boolean
     type: object
   delete_genre.Output:
     properties:
@@ -273,6 +290,18 @@ definitions:
           $ref: '#/definitions/domain.Genre'
         type: array
     type: object
+  get_personal_user_book.Output:
+    properties:
+      book:
+        $ref: '#/definitions/domain.PersonalBook'
+    type: object
+  get_personal_user_books.Output:
+    properties:
+      books:
+        items:
+          $ref: '#/definitions/domain.PersonalBook'
+        type: array
+    type: object
   google_login.Input:
     properties:
       idToken:
@@ -334,6 +363,23 @@ definitions:
           $ref: '#/definitions/domain.DictionaryWord'
         type: array
     type: object
+  me.Output:
+    properties:
+      user:
+        $ref: '#/definitions/domain.User'
+    type: object
+  metadata.Input:
+    properties:
+      metadata:
+        $ref: '#/definitions/domain.JsonB'
+    required:
+    - metadata
+    type: object
+  metadata.Output:
+    properties:
+      user:
+        $ref: '#/definitions/domain.User'
+    type: object
   notification.Input:
     properties:
       body:
@@ -371,6 +417,20 @@ definitions:
       success:
         type: boolean
     type: object
+  translate_book.Output:
+    properties:
+      book:
+        $ref: '#/definitions/domain.Book'
+      messageAboutTranslate:
+        type: string
+    type: object
+  translate_personal_user_book.Output:
+    properties:
+      book:
+        $ref: '#/definitions/domain.PersonalBook'
+      messageAboutTranslate:
+        type: string
+    type: object
   update_book.Output:
     properties:
       book:
@@ -392,6 +452,11 @@ definitions:
     properties:
       genre:
         $ref: '#/definitions/domain.Genre'
+    type: object
+  update_personal_user_book.Output:
+    properties:
+      book:
+        $ref: '#/definitions/domain.PersonalBook'
     type: object
 externalDocs:
   description: OpenAPI
@@ -575,6 +640,24 @@ paths:
       summary: Update book
       tags:
       - book
+  /books/{book_id}/chapters/{chapter_number}:
+    get:
+      parameters:
+      - description: Chapter path
+        in: query
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Chapter content
+          schema:
+            type: string
+      summary: Get chapter content
+      tags:
+      - book
   /dictionary/lookup:
     post:
       consumes:
@@ -593,9 +676,54 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/lookup.Output'
+      security:
+      - BearerAuth: []
       summary: Get list translate from dictionary
       tags:
       - dictionary
+  /fcm-tokens:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: FCM token
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/add_fcm_token.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/add_fcm_token.Output'
+      security:
+      - BearerAuth: []
+      summary: Add FCM token
+      tags:
+      - fcm-token
+  /fcm-tokens/{token}:
+    delete:
+      parameters:
+      - description: FCM token
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/delete_fcm_token.Output'
+      security:
+      - BearerAuth: []
+      summary: Delete FCM token
+      tags:
+      - fcm-token
   /file/public:
     get:
       parameters:
@@ -733,6 +861,192 @@ paths:
       summary: Notification test
       tags:
       - notification
+  /personal-user-books:
+    get:
+      parameters:
+      - description: Author
+        in: query
+        name: author
+        type: string
+      - description: Title
+        in: query
+        name: title
+        type: string
+      - description: Genre ID
+        in: query
+        name: genreId
+        type: string
+      - description: Page
+        in: query
+        name: page
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_personal_user_books.Output'
+      security:
+      - BearerAuth: []
+      summary: Get personal user books
+      tags:
+      - personal-user-book
+  /personal-user-books/{id}:
+    get:
+      parameters:
+      - description: Book ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_personal_user_book.Output'
+      security:
+      - BearerAuth: []
+      summary: Get personal user book
+      tags:
+      - personal-user-book
+    put:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Book ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Author
+        in: formData
+        name: author
+        type: string
+      - description: Title
+        in: formData
+        name: title
+        type: string
+      - description: Cover
+        in: formData
+        name: cover
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/update_personal_user_book.Output'
+      security:
+      - BearerAuth: []
+      summary: Update personal user book
+      tags:
+      - personal-user-book
+  /translate/book:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Book file
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: From language
+        in: formData
+        name: from
+        required: true
+        type: string
+      - description: To language
+        in: formData
+        name: to
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/translate_book.Output'
+      security:
+      - BearerAuth: []
+      summary: Translate book
+      tags:
+      - translate
+  /translate/personal-user-book:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Book file
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: From language
+        in: formData
+        name: from
+        required: true
+        type: string
+      - description: To language
+        in: formData
+        name: to
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/translate_personal_user_book.Output'
+      security:
+      - BearerAuth: []
+      summary: Translate personal user book
+      tags:
+      - translate
+  /users/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/me.Output'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - user
+  /users/metadata:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Metadata
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/metadata.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/metadata.Output'
+      security:
+      - BearerAuth: []
+      summary: Update user metadata
+      tags:
+      - user
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

@@ -157,7 +157,7 @@ func (a *App) setupRoutes(e *echo.Echo) error {
 		if err != nil {
 			return err
 		}
-		apiV1.GET("/users/metadata", metadata.MakeHTTPv1Handler(svcMetadata), jwtMiddleware)
+		apiV1.PUT("/users/metadata", metadata.MakeHTTPv1Handler(svcMetadata), jwtMiddleware)
 
 		// Book routes
 		svcGetBooks, err := do.Invoke[*get_books.Service](a.injector)

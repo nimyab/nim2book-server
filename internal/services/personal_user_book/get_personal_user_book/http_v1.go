@@ -9,6 +9,13 @@ import (
 )
 
 // MakeHTTPv1Handler creates HTTP handler with dependencies
+// @Summary	Get personal user book
+// @Tags	personal-user-book
+// @Security BearerAuth
+// @Produce	json
+// @Param	id	path	string	true	"Book ID"
+// @Success	200		{object}	Output
+// @Router	/personal-user-books/{id}	[get]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		payload := jwt.GetUserPayload(c)

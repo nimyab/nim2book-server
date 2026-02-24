@@ -9,6 +9,14 @@ import (
 )
 
 // MakeHTTPv1Handler creates HTTP handler with dependencies
+// @Summary	Add FCM token
+// @Tags	fcm-token
+// @Security BearerAuth
+// @Accept  json
+// @Produce	json
+// @Param	input	body	Input	true	"FCM token"
+// @Success	200		{object}	Output
+// @Router	/fcm-tokens	[post]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		userId := jwt.GetUserPayload(c).ID

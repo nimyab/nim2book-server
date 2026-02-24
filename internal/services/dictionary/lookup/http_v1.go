@@ -9,6 +9,7 @@ import (
 // MakeHTTPv1Handler godoc
 // @Summary	Get list translate from dictionary
 // @Tags	dictionary
+// @Security BearerAuth
 // @Accept  json
 // @Produce	json
 // @Param	data	body	Input	true	"body"
