@@ -16,7 +16,7 @@ import (
 // @Param	title	formData	string	false	"Title book"
 // @Param	id		path	string	true	"Book id"
 // @Success	200		{object}	Output
-// @Router	/book/{id}	[put]
+// @Router	/books/{id}	[put]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		cover, err := c.FormFile("cover")

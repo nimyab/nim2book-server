@@ -15,7 +15,7 @@ import (
 // @Produce	application/json
 // @Param	input	body	Input	true	"Genre data"
 // @Success	201		{object}	Output
-// @Router	/genre	[post]
+// @Router	/genres	[post]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		input := new(Input)

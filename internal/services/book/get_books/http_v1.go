@@ -15,7 +15,7 @@ import (
 // @Param	genreId	query	string	false	"Genre ID filter"
 // @Param	page	query	int		true	"Page number"
 // @Success	200		{object}	Output
-// @Router	/book	[get]
+// @Router	/books	[get]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		input := new(Input)

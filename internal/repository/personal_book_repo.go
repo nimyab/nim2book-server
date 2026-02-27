@@ -35,6 +35,7 @@ func (r *PersonalBookRepository) getByIDInternal(ctx context.Context, tx *ent.Tx
 		WithUser().
 		WithAuthor().
 		WithGenres().
+		WithPersonalBookChapters().
 		Only(ctx)
 
 	if err != nil {

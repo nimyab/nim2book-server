@@ -16,7 +16,7 @@ import (
 // @Produce	json
 // @Param	data	body	Input	true	"body"
 // @Success	200		{object}	Output
-// @Router	/auth/google-login	[post]
+// @Router	/auth/google	[post]
 func MakeHTTPv1Handler(svc *Service, cfg *config.Config) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		input := new(Input)

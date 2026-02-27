@@ -466,7 +466,7 @@ info:
   title: Nim2Book api
   version: "1.0"
 paths:
-  /auth/google-login:
+  /auth/google:
     post:
       consumes:
       - application/json
@@ -561,7 +561,7 @@ paths:
       summary: Register user
       tags:
       - auth
-  /book:
+  /books:
     get:
       parameters:
       - description: Author filter
@@ -591,7 +591,25 @@ paths:
       summary: Get books
       tags:
       - book
-  /book/{id}:
+  /books/{book_id}/chapters/{chapter_number}:
+    get:
+      parameters:
+      - description: Chapter path
+        in: query
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Chapter content
+          schema:
+            type: string
+      summary: Get chapter content
+      tags:
+      - book
+  /books/{id}:
     get:
       parameters:
       - description: Book id
@@ -638,24 +656,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Update book
-      tags:
-      - book
-  /books/{book_id}/chapters/{chapter_number}:
-    get:
-      parameters:
-      - description: Chapter path
-        in: query
-        name: path
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Chapter content
-          schema:
-            type: string
-      summary: Get chapter content
       tags:
       - book
   /dictionary/lookup:
@@ -724,7 +724,7 @@ paths:
       summary: Delete FCM token
       tags:
       - fcm-token
-  /file/public:
+  /files/public:
     get:
       parameters:
       - description: path
@@ -740,7 +740,7 @@ paths:
       summary: Get file data
       tags:
       - file
-  /genre:
+  /genres:
     get:
       produces:
       - application/json
@@ -774,7 +774,7 @@ paths:
       summary: Create genre
       tags:
       - genre
-  /genre/{id}:
+  /genres/{id}:
     delete:
       parameters:
       - description: Genre id
@@ -838,7 +838,7 @@ paths:
       summary: Update genre
       tags:
       - genre
-  /notification/test:
+  /notifications:
     post:
       consumes:
       - application/json

@@ -16,7 +16,7 @@ import (
 // @Produce	json
 // @Param	data	body	Input	true	"body"
 // @Success	200		{string}	string
-// @Router	/notification/test	[post]
+// @Router	/notifications	[post]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		payload := jwt.GetUserPayload(c)

@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/auth/google-login": {
+        "/auth/google": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -165,7 +165,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/book": {
+        "/books": {
             "get": {
                 "produces": [
                     "application/json"
@@ -211,7 +211,35 @@ const docTemplate = `{
                 }
             }
         },
-        "/book/{id}": {
+        "/books/{book_id}/chapters/{chapter_number}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "book"
+                ],
+                "summary": "Get chapter content",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Chapter path",
+                        "name": "path",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Chapter content",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/books/{id}": {
             "get": {
                 "produces": [
                     "application/json"
@@ -283,34 +311,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/update_book.Output"
-                        }
-                    }
-                }
-            }
-        },
-        "/books/{book_id}/chapters/{chapter_number}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "book"
-                ],
-                "summary": "Get chapter content",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Chapter path",
-                        "name": "path",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Chapter content",
-                        "schema": {
-                            "type": "string"
                         }
                     }
                 }
@@ -425,7 +425,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/file/public": {
+        "/files/public": {
             "get": {
                 "tags": [
                     "file"
@@ -450,7 +450,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/genre": {
+        "/genres": {
             "get": {
                 "produces": [
                     "application/json"
@@ -505,7 +505,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/genre/{id}": {
+        "/genres/{id}": {
             "get": {
                 "produces": [
                     "application/json"
@@ -607,7 +607,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/notification/test": {
+        "/notifications": {
             "post": {
                 "security": [
                     {

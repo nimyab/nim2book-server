@@ -12,7 +12,7 @@ import (
 // @Tags	file
 // @Param	path	query	string	true	"path"
 // @Success	200		{file} 	binary
-// @Router	/file/public	[get]
+// @Router	/files/public	[get]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		var input = new(Input)

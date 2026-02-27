@@ -12,7 +12,7 @@ import (
 // @Produce	application/json
 // @Param	id	path	string	true	"Book id"
 // @Success	200		{object}	Output
-// @Router	/book/{id}	[get]
+// @Router	/books/{id}	[get]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		input := new(Input)

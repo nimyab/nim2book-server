@@ -32,6 +32,7 @@ func (r *BookRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, id dom
 		Where(book.ID(id)).
 		WithAuthor().
 		WithGenres().
+		WithBookChapters().
 		Only(ctx)
 
 	if err != nil {

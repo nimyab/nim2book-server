@@ -16,7 +16,7 @@ import (
 // @Param	id		path	string	true	"Genre id"
 // @Param	input	body	Input	true	"Genre data"
 // @Success	200		{object}	Output
-// @Router	/genre/{id}	[put]
+// @Router	/genres/{id}	[put]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		input := new(Input)
