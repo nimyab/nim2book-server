@@ -88,6 +88,8 @@ definitions:
         type: string
       originalLang:
         type: string
+      processStatus:
+        $ref: '#/definitions/domain.ProcessStatus'
       title:
         type: string
       translatedLang:
@@ -235,13 +237,11 @@ definitions:
     type: object
   domain.ProcessStatus:
     enum:
-    - not_started
     - in_progress
     - completed
     - failed
     type: string
     x-enum-varnames:
-    - ProcessStatusNotStarted
     - ProcessStatusInProgress
     - ProcessStatusCompleted
     - ProcessStatusFailed
@@ -951,17 +951,17 @@ paths:
       consumes:
       - multipart/form-data
       parameters:
-      - description: Book file
+      - description: Файл книги
         in: formData
         name: file
         required: true
         type: file
-      - description: From language
+      - description: Исходный язык
         in: formData
         name: from
         required: true
         type: string
-      - description: To language
+      - description: Целевой язык
         in: formData
         name: to
         required: true
@@ -975,7 +975,7 @@ paths:
             $ref: '#/definitions/translate_book.Output'
       security:
       - BearerAuth: []
-      summary: Translate book
+      summary: Перевести книгу
       tags:
       - translate
   /translate/personal-user-book:
@@ -983,17 +983,17 @@ paths:
       consumes:
       - multipart/form-data
       parameters:
-      - description: Book file
+      - description: Файл книги
         in: formData
         name: file
         required: true
         type: file
-      - description: From language
+      - description: Исходный язык
         in: formData
         name: from
         required: true
         type: string
-      - description: To language
+      - description: Целевой язык
         in: formData
         name: to
         required: true
@@ -1007,7 +1007,7 @@ paths:
             $ref: '#/definitions/translate_personal_user_book.Output'
       security:
       - BearerAuth: []
-      summary: Translate personal user book
+      summary: Перевести личную книгу пользователя
       tags:
       - translate
   /users/me:

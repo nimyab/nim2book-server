@@ -175,6 +175,25 @@ func (r *BookRepository) UpdateTx(ctx context.Context, tx *ent.Tx, domainBook *d
 	})
 }
 
+// UpdateProcessStatus обновляет статус обработки книги
+func (r *BookRepository) UpdateProcessStatus(ctx context.Context, id domain.ID, processStatus domain.ProcessStatus) (*domain.Book, error) {
+	return r.UpdateProcessStatusTx(ctx, nil, id, processStatus)
+}
+
+// UpdateProcessStatusTx обновляет статус обработки книги внутри транзакции (если передана)
+func (r *BookRepository) UpdateProcessStatusTx(ctx context.Context, tx *ent.Tx, id domain.ID, processStatus domain.ProcessStatus) (*domain.Book, error) {
+	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.Book, error) {
+		entBook, err := tx.Book.UpdateOneID(id).
+			SetProcessStatus(book.ProcessStatus(processStatus)).
+			Save(ctx)
+		if err != nil {
+			return nil, HandleError(err)
+		}
+
+		return r.getByIDInternal(ctx, tx, entBook.ID)
+	})
+}
+
 // Delete удаляет книгу
 func (r *BookRepository) Delete(ctx context.Context, id domain.ID) error {
 	return r.DeleteTx(ctx, nil, id)
@@ -465,4 +484,18 @@ func (r *BookRepository) CountChapters(ctx context.Context) (int, error) {
 	}
 
 	return count, nil
+}
+
+// GetChapterByBookIDAndOrder возвращает главу книги по ID книги и порядку главы
+func (r *BookRepository) GetChapterByBookIDAndOrder(ctx context.Context, bookID domain.ID, orderChapter int) (*domain.BookChapter, error) {
+	entChapter, err := r.client.BookChapter.Query().Where(
+		bookchapter.HasBookWith(book.ID(bookID)),
+		bookchapter.OrderEQ(orderChapter),
+	).Only(ctx)
+
+	if err != nil {
+		return nil, HandleError(err)
+	}
+
+	return MapBookChapterToDomain(entChapter), nil
 }

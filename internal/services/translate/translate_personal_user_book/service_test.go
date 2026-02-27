@@ -30,7 +30,7 @@ func (m *MockProtoWordAligner) Align(ctx context.Context, in *pb.AlignRequest, o
 }
 
 func TestStartTranslate(t *testing.T) {
-	// Setup
+	// Настройка
 	mockS3 := NewMockS3(t)
 	mockRepo := NewMockPersonalBookRepository(t)
 	mockAuthorRepo := NewMockAuthorRepository(t)
@@ -45,7 +45,7 @@ func TestStartTranslate(t *testing.T) {
 
 	service := New(mockS3, mockRepo, mockAuthorRepo, mockWordAligner, mockTranslator, cfg, mockNotification)
 
-	// Data
+	// Данные
 	userID := uuid.New()
 	bookTitle := "Test Book"
 	authorName := "Test Author"
@@ -66,19 +66,24 @@ func TestStartTranslate(t *testing.T) {
 		Author: authorName,
 	}
 
-	data := &dto.TranslationContext{
-		Book:         pamphletBook,
-		Chapters:     chapters,
-		CoverData:    []byte("cover"),
-		UserID:       userID,
-		From:         domain.En,
-		To:           domain.Ru,
-		PersonalBook: nil, // New book
+	data := &dto.TranslationContext[*domain.PersonalBook]{
+		ParsedData: &epub_parser.ParsedData{
+			Book:             pamphletBook,
+			FormattedChapter: chapters,
+			Cover:            []byte("cover"),
+		},
+		UserID:     userID,
+		From:       domain.En,
+		To:         domain.Ru,
+		BookEntity: nil, // Новая книга
 	}
 
-	// Expectations
+	// Ожидания
 
-	// 1. saveCoverToS3
+	// 0. GetByUserAndAuthorAndTitle (должен вернуть nil, чтобы инициировать создание)
+	mockRepo.On("GetByUserAndAuthorAndTitle", mock.Anything, userID, authorName, bookTitle).Return(nil, nil)
+
+	// 1. Сохранение обложки в S3
 	mockS3.On("Upload", mock.MatchedBy(func(path string) bool {
 		// cover/Test_Book/<uuid>
 		return len(path) > 0
@@ -99,14 +104,8 @@ func TestStartTranslate(t *testing.T) {
 		User:   &domain.User{ID: userID},
 	}, nil)
 
-	// 4. GetChapterByPersonalBookIDAndOrder (in translateChapters)
+	// 4. GetChapterByPersonalBookIDAndOrder (в translateChapters)
 	mockRepo.On("GetChapterByPersonalBookIDAndOrder", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
-	// 5. checkChapterInStorage (in translateChapters)
-	// Need to check how checkChapterInStorage is implemented in this service
-	// likely similar to translate_book but with userID in path?
-	// Let's assume path logic.
-	mockS3.On("Check", mock.Anything).Return(assert.AnError) // Not found
 
 	// 5. logic.TranslateChapter -> Translator.Translate
 	mockTranslator.On("Translate", mock.MatchedBy(func(input *translate.Input) bool {
@@ -125,9 +124,9 @@ func TestStartTranslate(t *testing.T) {
 		},
 	}, nil)
 
-	// 7. saveChapterToS3
+	// 7. Сохранение главы в S3
 	mockS3.On("Upload", mock.MatchedBy(func(path string) bool {
-		// book/Test_Book/<userID>/0.json (maybe? check service.go)
+		// book/Test_Book/<userID>/0.json (возможно? проверить service.go)
 		return true
 	}), mock.Anything).Return(nil)
 
@@ -136,20 +135,23 @@ func TestStartTranslate(t *testing.T) {
 		return c.Order == 0 && c.Title == ""
 	})).Return(&domain.PersonalBookChapter{}, nil)
 
-	// 9. Notification (Chapter success)
+	// 8.1 UpdateProcessStatus
+	mockRepo.On("UpdateProcessStatus", mock.Anything, mock.Anything, domain.ProcessStatusCompleted).Return(&domain.PersonalBook{}, nil)
+
+	// 9. Уведомление (Успех главы)
 	mockNotification.On("Emit", mock.Anything, mock.MatchedBy(func(n *domain.Notification) bool {
 		return n.Type == domain.NotificationChapterTranslateSucceed
 	}))
 
-	// 10. Notification (Book success)
+	// 10. Уведомление (Успех книги)
 	mockNotification.On("Emit", mock.Anything, mock.MatchedBy(func(n *domain.Notification) bool {
 		return n.Type == domain.NotificationPersonalBookTranslated
 	}))
 
-	// Execute
-	err := service.startTranslate(data)
+	// Выполнение
+	_, err := service.startTranslate(context.Background(), data, false)
 
-	// Assert
+	// Проверка
 	assert.NoError(t, err)
 	mockS3.AssertExpectations(t)
 	mockRepo.AssertExpectations(t)

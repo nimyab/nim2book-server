@@ -8,15 +8,15 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// MakeHTTPv1Handler creates HTTP handler with dependencies
-// @Summary	Translate personal user book
+// MakeHTTPv1Handler создает HTTP-обработчик с зависимостями
+// @Summary	Перевести личную книгу пользователя
 // @Tags	translate
 // @Security BearerAuth
 // @Accept	multipart/form-data
 // @Produce	json
-// @Param	file	formData	file	true	"Book file"
-// @Param	from	formData	string	true	"From language"
-// @Param	to		formData	string	true	"To language"
+// @Param	file	formData	file	true	"Файл книги"
+// @Param	from	formData	string	true	"Исходный язык"
+// @Param	to		formData	string	true	"Целевой язык"
 // @Success	201		{object}	Output
 // @Router	/translate/personal-user-book	[post]
 func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {

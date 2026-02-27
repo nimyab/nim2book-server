@@ -51,6 +51,7 @@ var (
 		{Name: "cover_url", Type: field.TypeString, SchemaType: map[string]string{"postgres": "VARCHAR(255)"}},
 		{Name: "original_lang", Type: field.TypeString, Default: "en", SchemaType: map[string]string{"postgres": "VARCHAR(10)"}},
 		{Name: "translated_lang", Type: field.TypeString, Default: "ru", SchemaType: map[string]string{"postgres": "VARCHAR(10)"}},
+		{Name: "process_status", Type: field.TypeEnum, Enums: []string{"in_progress", "completed", "failed"}, Default: "in_progress", SchemaType: map[string]string{"postgres": "VARCHAR(30)"}},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "author_books", Type: field.TypeUUID, Nullable: true},
 	}
@@ -62,7 +63,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "books_authors_books",
-				Columns:    []*schema.Column{BooksColumns[6]},
+				Columns:    []*schema.Column{BooksColumns[7]},
 				RefColumns: []*schema.Column{AuthorsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -205,7 +206,7 @@ var (
 		{Name: "cover_url", Type: field.TypeString, SchemaType: map[string]string{"postgres": "VARCHAR(255)"}},
 		{Name: "original_lang", Type: field.TypeString, Default: "en", SchemaType: map[string]string{"postgres": "VARCHAR(10)"}},
 		{Name: "translated_lang", Type: field.TypeString, Default: "ru", SchemaType: map[string]string{"postgres": "VARCHAR(10)"}},
-		{Name: "process_status", Type: field.TypeEnum, Enums: []string{"not_started", "in_progress", "completed", "failed"}, Default: "not_started", SchemaType: map[string]string{"postgres": "VARCHAR(30)"}},
+		{Name: "process_status", Type: field.TypeEnum, Enums: []string{"in_progress", "completed", "failed"}, Default: "in_progress", SchemaType: map[string]string{"postgres": "VARCHAR(30)"}},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "author_personal_books", Type: field.TypeUUID, Nullable: true},
 		{Name: "user_personal_books", Type: field.TypeUUID, Nullable: true},
@@ -251,6 +252,13 @@ var (
 				Columns:    []*schema.Column{PersonalBookChaptersColumns[6]},
 				RefColumns: []*schema.Column{PersonalBooksColumns[0]},
 				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "personalbookchapter_order_personal_book_personal_book_chapters",
+				Unique:  true,
+				Columns: []*schema.Column{PersonalBookChaptersColumns[1], PersonalBookChaptersColumns[6]},
 			},
 		},
 	}

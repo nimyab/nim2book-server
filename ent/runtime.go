@@ -60,11 +60,11 @@ func init() {
 	// book.DefaultTranslatedLang holds the default value on creation for the translated_lang field.
 	book.DefaultTranslatedLang = bookDescTranslatedLang.Default.(string)
 	// bookDescCreatedAt is the schema descriptor for created_at field.
-	bookDescCreatedAt := bookFields[5].Descriptor()
+	bookDescCreatedAt := bookFields[6].Descriptor()
 	// book.DefaultCreatedAt holds the default value on creation for the created_at field.
 	book.DefaultCreatedAt = bookDescCreatedAt.Default.(func() time.Time)
 	// bookDescID is the schema descriptor for id field.
-	bookDescID := bookFields[4].Descriptor()
+	bookDescID := bookFields[5].Descriptor()
 	// book.DefaultID holds the default value on creation for the id field.
 	book.DefaultID = bookDescID.Default.(func() uuid.UUID)
 	bookchapterFields := schema.BookChapter{}.Fields()

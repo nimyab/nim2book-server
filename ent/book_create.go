@@ -64,6 +64,20 @@ func (_c *BookCreate) SetNillableTranslatedLang(v *string) *BookCreate {
 	return _c
 }
 
+// SetProcessStatus sets the "process_status" field.
+func (_c *BookCreate) SetProcessStatus(v book.ProcessStatus) *BookCreate {
+	_c.mutation.SetProcessStatus(v)
+	return _c
+}
+
+// SetNillableProcessStatus sets the "process_status" field if the given value is not nil.
+func (_c *BookCreate) SetNillableProcessStatus(v *book.ProcessStatus) *BookCreate {
+	if v != nil {
+		_c.SetProcessStatus(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *BookCreate) SetCreatedAt(v time.Time) *BookCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -184,6 +198,10 @@ func (_c *BookCreate) defaults() {
 		v := book.DefaultTranslatedLang
 		_c.mutation.SetTranslatedLang(v)
 	}
+	if _, ok := _c.mutation.ProcessStatus(); !ok {
+		v := book.DefaultProcessStatus
+		_c.mutation.SetProcessStatus(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := book.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -207,6 +225,14 @@ func (_c *BookCreate) check() error {
 	}
 	if _, ok := _c.mutation.TranslatedLang(); !ok {
 		return &ValidationError{Name: "translated_lang", err: errors.New(`ent: missing required field "Book.translated_lang"`)}
+	}
+	if _, ok := _c.mutation.ProcessStatus(); !ok {
+		return &ValidationError{Name: "process_status", err: errors.New(`ent: missing required field "Book.process_status"`)}
+	}
+	if v, ok := _c.mutation.ProcessStatus(); ok {
+		if err := book.ProcessStatusValidator(v); err != nil {
+			return &ValidationError{Name: "process_status", err: fmt.Errorf(`ent: validator failed for field "Book.process_status": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Book.created_at"`)}
@@ -261,6 +287,10 @@ func (_c *BookCreate) createSpec() (*Book, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.TranslatedLang(); ok {
 		_spec.SetField(book.FieldTranslatedLang, field.TypeString, value)
 		_node.TranslatedLang = value
+	}
+	if value, ok := _c.mutation.ProcessStatus(); ok {
+		_spec.SetField(book.FieldProcessStatus, field.TypeEnum, value)
+		_node.ProcessStatus = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(book.FieldCreatedAt, field.TypeTime, value)

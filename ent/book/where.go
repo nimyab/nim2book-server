@@ -341,6 +341,26 @@ func TranslatedLangContainsFold(v string) predicate.Book {
 	return predicate.Book(sql.FieldContainsFold(FieldTranslatedLang, v))
 }
 
+// ProcessStatusEQ applies the EQ predicate on the "process_status" field.
+func ProcessStatusEQ(v ProcessStatus) predicate.Book {
+	return predicate.Book(sql.FieldEQ(FieldProcessStatus, v))
+}
+
+// ProcessStatusNEQ applies the NEQ predicate on the "process_status" field.
+func ProcessStatusNEQ(v ProcessStatus) predicate.Book {
+	return predicate.Book(sql.FieldNEQ(FieldProcessStatus, v))
+}
+
+// ProcessStatusIn applies the In predicate on the "process_status" field.
+func ProcessStatusIn(vs ...ProcessStatus) predicate.Book {
+	return predicate.Book(sql.FieldIn(FieldProcessStatus, vs...))
+}
+
+// ProcessStatusNotIn applies the NotIn predicate on the "process_status" field.
+func ProcessStatusNotIn(vs ...ProcessStatus) predicate.Book {
+	return predicate.Book(sql.FieldNotIn(FieldProcessStatus, vs...))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Book {
 	return predicate.Book(sql.FieldEQ(FieldCreatedAt, v))

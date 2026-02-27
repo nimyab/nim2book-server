@@ -8,6 +8,7 @@ import (
 	"github.com/nimyab/nim2book-back/config"
 	"github.com/nimyab/nim2book-back/ent"
 	"github.com/nimyab/nim2book-back/internal/adapter/redis_cache"
+	"github.com/nimyab/nim2book-back/internal/controller/websocket"
 	"github.com/nimyab/nim2book-back/internal/services/word_aligner"
 	"github.com/samber/do/v2"
 )
@@ -30,6 +31,9 @@ func New(cfg *config.Config) (*App, error) {
 
 	// Register config
 	do.ProvideValue(injector, cfg)
+
+	// Initialize WebSocket Hub
+	websocket.NewAndStart()
 
 	// Register adapters (infrastructure layer)
 	app.registerAdapters()

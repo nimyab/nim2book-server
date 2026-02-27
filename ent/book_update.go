@@ -73,6 +73,20 @@ func (_u *BookUpdate) SetNillableTranslatedLang(v *string) *BookUpdate {
 	return _u
 }
 
+// SetProcessStatus sets the "process_status" field.
+func (_u *BookUpdate) SetProcessStatus(v book.ProcessStatus) *BookUpdate {
+	_u.mutation.SetProcessStatus(v)
+	return _u
+}
+
+// SetNillableProcessStatus sets the "process_status" field if the given value is not nil.
+func (_u *BookUpdate) SetNillableProcessStatus(v *book.ProcessStatus) *BookUpdate {
+	if v != nil {
+		_u.SetProcessStatus(*v)
+	}
+	return _u
+}
+
 // SetAuthorID sets the "author" edge to the Author entity by ID.
 func (_u *BookUpdate) SetAuthorID(id uuid.UUID) *BookUpdate {
 	_u.mutation.SetAuthorID(id)
@@ -202,7 +216,20 @@ func (_u *BookUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *BookUpdate) check() error {
+	if v, ok := _u.mutation.ProcessStatus(); ok {
+		if err := book.ProcessStatusValidator(v); err != nil {
+			return &ValidationError{Name: "process_status", err: fmt.Errorf(`ent: validator failed for field "Book.process_status": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *BookUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(book.Table, book.Columns, sqlgraph.NewFieldSpec(book.FieldID, field.TypeUUID))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -219,6 +246,9 @@ func (_u *BookUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.TranslatedLang(); ok {
 		_spec.SetField(book.FieldTranslatedLang, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ProcessStatus(); ok {
+		_spec.SetField(book.FieldProcessStatus, field.TypeEnum, value)
 	}
 	if _u.mutation.AuthorCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -401,6 +431,20 @@ func (_u *BookUpdateOne) SetNillableTranslatedLang(v *string) *BookUpdateOne {
 	return _u
 }
 
+// SetProcessStatus sets the "process_status" field.
+func (_u *BookUpdateOne) SetProcessStatus(v book.ProcessStatus) *BookUpdateOne {
+	_u.mutation.SetProcessStatus(v)
+	return _u
+}
+
+// SetNillableProcessStatus sets the "process_status" field if the given value is not nil.
+func (_u *BookUpdateOne) SetNillableProcessStatus(v *book.ProcessStatus) *BookUpdateOne {
+	if v != nil {
+		_u.SetProcessStatus(*v)
+	}
+	return _u
+}
+
 // SetAuthorID sets the "author" edge to the Author entity by ID.
 func (_u *BookUpdateOne) SetAuthorID(id uuid.UUID) *BookUpdateOne {
 	_u.mutation.SetAuthorID(id)
@@ -543,7 +587,20 @@ func (_u *BookUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *BookUpdateOne) check() error {
+	if v, ok := _u.mutation.ProcessStatus(); ok {
+		if err := book.ProcessStatusValidator(v); err != nil {
+			return &ValidationError{Name: "process_status", err: fmt.Errorf(`ent: validator failed for field "Book.process_status": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *BookUpdateOne) sqlSave(ctx context.Context) (_node *Book, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(book.Table, book.Columns, sqlgraph.NewFieldSpec(book.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -577,6 +634,9 @@ func (_u *BookUpdateOne) sqlSave(ctx context.Context) (_node *Book, err error) {
 	}
 	if value, ok := _u.mutation.TranslatedLang(); ok {
 		_spec.SetField(book.FieldTranslatedLang, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ProcessStatus(); ok {
+		_spec.SetField(book.FieldProcessStatus, field.TypeEnum, value)
 	}
 	if _u.mutation.AuthorCleared() {
 		edge := &sqlgraph.EdgeSpec{

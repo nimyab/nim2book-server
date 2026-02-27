@@ -27,6 +27,8 @@ type Book struct {
 	OriginalLang string `json:"original_lang,omitempty"`
 	// TranslatedLang holds the value of the "translated_lang" field.
 	TranslatedLang string `json:"translated_lang,omitempty"`
+	// ProcessStatus holds the value of the "process_status" field.
+	ProcessStatus book.ProcessStatus `json:"process_status,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -83,7 +85,7 @@ func (*Book) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case book.FieldTitle, book.FieldCoverURL, book.FieldOriginalLang, book.FieldTranslatedLang:
+		case book.FieldTitle, book.FieldCoverURL, book.FieldOriginalLang, book.FieldTranslatedLang, book.FieldProcessStatus:
 			values[i] = new(sql.NullString)
 		case book.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -136,6 +138,12 @@ func (_m *Book) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field translated_lang", values[i])
 			} else if value.Valid {
 				_m.TranslatedLang = value.String
+			}
+		case book.FieldProcessStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field process_status", values[i])
+			} else if value.Valid {
+				_m.ProcessStatus = book.ProcessStatus(value.String)
 			}
 		case book.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -214,6 +222,9 @@ func (_m *Book) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("translated_lang=")
 	builder.WriteString(_m.TranslatedLang)
+	builder.WriteString(", ")
+	builder.WriteString("process_status=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProcessStatus))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

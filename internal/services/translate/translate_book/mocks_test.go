@@ -385,6 +385,154 @@ func (_c *MockBookRepository_GetByAuthorAndTitle_Call) RunAndReturn(run func(ctx
 	return _c
 }
 
+// GetChapterByBookIDAndOrder provides a mock function for the type MockBookRepository
+func (_mock *MockBookRepository) GetChapterByBookIDAndOrder(ctx context.Context, bookID domain.ID, orderChapter int) (*domain.BookChapter, error) {
+	ret := _mock.Called(ctx, bookID, orderChapter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetChapterByBookIDAndOrder")
+	}
+
+	var r0 *domain.BookChapter
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.ID, int) (*domain.BookChapter, error)); ok {
+		return returnFunc(ctx, bookID, orderChapter)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.ID, int) *domain.BookChapter); ok {
+		r0 = returnFunc(ctx, bookID, orderChapter)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.BookChapter)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, domain.ID, int) error); ok {
+		r1 = returnFunc(ctx, bookID, orderChapter)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockBookRepository_GetChapterByBookIDAndOrder_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetChapterByBookIDAndOrder'
+type MockBookRepository_GetChapterByBookIDAndOrder_Call struct {
+	*mock.Call
+}
+
+// GetChapterByBookIDAndOrder is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bookID domain.ID
+//   - orderChapter int
+func (_e *MockBookRepository_Expecter) GetChapterByBookIDAndOrder(ctx interface{}, bookID interface{}, orderChapter interface{}) *MockBookRepository_GetChapterByBookIDAndOrder_Call {
+	return &MockBookRepository_GetChapterByBookIDAndOrder_Call{Call: _e.mock.On("GetChapterByBookIDAndOrder", ctx, bookID, orderChapter)}
+}
+
+func (_c *MockBookRepository_GetChapterByBookIDAndOrder_Call) Run(run func(ctx context.Context, bookID domain.ID, orderChapter int)) *MockBookRepository_GetChapterByBookIDAndOrder_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 domain.ID
+		if args[1] != nil {
+			arg1 = args[1].(domain.ID)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBookRepository_GetChapterByBookIDAndOrder_Call) Return(bookChapter *domain.BookChapter, err error) *MockBookRepository_GetChapterByBookIDAndOrder_Call {
+	_c.Call.Return(bookChapter, err)
+	return _c
+}
+
+func (_c *MockBookRepository_GetChapterByBookIDAndOrder_Call) RunAndReturn(run func(ctx context.Context, bookID domain.ID, orderChapter int) (*domain.BookChapter, error)) *MockBookRepository_GetChapterByBookIDAndOrder_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateProcessStatus provides a mock function for the type MockBookRepository
+func (_mock *MockBookRepository) UpdateProcessStatus(ctx context.Context, id domain.ID, processStatus domain.ProcessStatus) (*domain.Book, error) {
+	ret := _mock.Called(ctx, id, processStatus)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateProcessStatus")
+	}
+
+	var r0 *domain.Book
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.ID, domain.ProcessStatus) (*domain.Book, error)); ok {
+		return returnFunc(ctx, id, processStatus)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.ID, domain.ProcessStatus) *domain.Book); ok {
+		r0 = returnFunc(ctx, id, processStatus)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Book)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, domain.ID, domain.ProcessStatus) error); ok {
+		r1 = returnFunc(ctx, id, processStatus)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockBookRepository_UpdateProcessStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateProcessStatus'
+type MockBookRepository_UpdateProcessStatus_Call struct {
+	*mock.Call
+}
+
+// UpdateProcessStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id domain.ID
+//   - processStatus domain.ProcessStatus
+func (_e *MockBookRepository_Expecter) UpdateProcessStatus(ctx interface{}, id interface{}, processStatus interface{}) *MockBookRepository_UpdateProcessStatus_Call {
+	return &MockBookRepository_UpdateProcessStatus_Call{Call: _e.mock.On("UpdateProcessStatus", ctx, id, processStatus)}
+}
+
+func (_c *MockBookRepository_UpdateProcessStatus_Call) Run(run func(ctx context.Context, id domain.ID, processStatus domain.ProcessStatus)) *MockBookRepository_UpdateProcessStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 domain.ID
+		if args[1] != nil {
+			arg1 = args[1].(domain.ID)
+		}
+		var arg2 domain.ProcessStatus
+		if args[2] != nil {
+			arg2 = args[2].(domain.ProcessStatus)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBookRepository_UpdateProcessStatus_Call) Return(book *domain.Book, err error) *MockBookRepository_UpdateProcessStatus_Call {
+	_c.Call.Return(book, err)
+	return _c
+}
+
+func (_c *MockBookRepository_UpdateProcessStatus_Call) RunAndReturn(run func(ctx context.Context, id domain.ID, processStatus domain.ProcessStatus) (*domain.Book, error)) *MockBookRepository_UpdateProcessStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockAuthorRepository creates a new instance of MockAuthorRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockAuthorRepository(t interface {
@@ -655,5 +803,78 @@ func (_c *MockTranslator_Translate_Call) Return(output *translate.Output, err er
 
 func (_c *MockTranslator_Translate_Call) RunAndReturn(run func(input *translate.Input) (*translate.Output, error)) *MockTranslator_Translate_Call {
 	_c.Call.Return(run)
+	return _c
+}
+
+// NewMockNotificationSender creates a new instance of MockNotificationSender. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewMockNotificationSender(t interface {
+	mock.TestingT
+	Cleanup(func())
+}) *MockNotificationSender {
+	mock := &MockNotificationSender{}
+	mock.Mock.Test(t)
+
+	t.Cleanup(func() { mock.AssertExpectations(t) })
+
+	return mock
+}
+
+// MockNotificationSender is an autogenerated mock type for the NotificationSender type
+type MockNotificationSender struct {
+	mock.Mock
+}
+
+type MockNotificationSender_Expecter struct {
+	mock *mock.Mock
+}
+
+func (_m *MockNotificationSender) EXPECT() *MockNotificationSender_Expecter {
+	return &MockNotificationSender_Expecter{mock: &_m.Mock}
+}
+
+// Emit provides a mock function for the type MockNotificationSender
+func (_mock *MockNotificationSender) Emit(ctx context.Context, notification *domain.Notification) {
+	_mock.Called(ctx, notification)
+	return
+}
+
+// MockNotificationSender_Emit_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Emit'
+type MockNotificationSender_Emit_Call struct {
+	*mock.Call
+}
+
+// Emit is a helper method to define mock.On call
+//   - ctx context.Context
+//   - notification *domain.Notification
+func (_e *MockNotificationSender_Expecter) Emit(ctx interface{}, notification interface{}) *MockNotificationSender_Emit_Call {
+	return &MockNotificationSender_Emit_Call{Call: _e.mock.On("Emit", ctx, notification)}
+}
+
+func (_c *MockNotificationSender_Emit_Call) Run(run func(ctx context.Context, notification *domain.Notification)) *MockNotificationSender_Emit_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *domain.Notification
+		if args[1] != nil {
+			arg1 = args[1].(*domain.Notification)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockNotificationSender_Emit_Call) Return() *MockNotificationSender_Emit_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockNotificationSender_Emit_Call) RunAndReturn(run func(ctx context.Context, notification *domain.Notification)) *MockNotificationSender_Emit_Call {
+	_c.Run(run)
 	return _c
 }

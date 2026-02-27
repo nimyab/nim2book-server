@@ -63,7 +63,7 @@ func (s *Service) Register(ctx context.Context, input *Input) (*Output, error) {
 	newUser := &domain.User{
 		IsVIP:    false,
 		IsAdmin:  false,
-		Metadata: map[string]interface{}{},
+		Metadata: map[string]any{},
 	}
 
 	user, err := s.userRepo.CreateWithBasicAccount(ctx, newUser, newBasicAccount)

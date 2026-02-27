@@ -10,7 +10,7 @@ import (
 )
 
 type Validator interface {
-	Validate(v interface{}) error
+	Validate(v any) error
 }
 
 type SocketHub struct {

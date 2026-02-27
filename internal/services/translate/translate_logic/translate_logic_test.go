@@ -1,4 +1,4 @@
-package translated_logic
+package translate_logic
 
 import (
 	"context"
@@ -25,7 +25,7 @@ func TestTranslateAndAlignParagraph(t *testing.T) {
 		expectedError     error
 	}{
 		{
-			name:      "Success",
+			name:      "Успешный перевод",
 			paragraph: "Hello world",
 			mockTranslator: func(m *MockTranslator) {
 				m.On("Translate", &translate.Input{
@@ -57,7 +57,7 @@ func TestTranslateAndAlignParagraph(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:      "No Letters in Original",
+			name:      "Нет букв в оригинале",
 			paragraph: "...",
 			mockTranslator: func(m *MockTranslator) {
 				m.On("Translate", &translate.Input{
@@ -78,17 +78,17 @@ func TestTranslateAndAlignParagraph(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:      "Translation Error",
+			name:      "Ошибка перевода",
 			paragraph: "Hello",
 			mockTranslator: func(m *MockTranslator) {
 				m.On("Translate", mock.Anything).Return(nil, errors.New("translate error"))
 			},
 			mockWordAligner: nil,
 			mockThrottler:   nil,
-			expectedError:   errors.New("failed to translate paragraph"),
+			expectedError:   errors.New("не удалось перевести параграф"),
 		},
 		{
-			name:      "Alignment Error",
+			name:      "Ошибка выравнивания",
 			paragraph: "Hello",
 			mockTranslator: func(m *MockTranslator) {
 				m.On("Translate", mock.Anything).Return(&translate.Output{TranslatedText: "Привет"}, nil)
@@ -99,7 +99,7 @@ func TestTranslateAndAlignParagraph(t *testing.T) {
 			mockThrottler: func(m *MockThrottler) {
 				m.On("Throttle").Times(2)
 			},
-			expectedError: errors.New("failed to align words"),
+			expectedError: errors.New("не удалось выровнять слова"),
 		},
 	}
 
@@ -119,7 +119,7 @@ func TestTranslateAndAlignParagraph(t *testing.T) {
 				tt.mockThrottler(throttler)
 			}
 
-			l := New(translator, wordAligner)
+			l := NewLogic(translator, wordAligner)
 			res, err := l.TranslateAndAlignParagraph(context.Background(), tt.paragraph, domain.En, domain.Ru, throttler)
 
 			if tt.expectedError != nil {
@@ -143,7 +143,7 @@ func TestTranslateChapter(t *testing.T) {
 		expectedError   string
 	}{
 		{
-			name: "Success",
+			name: "Успешно",
 			chapter: epub_parser.FormattedChapter{
 				Chapter: pamphlet.Chapter{
 					ID:    "1",
@@ -157,14 +157,14 @@ func TestTranslateChapter(t *testing.T) {
 				},
 			},
 			mockTranslator: func(m *MockTranslator) {
-				// Translate Paragraph
+				// Перевод параграфа
 				m.On("Translate", &translate.Input{
 					Q:      "Hello",
 					Source: domain.En,
 					Target: domain.Ru,
 				}).Return(&translate.Output{TranslatedText: "Привет"}, nil)
 
-				// Translate Title
+				// Перевод заголовка
 				m.On("Translate", &translate.Input{
 					Q:      "Chapter 1",
 					Source: domain.En,
@@ -203,77 +203,8 @@ func TestTranslateChapter(t *testing.T) {
 			},
 			expectedError: "",
 		},
-		/*
-			{
-				name: "With Image",
-				chapter: epub_parser.FormattedChapter{
-					Chapter: pamphlet.Chapter{
-						ID:    "img1",
-						Title: "Image Chapter",
-					},
-					Content: []epub_parser.ContentItem{
-						{
-							Type:     epub_parser.ContentTypeText,
-							TextNode: &epub_parser.TextNode{Text: "Text"},
-						},
-						{
-							Type: epub_parser.ContentTypeImage,
-							ImageNode: &epub_parser.ImageNode{
-								// ImageData: []byte("fake"),
-							},
-						},
-					},
-				},
-				mockTranslator: func(m *MockTranslator) {
-					m.On("Translate", &translate.Input{
-						Q:      "Text",
-						Source: domain.En,
-						Target: domain.Ru,
-					}).Return(&translate.Output{TranslatedText: "Текст"}, nil)
-
-					m.On("Translate", &translate.Input{
-						Q:      "Image Chapter",
-						Source: domain.En,
-						Target: domain.Ru,
-					}).Return(&translate.Output{TranslatedText: "Глава с картинкой"}, nil)
-				},
-				mockWordAligner: func(m *MockWordAligner) {
-					m.On("Align", mock.Anything, &pb.AlignRequest{
-						SourceText: "Text",
-						TargetText: "Текст",
-					}).Return(&pb.AlignResponse{
-						Alignments: []*pb.AlignmentResult{},
-					}, nil)
-				},
-				mockThrottler: func(m *MockThrottler) {
-					m.On("Throttle").Times(2)
-				},
-				expectedResult: &domain.ChapterAlignNode{
-					Id:              "img1",
-					Title:           "Image Chapter",
-					TranslatedTitle: "Глава с картинкой",
-					Content: []domain.ContentNode{
-						{
-							Type: domain.ParagraphAlignNodeTypeParagraph,
-							ParagraphAlignNode: &domain.ParagraphAlignNode{
-								OriginalParagraph:   "Text",
-								TranslatedParagraph: "Текст",
-								AlignmentWords:      []domain.WordAlignNode{},
-							},
-						},
-						{
-							Type: domain.ParagraphAlignNodeTypeImage,
-							ImageNode: &domain.ImageNode{
-								ImageURL: "",
-							},
-						},
-					},
-				},
-				expectedError: "",
-			},
-		*/
 		{
-			name: "Empty Chapter",
+			name: "Пустая глава",
 			chapter: epub_parser.FormattedChapter{
 				Chapter: pamphlet.Chapter{
 					ID:    "2",
@@ -293,7 +224,7 @@ func TestTranslateChapter(t *testing.T) {
 			expectedError: "",
 		},
 		{
-			name: "Paragraph Translation Error",
+			name: "Ошибка перевода параграфа",
 			chapter: epub_parser.FormattedChapter{
 				Chapter: pamphlet.Chapter{
 					ID:    "3",
@@ -316,10 +247,10 @@ func TestTranslateChapter(t *testing.T) {
 			mockWordAligner: nil,
 			mockThrottler:   nil,
 			expectedResult:  nil,
-			expectedError:   "translate.logic.TranslateChapter: failed to translate paragraph",
+			expectedError:   "translate.flow.TranslateChapter: не удалось перевести параграф", // Это обернутая ошибка
 		},
 		{
-			name: "Title Translation Error",
+			name: "Ошибка перевода заголовка",
 			chapter: epub_parser.FormattedChapter{
 				Chapter: pamphlet.Chapter{
 					ID:    "4",
@@ -333,14 +264,14 @@ func TestTranslateChapter(t *testing.T) {
 				},
 			},
 			mockTranslator: func(m *MockTranslator) {
-				// Translate Paragraph (Success)
+				// Перевод параграфа (Успешно)
 				m.On("Translate", &translate.Input{
 					Q:      "Hello",
 					Source: domain.En,
 					Target: domain.Ru,
 				}).Return(&translate.Output{TranslatedText: "Привет"}, nil)
 
-				// Translate Title (Fail)
+				// Перевод заголовка (Ошибка)
 				m.On("Translate", &translate.Input{
 					Q:      "Fail Title",
 					Source: domain.En,
@@ -354,7 +285,7 @@ func TestTranslateChapter(t *testing.T) {
 				m.On("Throttle").Times(2)
 			},
 			expectedResult: nil,
-			expectedError:  "translate.logic.TranslateChapter: failed to translate title: title error",
+			expectedError:  "translate.flow.TranslateChapter: не удалось перевести заголовок: title error",
 		},
 	}
 
@@ -374,10 +305,11 @@ func TestTranslateChapter(t *testing.T) {
 				tt.mockThrottler(throttler)
 			}
 
-			l := New(translator, wordAligner)
+			l := NewLogic(translator, wordAligner)
 			res, err := l.TranslateChapter(context.Background(), tt.chapter, domain.En, domain.Ru, throttler, 1, nil)
 
 			if tt.expectedError != "" {
+				// Мы ожидаем, что строка ошибки будет содержать нашу переведенную ошибку
 				assert.EqualError(t, err, tt.expectedError)
 				assert.Nil(t, res)
 			} else {

@@ -5,7 +5,6 @@ import (
 
 	"github.com/nimyab/nim2book-back/internal/domain"
 	"github.com/nimyab/nim2book-back/pkg/parsers/epub_parser"
-	"github.com/timsims/pamphlet"
 )
 
 // Config содержит параметры конфигурации для сервиса перевода
@@ -15,20 +14,18 @@ type Config struct {
 }
 
 // TranslationContext содержит все данные, необходимые для процесса перевода книги
-type TranslationContext struct {
-	UserID       domain.ID
-	Book         *pamphlet.Book
-	Chapters     []epub_parser.FormattedChapter
-	CoverData    []byte
-	From         domain.SupportedLang
-	To           domain.SupportedLang
-	PersonalBook *domain.PersonalBook // Опционально, только для персональных книг
+type TranslationContext[T any] struct {
+	UserID     domain.ID
+	ParsedData *epub_parser.ParsedData
+	From       domain.SupportedLang
+	To         domain.SupportedLang
+	BookEntity T // *domain.Book or *domain.PersonalBook
 }
 
 // ChapterResult содержит результат обработки одной главы
-type ChapterResult struct {
+type ChapterResult[T any] struct {
 	Chapter      *domain.ChapterAlignNode
-	ExistChapter *domain.PersonalBookChapter // Опционально, если глава уже существует
+	ExistChapter T // *domain.BookChapter or *domain.PersonalBookChapter
 	ChapterOrder int
 	Path         string
 	Error        error

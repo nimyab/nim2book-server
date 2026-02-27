@@ -15,3 +15,7 @@ type PersonalBookChapter struct {
 
 	PersonalBook *PersonalBook `json:"personalBook,omitempty"`
 }
+
+func (c *PersonalBookChapter) GetOrder() int {
+	return c.Order
+}

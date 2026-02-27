@@ -36,7 +36,7 @@ test:
 test-coverage:
 	go test -coverprofile=coverage.out ./...
 
-altlasdiff:
+atlasdiff:
 	atlas migrate diff $(name) --dir "file://ent/migrate/migrations" --to "ent://ent/schema" --dev-url "docker://postgres/17" 
 
 atlasapply:

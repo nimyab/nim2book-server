@@ -119,12 +119,11 @@ var (
 // ProcessStatus defines the type for the "process_status" enum field.
 type ProcessStatus string
 
-// ProcessStatusNotStarted is the default value of the ProcessStatus enum.
-const DefaultProcessStatus = ProcessStatusNotStarted
+// ProcessStatusInProgress is the default value of the ProcessStatus enum.
+const DefaultProcessStatus = ProcessStatusInProgress
 
 // ProcessStatus values.
 const (
-	ProcessStatusNotStarted ProcessStatus = "not_started"
 	ProcessStatusInProgress ProcessStatus = "in_progress"
 	ProcessStatusCompleted  ProcessStatus = "completed"
 	ProcessStatusFailed     ProcessStatus = "failed"
@@ -137,7 +136,7 @@ func (ps ProcessStatus) String() string {
 // ProcessStatusValidator is a validator for the "process_status" field enum values. It is called by the builders before save.
 func ProcessStatusValidator(ps ProcessStatus) error {
 	switch ps {
-	case ProcessStatusNotStarted, ProcessStatusInProgress, ProcessStatusCompleted, ProcessStatusFailed:
+	case ProcessStatusInProgress, ProcessStatusCompleted, ProcessStatusFailed:
 		return nil
 	default:
 		return fmt.Errorf("personalbook: invalid enum value for process_status field: %q", ps)

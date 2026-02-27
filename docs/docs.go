@@ -797,25 +797,25 @@ const docTemplate = `{
                 "tags": [
                     "translate"
                 ],
-                "summary": "Translate book",
+                "summary": "Перевести книгу",
                 "parameters": [
                     {
                         "type": "file",
-                        "description": "Book file",
+                        "description": "Файл книги",
                         "name": "file",
                         "in": "formData",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "From language",
+                        "description": "Исходный язык",
                         "name": "from",
                         "in": "formData",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "To language",
+                        "description": "Целевой язык",
                         "name": "to",
                         "in": "formData",
                         "required": true
@@ -847,25 +847,25 @@ const docTemplate = `{
                 "tags": [
                     "translate"
                 ],
-                "summary": "Translate personal user book",
+                "summary": "Перевести личную книгу пользователя",
                 "parameters": [
                     {
                         "type": "file",
-                        "description": "Book file",
+                        "description": "Файл книги",
                         "name": "file",
                         "in": "formData",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "From language",
+                        "description": "Исходный язык",
                         "name": "from",
                         "in": "formData",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "To language",
+                        "description": "Целевой язык",
                         "name": "to",
                         "in": "formData",
                         "required": true
@@ -1079,6 +1079,9 @@ const docTemplate = `{
                 },
                 "originalLang": {
                     "type": "string"
+                },
+                "processStatus": {
+                    "$ref": "#/definitions/domain.ProcessStatus"
                 },
                 "title": {
                     "type": "string"
@@ -1304,13 +1307,11 @@ const docTemplate = `{
         "domain.ProcessStatus": {
             "type": "string",
             "enum": [
-                "not_started",
                 "in_progress",
                 "completed",
                 "failed"
             ],
             "x-enum-varnames": [
-                "ProcessStatusNotStarted",
                 "ProcessStatusInProgress",
                 "ProcessStatusCompleted",
                 "ProcessStatusFailed"

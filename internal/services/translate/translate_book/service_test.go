@@ -30,7 +30,7 @@ func (m *MockProtoWordAligner) Align(ctx context.Context, in *pb.AlignRequest, o
 }
 
 func TestStartTranslate(t *testing.T) {
-	// Setup
+	// Настройка
 	mockS3 := NewMockS3(t)
 	mockBookRepo := NewMockBookRepository(t)
 	mockAuthorRepo := NewMockAuthorRepository(t)
@@ -42,9 +42,9 @@ func TestStartTranslate(t *testing.T) {
 		MaxRequestCount: 1,
 	}
 
-	service := New(mockS3, mockBookRepo, mockAuthorRepo, mockWordAligner, mockTranslator, cfg)
+	service := New(mockS3, mockBookRepo, mockAuthorRepo, mockWordAligner, mockTranslator, cfg, nil)
 
-	// Data
+	// Данные
 	userID := uuid.New()
 	bookTitle := "Test Book"
 	authorName := "Test Author"
@@ -60,24 +60,26 @@ func TestStartTranslate(t *testing.T) {
 
 	chapters := []epub_parser.FormattedChapter{chapter1}
 
-	pamphletBook := &pamphlet.Book{
+	book := &pamphlet.Book{
 		Title:  bookTitle,
 		Author: authorName,
 	}
 
-	data := &dto.TranslationContext{
-		Book:      pamphletBook,
-		Chapters:  chapters,
-		CoverData: []byte("cover"),
-		UserID:    userID,
-		From:      domain.En,
-		To:        domain.Ru,
+	data := &dto.TranslationContext[*domain.Book]{
+		ParsedData: &epub_parser.ParsedData{
+			Book:             book,
+			FormattedChapter: chapters,
+			Cover:            []byte("cover"),
+		},
+		UserID: userID,
+		From:   domain.En,
+		To:     domain.Ru,
 	}
 
-	// Expectations
+	// Ожидания
 
-	// 1. checkChapterInStorage
-	mockS3.On("Check", "book/Test_Book/0.json").Return(assert.AnError)
+	// 0. GetByAuthorAndTitle (должен вернуть nil, чтобы инициировать создание)
+	mockBookRepo.On("GetByAuthorAndTitle", mock.Anything, authorName, bookTitle).Return(nil, nil)
 
 	// 2. logic.TranslateChapter -> Translator.Translate
 	mockTranslator.On("Translate", mock.MatchedBy(func(input *translate.Input) bool {
@@ -96,7 +98,7 @@ func TestStartTranslate(t *testing.T) {
 		},
 	}, nil)
 
-	// 4. saveChapterToS3
+	// 4. Сохранение главы в S3
 	mockS3.On("Upload", "book/Test_Book/0.json", mock.Anything).Return(nil)
 
 	// 5. AuthorRepo.GetOrCreate
@@ -104,7 +106,7 @@ func TestStartTranslate(t *testing.T) {
 		Name: authorName,
 	}, nil)
 
-	// 6. saveCoverToS3
+	// 6. Сохранение обложки в S3
 	mockS3.On("Upload", mock.MatchedBy(func(path string) bool {
 		// cover/Test_Book/<uuid>
 		return len(path) > 0
@@ -120,14 +122,18 @@ func TestStartTranslate(t *testing.T) {
 	}, nil)
 
 	// 8. BookRepo.CreateChapter
+	mockBookRepo.On("GetChapterByBookIDAndOrder", mock.Anything, mock.Anything, 0).Return(nil, nil)
 	mockBookRepo.On("CreateChapter", mock.Anything, mock.MatchedBy(func(c *domain.BookChapter) bool {
 		return c.Order == 0 && c.ContentURL == "book/Test_Book/0.json"
 	})).Return(&domain.BookChapter{}, nil)
 
-	// Execute
-	err := service.startTranslate(data)
+	// 9. UpdateProcessStatus
+	mockBookRepo.On("UpdateProcessStatus", mock.Anything, mock.Anything, domain.ProcessStatusCompleted).Return(&domain.Book{}, nil)
 
-	// Assert
+	// Выполнение
+	_, err := service.startTranslate(context.Background(), data)
+
+	// Проверка
 	assert.NoError(t, err)
 	mockS3.AssertExpectations(t)
 	mockBookRepo.AssertExpectations(t)

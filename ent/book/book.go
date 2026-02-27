@@ -3,6 +3,7 @@
 package book
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -23,6 +24,8 @@ const (
 	FieldOriginalLang = "original_lang"
 	// FieldTranslatedLang holds the string denoting the translated_lang field in the database.
 	FieldTranslatedLang = "translated_lang"
+	// FieldProcessStatus holds the string denoting the process_status field in the database.
+	FieldProcessStatus = "process_status"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// EdgeAuthor holds the string denoting the author edge name in mutations.
@@ -61,6 +64,7 @@ var Columns = []string{
 	FieldCoverURL,
 	FieldOriginalLang,
 	FieldTranslatedLang,
+	FieldProcessStatus,
 	FieldCreatedAt,
 }
 
@@ -102,6 +106,33 @@ var (
 	DefaultID func() uuid.UUID
 )
 
+// ProcessStatus defines the type for the "process_status" enum field.
+type ProcessStatus string
+
+// ProcessStatusInProgress is the default value of the ProcessStatus enum.
+const DefaultProcessStatus = ProcessStatusInProgress
+
+// ProcessStatus values.
+const (
+	ProcessStatusInProgress ProcessStatus = "in_progress"
+	ProcessStatusCompleted  ProcessStatus = "completed"
+	ProcessStatusFailed     ProcessStatus = "failed"
+)
+
+func (ps ProcessStatus) String() string {
+	return string(ps)
+}
+
+// ProcessStatusValidator is a validator for the "process_status" field enum values. It is called by the builders before save.
+func ProcessStatusValidator(ps ProcessStatus) error {
+	switch ps {
+	case ProcessStatusInProgress, ProcessStatusCompleted, ProcessStatusFailed:
+		return nil
+	default:
+		return fmt.Errorf("book: invalid enum value for process_status field: %q", ps)
+	}
+}
+
 // OrderOption defines the ordering options for the Book queries.
 type OrderOption func(*sql.Selector)
 
@@ -128,6 +159,11 @@ func ByOriginalLang(opts ...sql.OrderTermOption) OrderOption {
 // ByTranslatedLang orders the results by the translated_lang field.
 func ByTranslatedLang(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTranslatedLang, opts...).ToFunc()
+}
+
+// ByProcessStatus orders the results by the process_status field.
+func ByProcessStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProcessStatus, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

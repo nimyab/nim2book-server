@@ -4,15 +4,6 @@ import (
 	"time"
 )
 
-type ProcessStatus string
-
-const (
-	ProcessStatusNotStarted ProcessStatus = "not_started"
-	ProcessStatusInProgress ProcessStatus = "in_progress"
-	ProcessStatusCompleted  ProcessStatus = "completed"
-	ProcessStatusFailed     ProcessStatus = "failed"
-)
-
 type PersonalBook struct {
 	ID        ID        `json:"id"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -27,4 +18,16 @@ type PersonalBook struct {
 	Author               *Author                `json:"author"`
 	Genres               []*Genre               `json:"genres"`
 	PersonalBookChapters []*PersonalBookChapter `json:"personalBookChapters"`
+}
+
+func (b *PersonalBook) GetID() ID {
+	return b.ID
+}
+
+func (b *PersonalBook) GetProcessStatus() ProcessStatus {
+	return b.ProcessStatus
+}
+
+func (b *PersonalBook) SetProcessStatus(status ProcessStatus) {
+	b.ProcessStatus = status
 }

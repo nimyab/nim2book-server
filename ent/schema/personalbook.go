@@ -20,8 +20,8 @@ func (PersonalBook) Fields() []ent.Field {
 		field.String("translated_lang").Default("ru").SchemaType(varchar10),
 		field.
 			Enum("process_status").
-			Values("not_started", "in_progress", "completed", "failed").
-			Default("not_started").
+			Values("in_progress", "completed", "failed").
+			Default("in_progress").
 			SchemaType(varchar30),
 	}, defaultFields...)
 }

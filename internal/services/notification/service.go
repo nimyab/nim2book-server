@@ -90,7 +90,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 
 		s.websocketSender.SendMessage(d.UserId, &websocket.Message{
 			Event: websocket.TranslateSucceedEvent,
-			Body: map[string]interface{}{
+			Body: map[string]any{
 				"book": data.Book,
 			},
 		})
@@ -118,7 +118,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 
 		s.websocketSender.SendMessage(d.UserId, &websocket.Message{
 			Event: websocket.ErrorEvent,
-			Body: map[string]interface{}{
+			Body: map[string]any{
 				"author": data.Author,
 				"title":  data.Title,
 				"error":  data.ErrorMessage,
@@ -148,7 +148,7 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 
 		s.websocketSender.SendMessage(d.UserId, &websocket.Message{
 			Event: websocket.ChapterTranslatedEvent,
-			Body: map[string]interface{}{
+			Body: map[string]any{
 				"chapterPath":       data.ChapterPath,
 				"author":            data.Author,
 				"title":             data.Title,

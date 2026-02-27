@@ -111,6 +111,7 @@ func MapBookToDomain(entBook *ent.Book) *domain.Book {
 		CoverURL:       entBook.CoverURL,
 		OriginalLang:   entBook.OriginalLang,
 		TranslatedLang: entBook.TranslatedLang,
+		ProcessStatus:  domain.ProcessStatus(entBook.ProcessStatus),
 	}
 
 	// Маппинг связанных сущностей
@@ -311,6 +312,7 @@ func MapBookToDomainShallow(entBook *ent.Book) *domain.Book {
 		CoverURL:       entBook.CoverURL,
 		OriginalLang:   entBook.OriginalLang,
 		TranslatedLang: entBook.TranslatedLang,
+		ProcessStatus:  domain.ProcessStatus(entBook.ProcessStatus),
 	}
 }
 

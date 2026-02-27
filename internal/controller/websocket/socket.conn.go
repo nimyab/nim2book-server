@@ -207,7 +207,7 @@ func (sc *SocketConn) writePump() {
 func (sc *SocketConn) SendError(err error) {
 	sc.messageChan <- &Message{
 		Event: ErrorEvent,
-		Body: map[string]interface{}{
+		Body: map[string]any{
 			"message": err.Error(),
 		},
 	}

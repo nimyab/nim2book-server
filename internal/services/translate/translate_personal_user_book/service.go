@@ -14,11 +14,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nimyab/nim2book-back/internal/domain"
-	"github.com/nimyab/nim2book-back/internal/repository"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/services/translate/dto"
-	logic "github.com/nimyab/nim2book-back/internal/services/translate/translate_logic"
-	"github.com/nimyab/nim2book-back/pkg/logger"
+	"github.com/nimyab/nim2book-back/internal/services/translate/flow"
+	"github.com/nimyab/nim2book-back/internal/services/translate/translate_logic"
 	"github.com/nimyab/nim2book-back/pkg/parsers/epub_parser"
 	pb "github.com/nimyab/nim2book-back/proto/word_aligner"
 )
@@ -33,6 +32,7 @@ type PersonalBookRepository interface {
 	Create(ctx context.Context, book *domain.PersonalBook) (*domain.PersonalBook, error)
 	CreateChapter(ctx context.Context, chapter *domain.PersonalBookChapter) (*domain.PersonalBookChapter, error)
 	GetChapterByPersonalBookIDAndOrder(ctx context.Context, personalBookID domain.ID, orderChapter int) (*domain.PersonalBookChapter, error)
+	UpdateProcessStatus(ctx context.Context, id domain.ID, processStatus domain.ProcessStatus) (*domain.PersonalBook, error)
 }
 
 type AuthorRepository interface {
@@ -65,7 +65,7 @@ type Service struct {
 
 	notificationSignal NotificationSender
 
-	logic *logic.Logic
+	logic *translate_logic.Logic
 }
 
 var (
@@ -93,7 +93,7 @@ func New(
 		config:                      config,
 		currentCountBookTranslating: 0,
 		notificationSignal:          notificationSignal,
-		logic:                       logic.New(translator, wordAligner),
+		logic:                       translate_logic.NewLogic(translator, wordAligner),
 	}
 }
 
@@ -127,305 +127,190 @@ func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, b
 
 	slog.Info(
 		"Book is parsed successfully",
-		slog.String("duration", time.Since(startParse).String()),
+		slog.Int64("duration ms", time.Since(startParse).Milliseconds()),
 		slog.Int("chapters count", len(parsedData.FormattedChapter)),
 		slog.String("author", parsedData.Book.Author),
 		slog.String("title", parsedData.Book.Title),
 	)
 
-	existedBook, err := s.personalBookRepo.GetByUserAndAuthorAndTitle(ctx, userId, parsedData.Book.Author, parsedData.Book.Title)
-	if existedBook != nil && (existedBook.ProcessStatus == domain.ProcessStatusCompleted || existedBook.ProcessStatus == domain.ProcessStatusInProgress) {
-		return &Output{Book: existedBook}, nil
-	}
-	if err != nil && !errors.Is(err, repository.ErrNotFound) {
-		slog.Error(err.Error(), slog.String("operation", operation))
-		return nil, errors.New("failed to find book")
+	translationContext := &dto.TranslationContext[*domain.PersonalBook]{
+		ParsedData: parsedData,
+		UserID:     userId,
+		From:       input.From,
+		To:         input.To,
 	}
 
-	translatedData := &dto.TranslationContext{
-		Book:         parsedData.Book,
-		Chapters:     parsedData.FormattedChapter,
-		CoverData:    parsedData.Cover,
-		UserID:       userId,
-		From:         input.From,
-		To:           input.To,
-		PersonalBook: existedBook,
-	}
-
-	go func() {
-		err := s.startTranslate(translatedData)
-		if err != nil {
-			switch {
-			case errors.Is(err, ErrFailedSaveToStorage):
-				s.notificationSignal.Emit(context.Background(), &domain.Notification{
-					UserId: userId,
-					Type:   domain.NotificationError,
-					Data: &domain.NotificationErrorData{
-						Title:        parsedData.Book.Title,
-						Author:       parsedData.Book.Author,
-						ErrorMessage: "Произошла ошибка во время сохранения главы, попробуйте перевести книгу позже.",
-					},
-				})
-			case errors.Is(err, ErrFailedTranslateChapter):
-				s.notificationSignal.Emit(context.Background(), &domain.Notification{
-					UserId: userId,
-					Type:   domain.NotificationError,
-					Data: &domain.NotificationErrorData{
-						Author:       parsedData.Book.Author,
-						Title:        parsedData.Book.Title,
-						ErrorMessage: "Произошла ошибка во время перевода главы, попробуйте перевести книгу позже.",
-					},
-				})
-			case errors.Is(err, ErrFailedSaveBookToDatabase):
-				s.notificationSignal.Emit(context.Background(), &domain.Notification{
-					Type:   domain.NotificationError,
-					UserId: userId,
-					Data: &domain.NotificationErrorData{
-						Title:        parsedData.Book.Title,
-						Author:       parsedData.Book.Author,
-						ErrorMessage: "Произошла ошибка во время сохранения книги, попробуйте перевести книгу позже, извините за неудобства.",
-					},
-				})
-			default:
-				logger.Error("unexpected error", err, operation)
-			}
-		}
-	}()
-
-	return &Output{Message: "start translate"}, nil
+	return s.startTranslate(ctx, translationContext, true)
 }
 
 func (s *Service) startTranslate(
-	data *dto.TranslationContext,
-) error {
-	const operation = "translate_personal_user_book.startTranslate"
-
-	// увеличиваем количество переводимых книг, нужно для задержек
-	s.mu.Lock()
-	s.currentCountBookTranslating++
-	s.mu.Unlock()
-
-	defer func() {
-		s.mu.Lock()
-		s.currentCountBookTranslating--
-		s.mu.Unlock()
-	}()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var coverURL *string
-	if data.CoverData != nil {
-		coverPath, err := s.saveCoverToS3(data.CoverData, data.Book.Title, data.UserID)
-		if err != nil {
-			slog.Error(err.Error(), slog.String("operation", operation))
-		} else {
-			coverURL = &coverPath
-		}
-	}
-
-	// Получаем или создаём автора
-	author, err := s.authorRepo.GetOrCreate(ctx, data.Book.Author)
-	if err != nil {
-		logger.Error(
-			fmt.Sprintf("failed to get or create author: %s", data.Book.Author),
-			err,
-			operation,
-		)
-		return ErrFailedGetOrCreateAuthor
-	}
-
-	newBook := data.PersonalBook
-	// если книга не существует, то создаем её
-	if newBook == nil {
-		newBook = &domain.PersonalBook{
-			Author:         author,
-			Title:          data.Book.Title,
-			CoverURL:       coverURL,
-			OriginalLang:   string(data.From),
-			TranslatedLang: string(data.To),
-			User: &domain.User{
-				ID: data.UserID,
-			},
-		}
-		newBook, err = s.personalBookRepo.Create(ctx, newBook)
-		if err != nil {
-			logger.Error(
-				fmt.Sprintf("failed to create personal book to database, title: %s, author: %s", data.Book.Title, data.Book.Author),
-				err,
-				operation,
-			)
-			return ErrFailedSaveBookToDatabase
-		}
-		data.PersonalBook = newBook
-	}
-
-	// use buffer chan to saveChapterToS3 non block translateChapters goroutine
-	resultChan := make(chan dto.ChapterResult, len(data.Chapters))
-
-	go s.translateChapters(ctx, resultChan, data)
-
-	for result := range resultChan {
-		if result.ExistChapter != nil {
-			slog.Info(fmt.Sprintf("chapter %d already exist", result.ChapterOrder), slog.String("operation", operation), slog.Any("chapter", result.ExistChapter))
-			continue
-		}
-
-		if result.Error != nil {
-			logger.Error(
-				fmt.Sprintf("failed to translate chapter, title: %s, author: %s", data.Book.Title, data.Book.Author),
-				result.Error,
-				operation,
-			)
-			return ErrFailedTranslateChapter
-		}
-		if result.Chapter == nil && result.Path == "" {
-			logger.Error(
-				fmt.Sprintf("translated chapter is nil, title: %s, author: %s", data.Book.Title, data.Book.Author),
-				result.Error,
-				operation,
-			)
-			return ErrFailedTranslateChapter
-		}
-
-		var path string
-		if result.Path != "" {
-			path = result.Path
-		} else {
-			var err error
-			path, err = s.saveChapterToS3(result.Chapter, data.Book.Title, data.UserID)
-			if err != nil {
-				logger.Error(
-					fmt.Sprintf("failed to save to s3 chapter %d order, title: %s, author: %s", result.Chapter.Order, data.Book.Title, data.Book.Author),
-					err,
-					operation,
-				)
-				return ErrFailedSaveToStorage
-			}
-		}
-
-		chapter := &domain.PersonalBookChapter{
-			PersonalBook:    newBook,
-			Order:           result.ChapterOrder,
-			ContentURL:      path,
-			Title:           result.Chapter.Title,
-			TranslatedTitle: result.Chapter.TranslatedTitle,
-		}
-		newChapter, err := s.personalBookRepo.CreateChapter(ctx, chapter)
-		if err != nil {
-			logger.Error(
-				fmt.Sprintf("failed to create personal book chapter, title: %s, author: %s", data.Book.Title, data.Book.Author),
-				err,
-				operation,
-			)
-		}
-		slog.Info("chapter created and added", slog.String("operation", operation), slog.Any("chapter", newChapter))
-
-		// отправляем уведомления о переведенной главе
-		s.notificationSignal.Emit(ctx, &domain.Notification{
-			UserId: data.UserID,
-			Type:   domain.NotificationChapterTranslateSucceed,
-			Data: &domain.NotificationChapterTranslateSucceedData{
-				Author:            data.Book.Author,
-				ChapterPath:       path,
-				Title:             data.Book.Title,
-				ChapterOrder:      result.ChapterOrder,
-				TotalChapterCount: len(data.Book.Chapters),
-			},
-		})
-	}
-
-	// уведомление что книга создана
-	s.notificationSignal.Emit(ctx, &domain.Notification{
-		UserId: data.UserID,
-		Type:   domain.NotificationPersonalBookTranslated,
-		Data: &domain.NotificationPersonalBookTranslatedData{
-			Book: newBook,
-		},
-	})
-
-	return nil
-}
-
-func (s *Service) translateChapters(
 	ctx context.Context,
-	resultChan chan<- dto.ChapterResult,
-	data *dto.TranslationContext,
-) {
-	const operation = "translate_personal_user_book.Service.translateChapters"
+	translationContext *dto.TranslationContext[*domain.PersonalBook],
+	runAsync bool,
+) (*Output, error) {
+	const operation = "translate_personal_user_book.Service.startTranslate"
 
-	defer close(resultChan)
-
-	for i, chapter := range data.Chapters {
-		select {
-		case <-ctx.Done():
-			slog.Debug("context cancelled", slog.String("operation", operation))
-			return
-		default:
-		}
-
-		existChapter, err := s.personalBookRepo.GetChapterByPersonalBookIDAndOrder(ctx, data.PersonalBook.ID, i)
-		if existChapter != nil {
-			resultChan <- dto.ChapterResult{
-				ExistChapter: existChapter,
-				ChapterOrder: i,
-				Error:        nil,
+	deps := flow.Deps[*domain.PersonalBook, *domain.PersonalBookChapter]{
+		GetBook: func(ctx context.Context) (*domain.PersonalBook, error) {
+			return s.personalBookRepo.GetByUserAndAuthorAndTitle(ctx, translationContext.UserID, translationContext.ParsedData.Book.Author, translationContext.ParsedData.Book.Title)
+		},
+		CreateBook: func(ctx context.Context) (*domain.PersonalBook, error) {
+			author, err := s.authorRepo.GetOrCreate(ctx, translationContext.ParsedData.Book.Author)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get or create author: %w", err)
 			}
-			continue
-		}
-		if err != nil {
-			slog.Error(err.Error(), slog.String("operation", operation))
-			continue
-		}
 
-		path := s.checkChapterInStorage(i, data.Book.Title, data.UserID)
-		if path != "" {
-			slog.Info(fmt.Sprintf("chapter %d already exist", i), slog.String("operation", operation), slog.String("path", path))
-			resultChan <- dto.ChapterResult{
-				Path:         path,
-				ChapterOrder: i,
-				Chapter:      nil,
-				Error:        nil,
+			var coverURL *string
+			if translationContext.ParsedData.Cover != nil {
+				coverPath, err := s.saveCoverToS3(translationContext.ParsedData.Cover, translationContext.ParsedData.Book.Title, translationContext.UserID)
+				if err != nil {
+					slog.Error(err.Error(), slog.String("operation", operation))
+				} else {
+					coverURL = &coverPath
+				}
 			}
-			continue
-		}
 
-		chapterNode, err := s.logic.TranslateChapter(
-			ctx,
-			chapter,
-			data.From,
-			data.To,
-			s,
-			s.config.MaxRequestCount,
-			func(imgData []byte) (string, error) {
-				return s.saveImageToS3(imgData, data.Book.Title, data.UserID)
-			},
-		)
-		if err != nil {
-			slog.Error(err.Error(), slog.String("operation", operation))
-			resultChan <- dto.ChapterResult{
-				Chapter:      nil,
-				Error:        ErrFailedTranslateChapter,
-				ChapterOrder: i,
+			newBook := &domain.PersonalBook{
+				Author:         author,
+				Title:          translationContext.ParsedData.Book.Title,
+				CoverURL:       coverURL,
+				OriginalLang:   string(translationContext.From),
+				TranslatedLang: string(translationContext.To),
+				User: &domain.User{
+					ID: translationContext.UserID,
+				},
+				ProcessStatus: domain.ProcessStatusInProgress,
 			}
-			return
-		}
+			newBook, err = s.personalBookRepo.Create(ctx, newBook)
+			if err != nil {
+				slog.Error("failed to create personal book", slog.Any("error", err), slog.String("operation", operation))
+				return nil, ErrFailedSaveBookToDatabase
+			}
+			return newBook, nil
+		},
+		UpdateBookStatus: func(ctx context.Context, id domain.ID, status domain.ProcessStatus) (*domain.PersonalBook, error) {
+			return s.personalBookRepo.UpdateProcessStatus(ctx, id, status)
+		},
+		GetChapter: func(ctx context.Context, bookID domain.ID, order int) (*domain.PersonalBookChapter, error) {
+			return s.personalBookRepo.GetChapterByPersonalBookIDAndOrder(ctx, bookID, order)
+		},
+		CreateChapter: func(ctx context.Context, book *domain.PersonalBook, chapter *domain.ChapterAlignNode, contentURL string) (*domain.PersonalBookChapter, error) {
+			newChapter := &domain.PersonalBookChapter{
+				PersonalBook:    book,
+				Order:           chapter.Order,
+				ContentURL:      contentURL,
+				Title:           chapter.Title,
+				TranslatedTitle: chapter.TranslatedTitle,
+			}
+			return s.personalBookRepo.CreateChapter(ctx, newChapter)
+		},
+		SaveChapterToS3: func(chapter *domain.ChapterAlignNode) (string, error) {
+			path, err := s.saveChapterToS3(chapter, translationContext.ParsedData.Book.Title, translationContext.UserID)
+			if err != nil {
+				return "", ErrFailedSaveToStorage
+			}
+			return path, nil
+		},
+		SaveImageToS3: func(data []byte) (string, error) {
+			return s.saveImageToS3(data, translationContext.ParsedData.Book.Title, translationContext.UserID)
+		},
+		TranslateChapter: func(ctx context.Context, chapter epub_parser.FormattedChapter, imageSaver func([]byte) (string, error)) (*domain.ChapterAlignNode, error) {
+			node, err := s.logic.TranslateChapter(ctx, chapter, translationContext.From, translationContext.To, s, s.config.MaxRequestCount, imageSaver)
+			if err != nil {
+				return nil, ErrFailedTranslateChapter
+			}
+			return node, nil
+		},
+		NotifyChapter: func(ctx context.Context, chapter *domain.PersonalBookChapter) {
+			if s.notificationSignal != nil {
+				s.notificationSignal.Emit(ctx, &domain.Notification{
+					UserId: translationContext.UserID,
+					Type:   domain.NotificationChapterTranslateSucceed,
+					Data: &domain.NotificationChapterTranslateSucceedData{
+						Author:            translationContext.ParsedData.Book.Author,
+						ChapterPath:       chapter.ContentURL,
+						Title:             translationContext.ParsedData.Book.Title,
+						ChapterOrder:      chapter.Order,
+						TotalChapterCount: len(translationContext.ParsedData.FormattedChapter),
+					},
+				})
+			}
+		},
+		NotifyBook: func(ctx context.Context, book *domain.PersonalBook) {
+			if s.notificationSignal != nil {
+				s.notificationSignal.Emit(ctx, &domain.Notification{
+					UserId: translationContext.UserID,
+					Type:   domain.NotificationPersonalBookTranslated,
+					Data: &domain.NotificationPersonalBookTranslatedData{
+						Book: book,
+					},
+				})
+			}
+		},
+		NotifyError: func(ctx context.Context, err error) {
+			if s.notificationSignal != nil {
+				var errorMessage string
+				switch {
+				case errors.Is(err, ErrFailedSaveToStorage):
+					errorMessage = "Произошла ошибка во время сохранения главы, попробуйте перевести книгу позже."
+				case errors.Is(err, ErrFailedTranslateChapter):
+					errorMessage = "Произошла ошибка во время перевода главы, попробуйте перевести книгу позже."
+				case errors.Is(err, ErrFailedSaveBookToDatabase):
+					errorMessage = "Произошла ошибка во время сохранения книги, попробуйте перевести книгу позже, извините за неудобства."
+				default:
+					errorMessage = err.Error()
+				}
 
-		chapterNode.Order = i
-
-		resultChan <- dto.ChapterResult{
-			ChapterOrder: i,
-			Chapter:      chapterNode,
-			Error:        nil,
-		}
+				s.notificationSignal.Emit(ctx, &domain.Notification{
+					UserId: translationContext.UserID,
+					Type:   domain.NotificationError,
+					Data: &domain.NotificationErrorData{
+						Title:        translationContext.ParsedData.Book.Title,
+						Author:       translationContext.ParsedData.Book.Author,
+						ErrorMessage: errorMessage,
+					},
+				})
+			}
+		},
 	}
+
+	resultCtx, err := flow.Run(ctx, translationContext, deps)
+	if err != nil {
+		slog.Error("failed to run translation flow", slog.Any("error", err), slog.String("operation", operation))
+		return nil, err
+	}
+
+	if resultCtx.BookEntity.ProcessStatus == domain.ProcessStatusCompleted {
+		return &Output{Book: resultCtx.BookEntity}, nil
+	}
+
+	runChapters := func() {
+		s.mu.Lock()
+		s.currentCountBookTranslating++
+		s.mu.Unlock()
+		defer func() {
+			s.mu.Lock()
+			s.currentCountBookTranslating--
+			s.mu.Unlock()
+		}()
+
+		flow.TranslateChapters(context.Background(), resultCtx, deps)
+	}
+
+	if runAsync {
+		go runChapters()
+	} else {
+		runChapters()
+	}
+
+	return &Output{Message: "start translate"}, nil
 }
 
 func (s *Service) saveImageToS3(data []byte, bookTitle string, userId domain.ID) (string, error) {
 	const operation = "translate_personal_user_book.Service.saveImageToS3"
 
-	// Generate a unique filename
-	filename := uuid.New().String() + ".jpg" // Assuming jpg for now, ideally should detect type
+	// Генерируем уникальное имя файла
+	filename := uuid.New().String() + ".jpg" // Предполагаем jpg, в идеале нужно определять тип
 	path := fmt.Sprintf("user/%s/book/%s/images/%s", userId, strings.ReplaceAll(bookTitle, " ", "_"), filename)
 
 	if err := s.s3.Upload(path, data); err != nil {
@@ -462,18 +347,4 @@ func (s *Service) saveCoverToS3(coverData []byte, bookTitle string, userId domai
 	}
 
 	return path, nil
-}
-
-func (s *Service) checkChapterInStorage(chapterOrder int, bookTitle string, userId domain.ID) string {
-	const operation = "translate_personal_user_book.Service.checkChapterPath"
-
-	path := fmt.Sprintf("user/%s/book/%s/%d.json", userId, strings.ReplaceAll(bookTitle, " ", "_"), chapterOrder)
-	slog.Info(path, slog.String("operation", operation))
-
-	if err := s.s3.Check(path); err != nil {
-		slog.Warn(err.Error(), slog.String("operation", operation))
-		return ""
-	}
-
-	return path
 }

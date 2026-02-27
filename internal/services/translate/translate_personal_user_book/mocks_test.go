@@ -465,6 +465,80 @@ func (_c *MockPersonalBookRepository_GetChapterByPersonalBookIDAndOrder_Call) Ru
 	return _c
 }
 
+// UpdateProcessStatus provides a mock function for the type MockPersonalBookRepository
+func (_mock *MockPersonalBookRepository) UpdateProcessStatus(ctx context.Context, id domain.ID, processStatus domain.ProcessStatus) (*domain.PersonalBook, error) {
+	ret := _mock.Called(ctx, id, processStatus)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateProcessStatus")
+	}
+
+	var r0 *domain.PersonalBook
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.ID, domain.ProcessStatus) (*domain.PersonalBook, error)); ok {
+		return returnFunc(ctx, id, processStatus)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.ID, domain.ProcessStatus) *domain.PersonalBook); ok {
+		r0 = returnFunc(ctx, id, processStatus)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.PersonalBook)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, domain.ID, domain.ProcessStatus) error); ok {
+		r1 = returnFunc(ctx, id, processStatus)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockPersonalBookRepository_UpdateProcessStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateProcessStatus'
+type MockPersonalBookRepository_UpdateProcessStatus_Call struct {
+	*mock.Call
+}
+
+// UpdateProcessStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id domain.ID
+//   - processStatus domain.ProcessStatus
+func (_e *MockPersonalBookRepository_Expecter) UpdateProcessStatus(ctx interface{}, id interface{}, processStatus interface{}) *MockPersonalBookRepository_UpdateProcessStatus_Call {
+	return &MockPersonalBookRepository_UpdateProcessStatus_Call{Call: _e.mock.On("UpdateProcessStatus", ctx, id, processStatus)}
+}
+
+func (_c *MockPersonalBookRepository_UpdateProcessStatus_Call) Run(run func(ctx context.Context, id domain.ID, processStatus domain.ProcessStatus)) *MockPersonalBookRepository_UpdateProcessStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 domain.ID
+		if args[1] != nil {
+			arg1 = args[1].(domain.ID)
+		}
+		var arg2 domain.ProcessStatus
+		if args[2] != nil {
+			arg2 = args[2].(domain.ProcessStatus)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPersonalBookRepository_UpdateProcessStatus_Call) Return(personalBook *domain.PersonalBook, err error) *MockPersonalBookRepository_UpdateProcessStatus_Call {
+	_c.Call.Return(personalBook, err)
+	return _c
+}
+
+func (_c *MockPersonalBookRepository_UpdateProcessStatus_Call) RunAndReturn(run func(ctx context.Context, id domain.ID, processStatus domain.ProcessStatus) (*domain.PersonalBook, error)) *MockPersonalBookRepository_UpdateProcessStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockAuthorRepository creates a new instance of MockAuthorRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockAuthorRepository(t interface {

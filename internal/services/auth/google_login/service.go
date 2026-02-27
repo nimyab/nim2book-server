@@ -95,7 +95,7 @@ func (s *Service) GoogleLogin(ctx context.Context, input *Input) (*Output, error
 		newUser := &domain.User{
 			IsVIP:    false,
 			IsAdmin:  false,
-			Metadata: map[string]interface{}{},
+			Metadata: map[string]any{},
 		}
 		user, err = s.userRepo.CreateWithGoogleAccount(ctx, newUser, googleAccount)
 		if err != nil {

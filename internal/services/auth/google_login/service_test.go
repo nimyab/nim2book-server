@@ -20,7 +20,7 @@ func TestGoogleLogin(t *testing.T) {
 	refreshTime := time.Hour * 24
 
 	validPayload := &idtoken.Payload{
-		Claims: map[string]interface{}{
+		Claims: map[string]any{
 			"email":          "test@example.com",
 			"sub":            "123456789",
 			"email_verified": true,
@@ -84,7 +84,7 @@ func TestGoogleLogin(t *testing.T) {
 			inputToken: "valid-token-missing-claims",
 			mockValidate: func(m *MockTokenValidator) {
 				payload := &idtoken.Payload{
-					Claims: map[string]interface{}{
+					Claims: map[string]any{
 						"sub": "123456789",
 						// Missing email and others
 					},

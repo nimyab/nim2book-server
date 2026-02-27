@@ -189,6 +189,7 @@ func (a *App) registerServices() {
 		authorRepo := do.MustInvoke[*repository.AuthorRepository](i)
 		wordAligner := do.MustInvoke[*word_aligner.Client](i)
 		translator := do.MustInvoke[*translate.Service](i)
+		notificationService := do.MustInvoke[*notification.Service](i)
 		cfg := do.MustInvoke[*config.Config](i)
 
 		return translate_book.New(
@@ -201,6 +202,7 @@ func (a *App) registerServices() {
 				WaitDuration:    cfg.WaitMilliseconds,
 				MaxRequestCount: cfg.MaxRequestCount,
 			},
+			notificationService,
 		), nil
 	})
 

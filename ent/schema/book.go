@@ -18,6 +18,11 @@ func (Book) Fields() []ent.Field {
 		field.String("cover_url").Nillable().SchemaType(varchar255),
 		field.String("original_lang").Default("en").SchemaType(varchar10),
 		field.String("translated_lang").Default("ru").SchemaType(varchar10),
+		field.
+			Enum("process_status").
+			Values("in_progress", "completed", "failed").
+			Default("in_progress").
+			SchemaType(varchar30),
 	}, defaultFields...)
 }
 

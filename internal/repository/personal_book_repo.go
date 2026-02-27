@@ -136,6 +136,22 @@ func (r *PersonalBookRepository) Update(ctx context.Context, domainBook *domain.
 	return r.UpdateTx(ctx, nil, domainBook)
 }
 
+// UpdateProcessStatus обновляет статус процесса личной книги
+func (r *PersonalBookRepository) UpdateProcessStatus(ctx context.Context, id domain.ID, processStatus domain.ProcessStatus) (*domain.PersonalBook, error) {
+	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.PersonalBook, error) {
+		// Обновляем статус процесса
+		update := tx.PersonalBook.UpdateOneID(id).
+			SetProcessStatus(personalbook.ProcessStatus(processStatus))
+
+		entBook, err := update.Save(ctx)
+		if err != nil {
+			return nil, HandleError(err)
+		}
+
+		return r.getByIDInternal(ctx, tx, entBook.ID)
+	})
+}
+
 // UpdateTx обновляет личную книгу внутри транзакции (если передана)
 func (r *PersonalBookRepository) UpdateTx(ctx context.Context, tx *ent.Tx, domainBook *domain.PersonalBook) (*domain.PersonalBook, error) {
 	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.PersonalBook, error) {
@@ -143,7 +159,8 @@ func (r *PersonalBookRepository) UpdateTx(ctx context.Context, tx *ent.Tx, domai
 		update := tx.PersonalBook.UpdateOneID(domainBook.ID).
 			SetNillableCoverURL(domainBook.CoverURL).
 			SetOriginalLang(domainBook.OriginalLang).
-			SetTranslatedLang(domainBook.TranslatedLang)
+			SetTranslatedLang(domainBook.TranslatedLang).
+			SetProcessStatus(personalbook.ProcessStatus(domainBook.ProcessStatus))
 
 		// Обновляем автора, если указан
 		if domainBook.Author != nil {

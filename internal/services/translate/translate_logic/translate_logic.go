@@ -1,4 +1,4 @@
-package translated_logic
+package translate_logic
 
 import (
 	"context"
@@ -39,7 +39,7 @@ type Logic struct {
 	wordAligner WordAligner
 }
 
-func New(translator Translator, wordAligner WordAligner) *Logic {
+func NewLogic(translator Translator, wordAligner WordAligner) *Logic {
 	return &Logic{
 		translator:  translator,
 		wordAligner: wordAligner,
@@ -54,7 +54,7 @@ func (l *Logic) TranslateChapter(
 	maxConcurrency int,
 	imageSaver func(data []byte) (string, error),
 ) (*domain.ChapterAlignNode, error) {
-	const operation = "translate.logic.TranslateChapter"
+	const operation = "translate.flow.TranslateChapter"
 
 	startTime := time.Now()
 
@@ -64,22 +64,21 @@ func (l *Logic) TranslateChapter(
 	g.SetLimit(maxConcurrency)
 
 	for idx, item := range chapter.Content {
-		idx, item := idx, item
 
 		if item.Type == epub_parser.ContentTypeImage {
-			// Extract image data from zip file
+			// Извлечение данных изображения из zip файла
 			data, err := item.ImageNode.File.GetRawContent()
 			if err != nil {
-				slog.Error("failed to open image file", slog.String("error", err.Error()))
+				slog.Error("не удалось открыть файл изображения", slog.String("error", err.Error()))
 				continue
 			}
 
-			// Save image if saver is provided
+			// Сохранение изображения, если предоставлен saver
 			var imageURL string
 			if imageSaver != nil {
 				url, err := imageSaver(data)
 				if err != nil {
-					slog.Error("failed to save image", slog.String("error", err.Error()))
+					slog.Error("не удалось сохранить изображение", slog.String("error", err.Error()))
 				} else {
 					imageURL = url
 				}
@@ -105,7 +104,7 @@ func (l *Logic) TranslateChapter(
 
 				startTranslateParagraphTime := time.Now()
 				slog.Info(
-					"start translate paragraph",
+					"начало перевода параграфа",
 					slog.Int("paragraph length", len([]rune(item.TextNode.Text))),
 					slog.Int("paragraph index", idx),
 					slog.String("operation", operation),
@@ -121,7 +120,7 @@ func (l *Logic) TranslateChapter(
 				}
 
 				slog.Info(
-					"end translate paragraph",
+					"конец перевода параграфа",
 					slog.Duration("duration", time.Since(startTranslateParagraphTime)),
 					slog.Int("paragraph index", idx),
 					slog.String("operation", operation),
@@ -144,7 +143,7 @@ func (l *Logic) TranslateChapter(
 			Target: to,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("%s: failed to translate title: %w", operation, err)
+			return nil, fmt.Errorf("%s: не удалось перевести заголовок: %w", operation, err)
 		}
 		translatedTitle = translatedTitleOutput.TranslatedText
 	} else {
@@ -160,7 +159,7 @@ func (l *Logic) TranslateChapter(
 
 	duration := time.Since(startTime)
 	slog.Info(
-		"translated chapter",
+		"глава переведена",
 		slog.String("duration", duration.String()),
 		slog.String("operation", operation),
 	)
@@ -175,7 +174,7 @@ func (l *Logic) TranslateAndAlignParagraph(
 	to domain.SupportedLang,
 	throttler Throttler,
 ) (domain.ParagraphAlignNode, error) {
-	const operation = "translate.logic.TranslateAndAlignParagraph"
+	const operation = "translate.flow.TranslateAndAlignParagraph"
 
 	// перевод параграфа (использую libretranslate, которую развернул на серваке у себя)
 	translateOutput, err := l.translator.Translate(&translate.Input{
@@ -185,10 +184,10 @@ func (l *Logic) TranslateAndAlignParagraph(
 	})
 	if err != nil {
 		slog.Error(err.Error(), slog.String("operation", operation))
-		return domain.ParagraphAlignNode{}, errors.New("failed to translate paragraph")
+		return domain.ParagraphAlignNode{}, errors.New("не удалось перевести параграф")
 	}
 
-	// case: error on alignment if paragraph has no letters.
+	// случай: ошибка при выравнивании, если параграф не содержит букв.
 	if !contains_letters.ContainsLetters(paragraph) || !contains_letters.ContainsLetters(translateOutput.TranslatedText) {
 		alignedParagraph := domain.ParagraphAlignNode{
 			OriginalParagraph:   paragraph,
@@ -221,7 +220,7 @@ func (l *Logic) TranslateAndAlignParagraph(
 			slog.String("source text", paragraph),
 			slog.String("target text", translateOutput.TranslatedText),
 		)
-		return domain.ParagraphAlignNode{}, errors.New("failed to align words")
+		return domain.ParagraphAlignNode{}, errors.New("не удалось выровнять слова")
 	}
 
 	// в массив alignWords добавляем только уникальные слова, уникальность проверяем по исходному тексту
