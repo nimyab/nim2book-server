@@ -148,6 +148,8 @@ func TranslateChapters[TBook BookInterface, TChapter ChapterInterface](
 		// Не критично, но стоит залогировать
 	}
 
+	slog.Info("все главы переведены и сохранены", slog.String("operation", operation), slog.Any("book", book))
+
 	deps.NotifyBook(ctx, book)
 }
 

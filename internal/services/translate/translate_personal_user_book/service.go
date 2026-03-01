@@ -140,13 +140,12 @@ func (s *Service) TranslatePersonalUserBook(ctx context.Context, input *Input, b
 		To:         input.To,
 	}
 
-	return s.startTranslate(ctx, translationContext, true)
+	return s.startTranslate(ctx, translationContext)
 }
 
 func (s *Service) startTranslate(
 	ctx context.Context,
 	translationContext *dto.TranslationContext[*domain.PersonalBook],
-	runAsync bool,
 ) (*Output, error) {
 	const operation = "translate_personal_user_book.Service.startTranslate"
 
@@ -297,10 +296,10 @@ func (s *Service) startTranslate(
 		flow.TranslateChapters(context.Background(), resultCtx, deps)
 	}
 
-	if runAsync {
-		go runChapters()
-	} else {
+	if s.config.RunSync {
 		runChapters()
+	} else {
+		go runChapters()
 	}
 
 	return &Output{Message: "start translate"}, nil

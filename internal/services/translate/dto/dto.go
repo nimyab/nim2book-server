@@ -11,6 +11,7 @@ import (
 type Config struct {
 	MaxRequestCount int
 	WaitDuration    time.Duration
+	RunSync         bool // Если true, то перевод будет выполнен синхронно (для тестов)
 }
 
 // TranslationContext содержит все данные, необходимые для процесса перевода книги

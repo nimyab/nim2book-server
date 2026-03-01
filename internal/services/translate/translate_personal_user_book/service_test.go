@@ -41,6 +41,7 @@ func TestStartTranslate(t *testing.T) {
 	cfg := dto.Config{
 		WaitDuration:    0,
 		MaxRequestCount: 1,
+		RunSync:         true,
 	}
 
 	service := New(mockS3, mockRepo, mockAuthorRepo, mockWordAligner, mockTranslator, cfg, mockNotification)
@@ -149,7 +150,7 @@ func TestStartTranslate(t *testing.T) {
 	}))
 
 	// Выполнение
-	_, err := service.startTranslate(context.Background(), data, false)
+	_, err := service.startTranslate(context.Background(), data)
 
 	// Проверка
 	assert.NoError(t, err)

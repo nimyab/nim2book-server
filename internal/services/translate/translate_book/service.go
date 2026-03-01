@@ -271,7 +271,11 @@ func (s *Service) startTranslate(
 		flow.TranslateChapters(context.Background(), resultCtx, deps)
 	}
 
-	go runChapters()
+	if s.config.RunSync {
+		runChapters()
+	} else {
+		go runChapters()
+	}
 
 	return &Output{Message: "start translate"}, nil
 }

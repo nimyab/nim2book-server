@@ -40,6 +40,7 @@ func TestStartTranslate(t *testing.T) {
 	cfg := dto.Config{
 		WaitDuration:    0,
 		MaxRequestCount: 1,
+		RunSync:         true,
 	}
 
 	service := New(mockS3, mockBookRepo, mockAuthorRepo, mockWordAligner, mockTranslator, cfg, nil)
