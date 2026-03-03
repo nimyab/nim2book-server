@@ -10,5 +10,5 @@ type FcmToken struct {
 
 	Token string `json:"token"`
 
-	User *User `json:"user,omitempty"`
+	User *User `json:"-"`
 }

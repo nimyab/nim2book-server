@@ -36,7 +36,7 @@ type NotificationTestData struct {
 }
 
 type Notification struct {
-	UserId ID               `json:"user_id"`
+	UserId ID               `json:"userId"`
 	Type   NotificationType `json:"type"`
 	Data   any              `json:"data"`
 }

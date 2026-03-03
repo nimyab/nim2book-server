@@ -17,14 +17,14 @@ type Book struct {
 	BookChapters []*BookChapter `json:"bookChapters"`
 }
 
-func (b *Book) GetID() ID {
-	return b.ID
-}
+type BookChapter struct {
+	ID        ID        `json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
 
-func (b *Book) GetProcessStatus() ProcessStatus {
-	return b.ProcessStatus
-}
+	Order           int    `json:"order"`
+	Title           string `json:"title"`
+	TranslatedTitle string `json:"translatedTitle"`
+	ContentURL      string `json:"contentURL"`
 
-func (b *Book) SetProcessStatus(status ProcessStatus) {
-	b.ProcessStatus = status
+	Book *Book `json:"book,omitempty"`
 }

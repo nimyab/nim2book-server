@@ -4,10 +4,10 @@ import "time"
 
 type Author struct {
 	ID        ID        `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt time.Time `json:"createdAt"`
 
 	Name string `json:"name"`
 
-	PersonalBooks []*PersonalBook `json:"personal_books,omitempty"`
+	PersonalBooks []*PersonalBook `json:"personalBooks,omitempty"`
 	Books         []*Book         `json:"books,omitempty"`
 }

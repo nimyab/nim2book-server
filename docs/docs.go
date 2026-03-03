@@ -1010,7 +1010,7 @@ const docTemplate = `{
                         "$ref": "#/definitions/domain.Book"
                     }
                 },
-                "created_at": {
+                "createdAt": {
                     "type": "string"
                 },
                 "id": {
@@ -1019,7 +1019,7 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "personal_books": {
+                "personalBooks": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/domain.PersonalBook"
@@ -1030,7 +1030,7 @@ const docTemplate = `{
         "domain.BasicAccount": {
             "type": "object",
             "properties": {
-                "created_at": {
+                "createdAt": {
                     "type": "string"
                 },
                 "email": {
@@ -1041,9 +1041,6 @@ const docTemplate = `{
                 },
                 "isVerified": {
                     "type": "boolean"
-                },
-                "user": {
-                    "$ref": "#/definitions/domain.User"
                 },
                 "verifyLink": {
                     "type": "string"
@@ -1224,9 +1221,6 @@ const docTemplate = `{
                 },
                 "sub": {
                     "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/domain.User"
                 }
             }
         },

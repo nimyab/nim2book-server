@@ -1002,7 +1002,7 @@
                         "$ref": "#/definitions/domain.Book"
                     }
                 },
-                "created_at": {
+                "createdAt": {
                     "type": "string"
                 },
                 "id": {
@@ -1011,7 +1011,7 @@
                 "name": {
                     "type": "string"
                 },
-                "personal_books": {
+                "personalBooks": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/domain.PersonalBook"
@@ -1022,7 +1022,7 @@
         "domain.BasicAccount": {
             "type": "object",
             "properties": {
-                "created_at": {
+                "createdAt": {
                     "type": "string"
                 },
                 "email": {
@@ -1033,9 +1033,6 @@
                 },
                 "isVerified": {
                     "type": "boolean"
-                },
-                "user": {
-                    "$ref": "#/definitions/domain.User"
                 },
                 "verifyLink": {
                     "type": "string"
@@ -1216,9 +1213,6 @@
                 },
                 "sub": {
                     "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/domain.User"
                 }
             }
         },

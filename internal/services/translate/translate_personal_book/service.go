@@ -258,7 +258,7 @@ func (s *Service) translate(translationCtx *dto.TranslationContext[*domain.Perso
 		return
 	}
 	s.notificationSignal.Emit(&domain.Notification{
-		Type:   domain.NotificationBookTranslated,
+		Type:   domain.NotificationPersonalBookTranslated,
 		UserId: translationCtx.UserID,
 		Data: &domain.NotificationPersonalBookTranslatedData{
 			Book: translatedBook,

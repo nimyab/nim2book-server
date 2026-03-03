@@ -42,20 +42,20 @@ definitions:
         items:
           $ref: '#/definitions/domain.Book'
         type: array
-      created_at:
+      createdAt:
         type: string
       id:
         type: string
       name:
         type: string
-      personal_books:
+      personalBooks:
         items:
           $ref: '#/definitions/domain.PersonalBook'
         type: array
     type: object
   domain.BasicAccount:
     properties:
-      created_at:
+      createdAt:
         type: string
       email:
         type: string
@@ -63,8 +63,6 @@ definitions:
         type: string
       isVerified:
         type: boolean
-      user:
-        $ref: '#/definitions/domain.User'
       verifyLink:
         type: string
     type: object
@@ -183,8 +181,6 @@ definitions:
         type: string
       sub:
         type: string
-      user:
-        $ref: '#/definitions/domain.User'
     type: object
   domain.JsonB:
     additionalProperties: {}
