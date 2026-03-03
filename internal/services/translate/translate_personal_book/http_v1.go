@@ -1,4 +1,4 @@
-package translate_personal_user_book
+package translate_personal_book
 
 import (
 	"net/http"
@@ -41,7 +41,7 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 			})
 		}
 
-		output, err := svc.TranslatePersonalUserBook(c.Request().Context(), input, bookFile, userPayload.ID)
+		output, err := svc.TranslatePersonalBook(c.Request().Context(), input, bookFile, userPayload.ID)
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),

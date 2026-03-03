@@ -1,4 +1,4 @@
-package translate_book
+package translate_personal_book
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"strings"
 	"sync/atomic"
+
 	"time"
 
 	"github.com/google/uuid"
@@ -26,16 +27,20 @@ type S3 interface {
 	Check(path string) error
 }
 
-type BookRepository interface {
-	GetByAuthorAndTitle(ctx context.Context, authorName, title string) (*domain.Book, error)
-	Create(ctx context.Context, book *domain.Book) (*domain.Book, error)
-	CreateChapter(ctx context.Context, chapter *domain.BookChapter) (*domain.BookChapter, error)
-	GetChapterByBookIDAndOrder(ctx context.Context, bookID domain.ID, orderChapter int) (*domain.BookChapter, error)
-	UpdateProcessStatus(ctx context.Context, id domain.ID, processStatus domain.ProcessStatus) (*domain.Book, error)
+type PersonalBookRepository interface {
+	GetByUserAndAuthorAndTitle(ctx context.Context, userID domain.ID, authorName, title string) (*domain.PersonalBook, error)
+	Create(ctx context.Context, book *domain.PersonalBook) (*domain.PersonalBook, error)
+	CreateChapter(ctx context.Context, chapter *domain.PersonalBookChapter) (*domain.PersonalBookChapter, error)
+	GetChapterByPersonalBookIDAndOrder(ctx context.Context, personalBookID domain.ID, orderChapter int) (*domain.PersonalBookChapter, error)
+	UpdateProcessStatus(ctx context.Context, id domain.ID, processStatus domain.ProcessStatus) (*domain.PersonalBook, error)
 }
 
 type AuthorRepository interface {
 	GetOrCreate(ctx context.Context, name string) (*domain.Author, error)
+}
+
+type WordAligner interface {
+	Align(ctx context.Context, req *word_aligner.AlignRequest) (*word_aligner.AlignResponse, error)
 }
 
 type Translator interface {
@@ -50,16 +55,26 @@ type Service struct {
 	config                      dto.Config
 	currentCountBookTranslating int64
 	s3                          S3
-	bookRepo                    BookRepository
+	personalBookRepo            PersonalBookRepository
 	authorRepo                  AuthorRepository
 	wordAligner                 word_aligner.AlignmentServiceClient
 	translator                  Translator
 	notificationSignal          NotificationSender
 }
 
+var (
+	ErrFailedToGetPersonalBook    = errors.New("failed to get personal book")
+	ErrFailedToCreatePersonalBook = errors.New("failed to create personal book")
+	ErrFailedGetAuthor            = errors.New("failed to get or create author")
+	ErrFailedToUpdateStatusBook   = errors.New("failed to update status book")
+	ErrFailedSaveChapter          = errors.New("failed to save chapter")
+	ErrFailedTranslateBookTitle   = errors.New("failed translate book title")
+	ErrFailedCreateBookChapter    = errors.New("failed to create book chapter")
+)
+
 func New(
 	s3 S3,
-	bookRepo BookRepository,
+	personalBookRepo PersonalBookRepository,
 	authorRepo AuthorRepository,
 	wordAligner word_aligner.AlignmentServiceClient,
 	translator Translator,
@@ -68,32 +83,22 @@ func New(
 ) *Service {
 	return &Service{
 		s3:                          s3,
-		bookRepo:                    bookRepo,
+		personalBookRepo:            personalBookRepo,
 		authorRepo:                  authorRepo,
 		wordAligner:                 wordAligner,
 		translator:                  translator,
 		config:                      config,
-		notificationSignal:          notificationSignal,
 		currentCountBookTranslating: 0,
+		notificationSignal:          notificationSignal,
 	}
 }
-
-var (
-	ErrFailedToGetBook          = errors.New("failed to get book")
-	ErrFailedToCreateBook       = errors.New("failed to create book")
-	ErrFailedGetAuthor          = errors.New("failed to get or create author")
-	ErrFailedToUpdateStatusBook = errors.New("failed to update status book")
-	ErrFailedSaveChapter        = errors.New("failed to save chapter")
-	ErrFailedTranslateBookTitle = errors.New("failed to translate book title")
-	ErrFailedCreateBookChapter  = errors.New("failed to create book chapter")
-)
 
 func (s *Service) Throttle() {
 	time.Sleep(time.Duration(s.currentCountBookTranslating) * s.config.WaitDuration)
 }
 
-func (s *Service) TranslateBook(ctx context.Context, input *Input, file *multipart.FileHeader, userId domain.ID) (*Output, error) {
-	const operation = "translate_book.Service.TranslateBook"
+func (s *Service) TranslatePersonalBook(ctx context.Context, input *Input, file *multipart.FileHeader, userId domain.ID) (*Output, error) {
+	const operation = "translate_personal_user_book.Service.TranslatePersonalBook"
 	logger := slog.With(slog.String("operation", operation))
 
 	parsedData, err := parsefile.ParseFile(file)
@@ -101,18 +106,19 @@ func (s *Service) TranslateBook(ctx context.Context, input *Input, file *multipa
 		return nil, err
 	}
 
-	coverUrl, err := s.saveCoverToS3(parsedData.Cover, parsedData.Book.Title)
+	coverUrl, err := s.saveCoverToS3(parsedData.Cover, parsedData.Book.Title, userId)
 	if err != nil {
 		logger.Error("failed to save cover to s3", slog.String("error", err.Error()))
 		// не возвращаем ошибку, так как обложка не является критичной частью процесса перевода книги
 	}
 
-	book, needTranslate, err := s.getBook(ctx,
+	book, needTranslate, err := s.getPersonalBook(ctx,
 		parsedData.Book.Author,
 		parsedData.Book.Title,
 		string(input.From),
 		string(input.To),
 		coverUrl,
+		userId,
 	)
 	if err != nil {
 		return nil, err
@@ -125,13 +131,13 @@ func (s *Service) TranslateBook(ctx context.Context, input *Input, file *multipa
 			return &Output{Message: "book is in progress"}, nil
 		}
 	}
-	book, err = s.bookRepo.UpdateProcessStatus(ctx, book.ID, domain.ProcessStatusInProgress)
+	book, err = s.personalBookRepo.UpdateProcessStatus(ctx, book.ID, domain.ProcessStatusInProgress)
 	if err != nil {
 		logger.Error("failed to update book status to in progress", slog.String("error", err.Error()))
 		return nil, ErrFailedToUpdateStatusBook
 	}
 
-	translationContext := &dto.TranslationContext[*domain.Book]{
+	translationContext := &dto.TranslationContext[*domain.PersonalBook]{
 		Book:       book,
 		ParsedData: parsedData,
 		UserID:     userId,
@@ -144,25 +150,26 @@ func (s *Service) TranslateBook(ctx context.Context, input *Input, file *multipa
 	return &Output{Message: "start translate"}, nil
 }
 
-func (s *Service) getBook(
+func (s *Service) getPersonalBook(
 	ctx context.Context,
 	authorName, title, from, to string,
 	coverUrl string,
-) (*domain.Book, bool, error) {
+	userId domain.ID,
+) (*domain.PersonalBook, bool, error) {
 	const operation = "translate_book.Service.getBook"
 	logger := slog.With(slog.String("operation", operation))
 
-	book, err := s.bookRepo.GetByAuthorAndTitle(ctx, authorName, title)
+	personalBook, err := s.personalBookRepo.GetByUserAndAuthorAndTitle(ctx, userId, authorName, title)
 	if err != nil && !errors.Is(err, repository.ErrNotFound) {
 		logger.Error("failed to get book from repository", slog.String("error", err.Error()))
-		return nil, false, ErrFailedToGetBook
+		return nil, false, ErrFailedToGetPersonalBook
 	}
-	if book != nil {
-		if book.ProcessStatus == domain.ProcessStatusFailed {
-			return book, true, nil
+	if personalBook != nil {
+		if personalBook.ProcessStatus == domain.ProcessStatusFailed {
+			return personalBook, true, nil
 		}
 		// если книга уже есть и она либо в процессе, либо завершена, то возвращаем её, не создавая новую
-		return book, false, nil
+		return personalBook, false, nil
 	}
 
 	// Если книги нет, то создаём новую со статусом "В процессе"
@@ -171,23 +178,24 @@ func (s *Service) getBook(
 		logger.Error("failed to get or create author", slog.String("error", err.Error()))
 		return nil, false, ErrFailedGetAuthor
 	}
-	book, err = s.bookRepo.Create(ctx, &domain.Book{
+	personalBook, err = s.personalBookRepo.Create(ctx, &domain.PersonalBook{
 		Title:          title,
 		Author:         author,
 		OriginalLang:   from,
 		TranslatedLang: to,
 		CoverURL:       &coverUrl,
 		ProcessStatus:  domain.ProcessStatusInProgress,
+		User:           &domain.User{ID: userId},
 	})
 	if err != nil {
 		logger.Error("failed to create book in repository", slog.String("error", err.Error()))
-		return nil, false, ErrFailedToCreateBook
+		return nil, false, ErrFailedToCreatePersonalBook
 	}
 
-	return book, true, nil
+	return personalBook, true, nil
 }
 
-func (s *Service) translate(translationCtx *dto.TranslationContext[*domain.Book]) {
+func (s *Service) translate(translationCtx *dto.TranslationContext[*domain.PersonalBook]) {
 	const operation = "translate_book.Service.translate"
 	logger := slog.With(
 		slog.String("operation", operation),
@@ -204,7 +212,7 @@ func (s *Service) translate(translationCtx *dto.TranslationContext[*domain.Book]
 	defer cancel()
 
 	// используем буферизированный канал, чтобы избежать блокировки при отправке результатов
-	resultChan := make(chan dto.ChapterResult[*domain.BookChapter], len(translationCtx.ParsedData.FormattedChapter))
+	resultChan := make(chan dto.ChapterResult[*domain.PersonalBookChapter], len(translationCtx.ParsedData.FormattedChapter))
 
 	go s.translateChapters(ctx, translationCtx, resultChan)
 
@@ -214,7 +222,7 @@ func (s *Service) translate(translationCtx *dto.TranslationContext[*domain.Book]
 			// при ошибке отменяем весь процесс перевода книги
 			cancel()
 			// обновляем статус книги на "Ошибка"
-			_, err := s.bookRepo.UpdateProcessStatus(context.Background(), translationCtx.Book.ID, domain.ProcessStatusFailed)
+			_, err := s.personalBookRepo.UpdateProcessStatus(context.Background(), translationCtx.Book.ID, domain.ProcessStatusFailed)
 			if err != nil {
 				logger.Error("failed to update book status to failed", slog.String("error", err.Error()))
 			}
@@ -244,7 +252,7 @@ func (s *Service) translate(translationCtx *dto.TranslationContext[*domain.Book]
 	}
 
 	logger.Info("translate complete")
-	translatedBook, err := s.bookRepo.UpdateProcessStatus(context.Background(), translationCtx.Book.ID, domain.ProcessStatusCompleted)
+	translatedBook, err := s.personalBookRepo.UpdateProcessStatus(context.Background(), translationCtx.Book.ID, domain.ProcessStatusCompleted)
 	if err != nil {
 		logger.Error("failed to update book status to completed", slog.String("error", err.Error()))
 		return
@@ -252,7 +260,7 @@ func (s *Service) translate(translationCtx *dto.TranslationContext[*domain.Book]
 	s.notificationSignal.Emit(&domain.Notification{
 		Type:   domain.NotificationBookTranslated,
 		UserId: translationCtx.UserID,
-		Data: &domain.NotificationBookTranslatedData{
+		Data: &domain.NotificationPersonalBookTranslatedData{
 			Book: translatedBook,
 		},
 	})
@@ -260,12 +268,13 @@ func (s *Service) translate(translationCtx *dto.TranslationContext[*domain.Book]
 
 func (s *Service) translateChapters(
 	ctx context.Context,
-	translationCtx *dto.TranslationContext[*domain.Book],
-	resultChan chan<- dto.ChapterResult[*domain.BookChapter],
+	translationCtx *dto.TranslationContext[*domain.PersonalBook],
+	resultChan chan<- dto.ChapterResult[*domain.PersonalBookChapter],
 ) {
 	const operation = "translate_book.Service.translateChapters"
 	bookId := translationCtx.Book.ID
 	bookTitle := translationCtx.Book.Title
+	userId := translationCtx.UserID
 	logger := slog.With(
 		slog.String("operation", operation),
 		slog.String("bookId", bookId.String()),
@@ -277,7 +286,7 @@ func (s *Service) translateChapters(
 
 	chapterTranslator := chaptertranslator.New(
 		func(data []byte) (string, error) {
-			return s.saveImageToS3(data, bookTitle)
+			return s.saveImageToS3(data, bookTitle, userId)
 		},
 		s.Throttle,
 		s.translator,
@@ -295,7 +304,7 @@ func (s *Service) translateChapters(
 		default:
 		}
 
-		existChapter, err := s.bookRepo.GetChapterByBookIDAndOrder(ctx, bookId, chapterOrder)
+		existChapter, err := s.personalBookRepo.GetChapterByPersonalBookIDAndOrder(ctx, bookId, chapterOrder)
 		if err == nil && existChapter != nil {
 			logger.Info("translation already translated, stopping chapter translation")
 			continue
@@ -310,14 +319,14 @@ func (s *Service) translateChapters(
 		})
 		if err != nil {
 			logger.Error("failed to translate chapter", slog.String("error", err.Error()), slog.Int("chapterOrder", chapterOrder))
-			resultChan <- dto.ChapterResult[*domain.BookChapter]{Error: err}
+			resultChan <- dto.ChapterResult[*domain.PersonalBookChapter]{Error: err}
 			return
 		}
 
-		chapterUrl, err := s.saveChapterToS3(chapterAlignNode, bookTitle)
+		chapterUrl, err := s.saveChapterToS3(chapterAlignNode, bookTitle, userId)
 		if err != nil {
 			logger.Error("failed to save chapter to s3", slog.String("error", err.Error()))
-			resultChan <- dto.ChapterResult[*domain.BookChapter]{Error: ErrFailedSaveChapter}
+			resultChan <- dto.ChapterResult[*domain.PersonalBookChapter]{Error: ErrFailedSaveChapter}
 			return
 		}
 
@@ -328,12 +337,12 @@ func (s *Service) translateChapters(
 		})
 		if err != nil {
 			logger.Error("failed to translate book title", slog.String("error", err.Error()))
-			resultChan <- dto.ChapterResult[*domain.BookChapter]{Error: ErrFailedTranslateBookTitle}
+			resultChan <- dto.ChapterResult[*domain.PersonalBookChapter]{Error: ErrFailedTranslateBookTitle}
 			return
 		}
 
-		bookChapter, err := s.bookRepo.CreateChapter(ctx, &domain.BookChapter{
-			Book:            &domain.Book{ID: bookId},
+		personalBookChapter, err := s.personalBookRepo.CreateChapter(ctx, &domain.PersonalBookChapter{
+			PersonalBook:    &domain.PersonalBook{ID: bookId},
 			Title:           bookTitle,
 			TranslatedTitle: translatedBookTitle.TranslatedText,
 			Order:           chapterOrder,
@@ -341,18 +350,20 @@ func (s *Service) translateChapters(
 		})
 		if err != nil {
 			logger.Error("failed to create chapter in repository", slog.String("error", err.Error()))
-			resultChan <- dto.ChapterResult[*domain.BookChapter]{Error: ErrFailedCreateBookChapter}
+			resultChan <- dto.ChapterResult[*domain.PersonalBookChapter]{Error: ErrFailedCreateBookChapter}
 			return
 		}
 
-		resultChan <- dto.ChapterResult[*domain.BookChapter]{ExistChapter: bookChapter}
+		resultChan <- dto.ChapterResult[*domain.PersonalBookChapter]{ExistChapter: personalBookChapter}
 	}
 }
 
-func (s *Service) saveImageToS3(data []byte, bookTitle string) (string, error) {
-	const operation = "translate_book.Service.saveImageToS3"
+func (s *Service) saveImageToS3(data []byte, bookTitle string, userId domain.ID) (string, error) {
+	const operation = "translate_personal_user_book.Service.saveImageToS3"
 
-	path := fmt.Sprintf("book/%s/images/%s", strings.ReplaceAll(bookTitle, " ", "_"), uuid.New().String())
+	// Генерируем уникальное имя файла
+	filename := uuid.New().String()
+	path := fmt.Sprintf("user/%s/book/%s/images/%s", userId, strings.ReplaceAll(bookTitle, " ", "_"), filename)
 
 	if err := s.s3.Upload(path, data); err != nil {
 		return "", fmt.Errorf("%s: failed upload to s3: %w", operation, err)
@@ -361,10 +372,10 @@ func (s *Service) saveImageToS3(data []byte, bookTitle string) (string, error) {
 	return path, nil
 }
 
-func (s *Service) saveChapterToS3(chapter *domain.ChapterAlignNode, bookTitle string) (string, error) {
-	const operation = "translate_book.Service.saveChapterToS3"
+func (s *Service) saveChapterToS3(chapter *domain.ChapterAlignNode, bookTitle string, userId domain.ID) (string, error) {
+	const operation = "translate_personal_user_book.Service.saveChapterToS3"
 
-	path := fmt.Sprintf("book/%s/%d.json", strings.ReplaceAll(bookTitle, " ", "_"), chapter.Order)
+	path := fmt.Sprintf("user/%s/book/%s/%d.json", userId, strings.ReplaceAll(bookTitle, " ", "_"), chapter.Order)
 
 	data, err := json.Marshal(chapter)
 	if err != nil {
@@ -378,10 +389,10 @@ func (s *Service) saveChapterToS3(chapter *domain.ChapterAlignNode, bookTitle st
 	return path, nil
 }
 
-func (s *Service) saveCoverToS3(coverData []byte, bookTitle string) (string, error) {
-	const operation = "translate_book.Service.saveCoverToS3"
+func (s *Service) saveCoverToS3(coverData []byte, bookTitle string, userId domain.ID) (string, error) {
+	const operation = "translate_personal_user_book.Service.saveCoverToS3"
 
-	path := fmt.Sprintf("cover/%s/%s", strings.ReplaceAll(bookTitle, " ", "_"), uuid.New().String())
+	path := fmt.Sprintf("user/%s/cover/%s/%s", userId, strings.ReplaceAll(bookTitle, " ", "_"), uuid.New().String())
 
 	if err := s.s3.Upload(path, coverData); err != nil {
 		return "", fmt.Errorf("%s: failed upload to s3: %w", operation, err)

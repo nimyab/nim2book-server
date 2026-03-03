@@ -875,7 +875,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/translate_personal_user_book.Output"
+                            "$ref": "#/definitions/translate_personal_book.Output"
                         }
                     }
                 }
@@ -1594,7 +1594,7 @@ const docTemplate = `{
                 }
             }
         },
-        "translate_personal_user_book.Output": {
+        "translate_personal_book.Output": {
             "type": "object",
             "properties": {
                 "book": {

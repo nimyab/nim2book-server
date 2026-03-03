@@ -17,11 +17,9 @@ type NotificationErrorData struct {
 }
 
 type NotificationChapterTranslateSucceedData struct {
-	ChapterPath       string `json:"chapterPath"`
-	Author            string `json:"author"`
-	Title             string `json:"title"`
-	ChapterOrder      int    `json:"chapterOrder"`
-	TotalChapterCount int    `json:"totalChapterCount"`
+	Author       string `json:"author"`
+	Title        string `json:"title"`
+	ChapterOrder int    `json:"chapterOrder"`
 }
 
 type NotificationBookTranslatedData struct {

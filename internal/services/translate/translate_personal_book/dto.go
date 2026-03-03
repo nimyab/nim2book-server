@@ -1,4 +1,4 @@
-package translate_personal_user_book
+package translate_personal_book
 
 import "github.com/nimyab/nim2book-back/internal/domain"
 

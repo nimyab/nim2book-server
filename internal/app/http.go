@@ -33,7 +33,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_books"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/update_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/translate/translate_book"
-	"github.com/nimyab/nim2book-back/internal/services/translate/translate_personal_user_book"
+	"github.com/nimyab/nim2book-back/internal/services/translate/translate_personal_book"
 	"github.com/nimyab/nim2book-back/internal/services/user/me"
 	"github.com/nimyab/nim2book-back/internal/services/user/metadata"
 	"github.com/nimyab/nim2book-back/pkg/validator"
@@ -113,11 +113,11 @@ func (a *App) setupRoutes(e *echo.Echo) error {
 		}
 		apiV1.POST("/translate/book", translate_book.MakeHTTPv1Handler(svcTranslateBook), jwtMiddleware, adminRoleMiddleware)
 
-		svcTranslatePersonalUserBook, err := do.Invoke[*translate_personal_user_book.Service](a.injector)
+		svcTranslatePersonalUserBook, err := do.Invoke[*translate_personal_book.Service](a.injector)
 		if err != nil {
 			return err
 		}
-		apiV1.POST("/translate/personal-user-book", translate_personal_user_book.MakeHTTPv1Handler(svcTranslatePersonalUserBook), jwtMiddleware, vipRoleMiddleware)
+		apiV1.POST("/translate/personal-user-book", translate_personal_book.MakeHTTPv1Handler(svcTranslatePersonalUserBook), jwtMiddleware, vipRoleMiddleware)
 
 		// Auth routes
 		svcRegister, err := do.Invoke[*register.Service](a.injector)

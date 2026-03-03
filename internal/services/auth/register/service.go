@@ -31,6 +31,7 @@ func New(userRepo UserRepository) *Service {
 
 func (s *Service) Register(ctx context.Context, input *Input) (*Output, error) {
 	const operation = "auth.register.Register"
+	logger := slog.With(slog.String("operation", operation))
 
 	// Проверяем, существует ли пользователь с таким email
 	existingAccount, err := s.userRepo.GetBasicAccountByEmail(ctx, input.Email)
@@ -39,16 +40,15 @@ func (s *Service) Register(ctx context.Context, input *Input) (*Output, error) {
 	}
 	// Если ошибка не NotFound - возвращаем ошибку
 	if err != nil && !ent.IsNotFound(err) && !errors.Is(err, repository.ErrNotFound) {
-		slog.Error(err.Error(), slog.String("operation", operation))
+		logger.Error(err.Error())
 		return nil, ErrInternal
 	}
 
 	passwordHashBytes, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		slog.Error(
+		logger.Error(
 			err.Error(),
 			slog.String("password", input.Password),
-			slog.String("operation", operation),
 		)
 		return nil, ErrInternal
 	}
@@ -68,10 +68,10 @@ func (s *Service) Register(ctx context.Context, input *Input) (*Output, error) {
 
 	user, err := s.userRepo.CreateWithBasicAccount(ctx, newUser, newBasicAccount)
 	if err != nil {
-		slog.Error(err.Error(), slog.String("operation", operation))
+		logger.Error(err.Error())
 		return nil, ErrInternal
 	}
 
-	slog.Info("create user", slog.Any("user", user), slog.String("operation", operation))
+	logger.Info("create user", slog.Any("user", user))
 	return &Output{Success: true}, nil
 }

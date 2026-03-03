@@ -33,7 +33,7 @@ func MakeHTTPv1Handler(svc *Service) echo.HandlerFunc {
 			})
 		}
 
-		svc.ProcessNotification(c.Request().Context(), &domain.Notification{
+		svc.ProcessNotification(&domain.Notification{
 			UserId: payload.ID,
 			Type:   domain.NotificationTest,
 			Data: &domain.NotificationTestData{

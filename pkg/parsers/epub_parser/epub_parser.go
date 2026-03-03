@@ -56,9 +56,9 @@ type TextUnit struct {
 }
 
 type FormattedChapter struct {
-	pamphlet.Chapter
-	Content     []ContentUnit
-	CapterTitle string
+	PamphletChapterData pamphlet.Chapter
+	Content             []ContentUnit
+	CapterTitle         string
 }
 
 type ParsedData struct {
@@ -74,6 +74,11 @@ func Parse(data []byte) (*ParsedData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", operation, err)
 	}
+	defer func() {
+		if err := parser.Close(); err != nil {
+			slog.Error("failed to close parser", slog.String("error", err.Error()), slog.String("operation", operation))
+		}
+	}()
 
 	book := parser.GetBook()
 	if len(book.Chapters) == 0 {
@@ -108,9 +113,9 @@ func Parse(data []byte) (*ParsedData, error) {
 		}
 
 		formattedChapters = append(formattedChapters, FormattedChapter{
-			Chapter:     chapter,
-			Content:     items,
-			CapterTitle: chapterTitle,
+			PamphletChapterData: chapter,
+			Content:             items,
+			CapterTitle:         chapterTitle,
 		})
 	}
 

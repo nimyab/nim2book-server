@@ -43,12 +43,15 @@ func New(
 }
 
 // Emit sends notification (implements NotificationSender interface for translate services)
-func (s *Service) Emit(ctx context.Context, notification *domain.Notification) {
-	go s.ProcessNotification(ctx, notification)
+func (s *Service) Emit(notification *domain.Notification) {
+	go s.ProcessNotification(notification)
 }
 
-func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notification) {
+func (s *Service) ProcessNotification(d *domain.Notification) {
 	const operation = "notification.ProcessNotification"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	fcmTokenPtrs, err := s.fcmTokenRepo.ListByUserID(ctx, d.UserId, repository.QueryOptions{})
 	if err != nil {
@@ -149,11 +152,9 @@ func (s *Service) ProcessNotification(ctx context.Context, d *domain.Notificatio
 		s.websocketSender.SendMessage(d.UserId, &websocket.Message{
 			Event: websocket.ChapterTranslatedEvent,
 			Body: map[string]any{
-				"chapterPath":       data.ChapterPath,
-				"author":            data.Author,
-				"title":             data.Title,
-				"chapterOrder":      data.ChapterOrder,
-				"totalChapterCount": data.TotalChapterCount,
+				"author":       data.Author,
+				"title":        data.Title,
+				"chapterOrder": data.ChapterOrder,
 			},
 		})
 	case domain.NotificationTest:

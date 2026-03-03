@@ -1,7 +1,6 @@
 package notification
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -149,7 +148,7 @@ func TestProcessNotification(t *testing.T) {
 
 			// ProcessNotification runs in a goroutine in Emit, but here we call it directly for testing synchronously
 			// or we can call Emit and wait a bit, but direct call is better for unit testing logic
-			service.ProcessNotification(context.Background(), tt.notification)
+			service.ProcessNotification(tt.notification)
 
 			// Allow some time for async operations if any (though we are calling ProcessNotification directly)
 			time.Sleep(10 * time.Millisecond)

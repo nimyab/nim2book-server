@@ -17,17 +17,14 @@ type Config struct {
 // TranslationContext содержит все данные, необходимые для процесса перевода книги
 type TranslationContext[T any] struct {
 	UserID     domain.ID
+	Book       T // *domain.Book or *domain.PersonalBook
 	ParsedData *epub_parser.ParsedData
 	From       domain.SupportedLang
 	To         domain.SupportedLang
-	BookEntity T // *domain.Book or *domain.PersonalBook
 }
 
 // ChapterResult содержит результат обработки одной главы
 type ChapterResult[T any] struct {
-	Chapter      *domain.ChapterAlignNode
 	ExistChapter T // *domain.BookChapter or *domain.PersonalBookChapter
-	ChapterOrder int
-	Path         string
 	Error        error
 }

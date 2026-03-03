@@ -34,7 +34,7 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/update_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/translate/dto"
 	"github.com/nimyab/nim2book-back/internal/services/translate/translate_book"
-	"github.com/nimyab/nim2book-back/internal/services/translate/translate_personal_user_book"
+	"github.com/nimyab/nim2book-back/internal/services/translate/translate_personal_book"
 	"github.com/nimyab/nim2book-back/internal/services/user/me"
 	"github.com/nimyab/nim2book-back/internal/services/user/metadata"
 	"github.com/nimyab/nim2book-back/internal/services/word_aligner"
@@ -146,10 +146,10 @@ func (a *App) registerServices() {
 
 	// Dictionary service
 	do.Provide(a.injector, func(i do.Injector) (*lookup.Service, error) {
-		dictianaryRepo := do.MustInvoke[*repository.DictionaryRepository](i)
+		dictionaryRepo := do.MustInvoke[*repository.DictionaryRepository](i)
 		redis := do.MustInvoke[*redis_cache.RedisCache](i)
 		cfg := do.MustInvoke[*config.Config](i)
-		return lookup.New(dictianaryRepo, redis, http.DefaultClient, cfg.YandexDictionaryKey, cfg.YandexDictionaryURL), nil
+		return lookup.New(dictionaryRepo, redis, http.DefaultClient, cfg.YandexDictionaryKey, cfg.YandexDictionaryURL), nil
 	})
 
 	// FCM Token services
@@ -207,7 +207,7 @@ func (a *App) registerServices() {
 	})
 
 	// Translate Personal User Book service
-	do.Provide(a.injector, func(i do.Injector) (*translate_personal_user_book.Service, error) {
+	do.Provide(a.injector, func(i do.Injector) (*translate_personal_book.Service, error) {
 		s3 := do.MustInvoke[*minio.Minio](i)
 		personalBookRepo := do.MustInvoke[*repository.PersonalBookRepository](i)
 		authorRepo := do.MustInvoke[*repository.AuthorRepository](i)
@@ -216,7 +216,7 @@ func (a *App) registerServices() {
 		notificationService := do.MustInvoke[*notification.Service](i)
 		cfg := do.MustInvoke[*config.Config](i)
 
-		return translate_personal_user_book.New(
+		return translate_personal_book.New(
 			s3,
 			personalBookRepo,
 			authorRepo,

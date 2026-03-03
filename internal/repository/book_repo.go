@@ -216,7 +216,10 @@ func (r *BookRepository) DeleteTx(ctx context.Context, tx *ent.Tx, id domain.ID)
 func (r *BookRepository) List(ctx context.Context, opts QueryOptions) ([]*domain.Book, error) {
 	query := r.client.Book.Query().
 		WithAuthor().
-		WithGenres()
+		WithGenres().
+		WithBookChapters(func(query *ent.BookChapterQuery) {
+			query.Order(ent.Asc("order"))
+		})
 
 	// Применяем опции пагинации
 	if opts.Limit > 0 {
@@ -312,7 +315,10 @@ func (r *BookRepository) Search(ctx context.Context, searchQuery string, opts Qu
 func (r *BookRepository) SearchWithFilters(ctx context.Context, title, authorName string, genreID *domain.ID, opts QueryOptions) ([]*domain.Book, error) {
 	query := r.client.Book.Query().
 		WithAuthor().
-		WithGenres()
+		WithGenres().
+		WithBookChapters(func(q *ent.BookChapterQuery) {
+			q.Order(ent.Asc("order"))
+		})
 
 	// Фильтрация по названию книги
 	if title != "" {
