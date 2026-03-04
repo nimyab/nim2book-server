@@ -27,7 +27,6 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/genre/delete_genre"
 	"github.com/nimyab/nim2book-back/internal/services/genre/get_genre"
 	"github.com/nimyab/nim2book-back/internal/services/genre/get_genres"
-	"github.com/nimyab/nim2book-back/internal/services/genre/update_genre"
 	"github.com/nimyab/nim2book-back/internal/services/notification"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_book"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_books"
@@ -229,12 +228,6 @@ func (a *App) setupRoutes(e *echo.Echo) error {
 			return err
 		}
 		apiV1.POST("/genres", create_genre.MakeHTTPv1Handler(svcCreateGenre), jwtMiddleware, adminRoleMiddleware)
-
-		svcUpdateGenre, err := do.Invoke[*update_genre.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.PUT("/genres/:id", update_genre.MakeHTTPv1Handler(svcUpdateGenre), jwtMiddleware, adminRoleMiddleware)
 
 		svcDeleteGenre, err := do.Invoke[*delete_genre.Service](a.injector)
 		if err != nil {

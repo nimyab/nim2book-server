@@ -11,45 +11,33 @@ import (
 
 // AuthorRepository реализует domain.AuthorRepository
 type AuthorRepository struct {
-	*BaseRepository
+	client *ent.Client
 }
 
 // NewAuthorRepository создает новый репозиторий авторов
 func NewAuthorRepository(client *ent.Client) *AuthorRepository {
-	return &AuthorRepository{
-		BaseRepository: NewBaseRepository(client),
-	}
+	return &AuthorRepository{client: client}
 }
 
 // getByIDInternal возвращает автора по ID, работает как с транзакцией, так и без неё
 func (r *AuthorRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.Author, error) {
 	client := GetClientOrTx(r.client, tx)
 
-	entAuthor, err := client.Author.Query().
-		Where(author.ID(id)).
-		Only(ctx)
+	entAuthor, err := client.Author.Query().Where(author.ID(id)).Only(ctx)
 	if err != nil {
 		return nil, HandleError(err)
 	}
+
 	return MapAuthorToDomain(entAuthor), nil
 }
 
 // Create создает нового автора
 func (r *AuthorRepository) Create(ctx context.Context, domainAuthor *domain.Author) (*domain.Author, error) {
-	return r.CreateTx(ctx, nil, domainAuthor)
-}
-
-// CreateTx создает нового автора внутри транзакции (если передана)
-func (r *AuthorRepository) CreateTx(ctx context.Context, tx *ent.Tx, domainAuthor *domain.Author) (*domain.Author, error) {
-	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.Author, error) {
-		entAuthor, err := tx.Author.Create().
-			SetName(domainAuthor.Name).
-			Save(ctx)
-
+	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.Author, error) {
+		entAuthor, err := tx.Author.Create().SetName(domainAuthor.Name).Save(ctx)
 		if err != nil {
 			return nil, HandleError(err)
 		}
-
 		return r.getByIDInternal(ctx, tx, entAuthor.ID)
 	})
 }
@@ -61,10 +49,7 @@ func (r *AuthorRepository) GetByID(ctx context.Context, id domain.ID) (*domain.A
 
 // GetByName возвращает автора по имени
 func (r *AuthorRepository) GetByName(ctx context.Context, name string) (*domain.Author, error) {
-	entAuthor, err := r.client.Author.Query().
-		Where(author.Name(name)).
-		Only(ctx)
-
+	entAuthor, err := r.client.Author.Query().Where(author.Name(name)).Only(ctx)
 	if err != nil {
 		return nil, HandleError(err)
 	}
@@ -72,47 +57,34 @@ func (r *AuthorRepository) GetByName(ctx context.Context, name string) (*domain.
 	return MapAuthorToDomain(entAuthor), nil
 }
 
-// Update обновляет автора
-// Примечание: name - immutable поле, его нельзя обновить
-// Этот метод загружает актуальные данные из БД
-func (r *AuthorRepository) Update(ctx context.Context, domainAuthor *domain.Author) (*domain.Author, error) {
-	// Так как все поля автора immutable (кроме timestamps),
-	// просто возвращаем актуальные данные
-	return r.GetByID(ctx, domainAuthor.ID)
-}
-
 // GetOrCreate возвращает существующего автора или создаёт нового
 func (r *AuthorRepository) GetOrCreate(ctx context.Context, name string) (*domain.Author, error) {
-	// Сначала пытаемся найти существующего автора
-	existingAuthor, err := r.GetByName(ctx, name)
-	if err == nil {
-		return existingAuthor, nil
-	}
+	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.Author, error) {
+		existEntAuthor, err := tx.Author.Query().Where(author.Name(name)).Only(ctx)
+		if err != nil && !ent.IsNotFound(err) {
+			return nil, HandleError(err)
+		}
+		if existEntAuthor != nil {
+			return MapAuthorToDomain(existEntAuthor), nil
+		}
 
-	// Если автор не найден, создаём нового
-	if err == ErrNotFound {
-		return r.Create(ctx, &domain.Author{Name: name})
-	}
+		newEntAuthor, err := tx.Author.Create().SetName(name).Save(ctx)
+		if err != nil {
+			return nil, HandleError(err)
+		}
 
-	// Если произошла другая ошибка, возвращаем её
-	return nil, err
+		return MapAuthorToDomain(newEntAuthor), nil
+	})
 }
 
 // Delete удаляет автора
 func (r *AuthorRepository) Delete(ctx context.Context, id domain.ID) error {
-	return r.DeleteTx(ctx, nil, id)
-}
+	err := r.client.Author.DeleteOneID(id).Exec(ctx)
+	if err != nil {
+		return HandleError(err)
+	}
+	return nil
 
-// DeleteTx удаляет автора внутри транзакции (если передана)
-func (r *AuthorRepository) DeleteTx(ctx context.Context, tx *ent.Tx, id domain.ID) error {
-	_, err := DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (struct{}, error) {
-		err := tx.Author.DeleteOneID(id).Exec(ctx)
-		if err != nil {
-			return struct{}{}, HandleError(err)
-		}
-		return struct{}{}, nil
-	})
-	return err
 }
 
 // List возвращает список авторов с пагинацией

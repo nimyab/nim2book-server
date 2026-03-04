@@ -532,49 +532,6 @@ const docTemplate = `{
                     }
                 }
             },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "genre"
-                ],
-                "summary": "Update genre",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Genre id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Genre data",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/update_genre.Input"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/update_genre.Output"
-                        }
-                    }
-                }
-            },
             "delete": {
                 "security": [
                     {
@@ -1604,31 +1561,6 @@ const docTemplate = `{
             "properties": {
                 "book": {
                     "$ref": "#/definitions/domain.Book"
-                }
-            }
-        },
-        "update_genre.Input": {
-            "type": "object",
-            "required": [
-                "id",
-                "name"
-            ],
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 100,
-                    "minLength": 1
-                }
-            }
-        },
-        "update_genre.Output": {
-            "type": "object",
-            "properties": {
-                "genre": {
-                    "$ref": "#/definitions/domain.Genre"
                 }
             }
         },

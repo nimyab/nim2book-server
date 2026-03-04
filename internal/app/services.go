@@ -26,7 +26,6 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/genre/delete_genre"
 	"github.com/nimyab/nim2book-back/internal/services/genre/get_genre"
 	"github.com/nimyab/nim2book-back/internal/services/genre/get_genres"
-	"github.com/nimyab/nim2book-back/internal/services/genre/update_genre"
 	"github.com/nimyab/nim2book-back/internal/services/libretranslate/translate"
 	"github.com/nimyab/nim2book-back/internal/services/notification"
 	"github.com/nimyab/nim2book-back/internal/services/personal_user_book/get_personal_user_book"
@@ -80,11 +79,6 @@ func (a *App) registerServices() {
 	do.Provide(a.injector, func(i do.Injector) (*create_genre.Service, error) {
 		genreRepo := do.MustInvoke[*repository.GenreRepository](i)
 		return create_genre.New(genreRepo), nil
-	})
-
-	do.Provide(a.injector, func(i do.Injector) (*update_genre.Service, error) {
-		genreRepo := do.MustInvoke[*repository.GenreRepository](i)
-		return update_genre.New(genreRepo), nil
 	})
 
 	do.Provide(a.injector, func(i do.Injector) (*delete_genre.Service, error) {

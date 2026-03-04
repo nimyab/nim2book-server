@@ -432,23 +432,6 @@ definitions:
       book:
         $ref: '#/definitions/domain.Book'
     type: object
-  update_genre.Input:
-    properties:
-      id:
-        type: string
-      name:
-        maxLength: 100
-        minLength: 1
-        type: string
-    required:
-    - id
-    - name
-    type: object
-  update_genre.Output:
-    properties:
-      genre:
-        $ref: '#/definitions/domain.Genre'
-    type: object
   update_personal_user_book.Output:
     properties:
       book:
@@ -805,33 +788,6 @@ paths:
           schema:
             $ref: '#/definitions/get_genre.Output'
       summary: Get genre by id
-      tags:
-      - genre
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Genre id
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Genre data
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/update_genre.Input'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/update_genre.Output'
-      security:
-      - BearerAuth: []
-      summary: Update genre
       tags:
       - genre
   /notifications:

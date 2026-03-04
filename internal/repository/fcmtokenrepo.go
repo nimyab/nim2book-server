@@ -11,14 +11,12 @@ import (
 
 // FcmTokenRepository реализует domain.FcmTokenRepository
 type FcmTokenRepository struct {
-	*BaseRepository
+	client *ent.Client
 }
 
 // NewFcmTokenRepository создает новый репозиторий FCM токенов
 func NewFcmTokenRepository(client *ent.Client) *FcmTokenRepository {
-	return &FcmTokenRepository{
-		BaseRepository: NewBaseRepository(client),
-	}
+	return &FcmTokenRepository{client: client}
 }
 
 // getByIDInternal возвращает FCM токен по ID, может работать внутри транзакции
@@ -39,12 +37,7 @@ func (r *FcmTokenRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, id
 
 // Create создает новый FCM токен
 func (r *FcmTokenRepository) Create(ctx context.Context, domainToken *domain.FcmToken) (*domain.FcmToken, error) {
-	return r.CreateTx(ctx, nil, domainToken)
-}
-
-// CreateTx создает новый FCM токен внутри транзакции (если передана)
-func (r *FcmTokenRepository) CreateTx(ctx context.Context, tx *ent.Tx, domainToken *domain.FcmToken) (*domain.FcmToken, error) {
-	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.FcmToken, error) {
+	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.FcmToken, error) {
 		create := tx.FcmToken.Create().
 			SetToken(domainToken.Token)
 
@@ -105,57 +98,20 @@ func (r *FcmTokenRepository) ListByUserID(ctx context.Context, userID domain.ID,
 
 // Delete удаляет FCM токен
 func (r *FcmTokenRepository) Delete(ctx context.Context, id domain.ID) error {
-	return r.DeleteTx(ctx, nil, id)
-}
-
-// DeleteTx удаляет FCM токен внутри транзакции (если передана)
-func (r *FcmTokenRepository) DeleteTx(ctx context.Context, tx *ent.Tx, id domain.ID) error {
-	_, err := DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (struct{}, error) {
-		err := tx.FcmToken.DeleteOneID(id).Exec(ctx)
-		if err != nil {
-			return struct{}{}, HandleError(err)
-		}
-		return struct{}{}, nil
-	})
-	return err
+	err := r.client.FcmToken.DeleteOneID(id).Exec(ctx)
+	return HandleError(err)
 }
 
 // DeleteByToken удаляет FCM токен по значению токена
 func (r *FcmTokenRepository) DeleteByToken(ctx context.Context, token string) error {
-	return r.DeleteByTokenTx(ctx, nil, token)
-}
-
-// DeleteByTokenTx удаляет FCM токен по значению токена внутри транзакции (если передана)
-func (r *FcmTokenRepository) DeleteByTokenTx(ctx context.Context, tx *ent.Tx, token string) error {
-	_, err := DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (struct{}, error) {
-		_, err := tx.FcmToken.Delete().
-			Where(fcmtoken.Token(token)).
-			Exec(ctx)
-		if err != nil {
-			return struct{}{}, HandleError(err)
-		}
-		return struct{}{}, nil
-	})
-	return err
+	_, err := r.client.FcmToken.Delete().Where(fcmtoken.Token(token)).Exec(ctx)
+	return HandleError(err)
 }
 
 // DeleteByUserID удаляет все FCM токены пользователя
 func (r *FcmTokenRepository) DeleteByUserID(ctx context.Context, userID domain.ID) error {
-	return r.DeleteByUserIDTx(ctx, nil, userID)
-}
-
-// DeleteByUserIDTx удаляет все FCM токены пользователя внутри транзакции (если передана)
-func (r *FcmTokenRepository) DeleteByUserIDTx(ctx context.Context, tx *ent.Tx, userID domain.ID) error {
-	_, err := DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (struct{}, error) {
-		_, err := tx.FcmToken.Delete().
-			Where(fcmtoken.HasUserWith(user.ID(userID))).
-			Exec(ctx)
-		if err != nil {
-			return struct{}{}, HandleError(err)
-		}
-		return struct{}{}, nil
-	})
-	return err
+	_, err := r.client.FcmToken.Delete().Where(fcmtoken.HasUserWith(user.ID(userID))).Exec(ctx)
+	return HandleError(err)
 }
 
 // List возвращает список FCM токенов с пагинацией

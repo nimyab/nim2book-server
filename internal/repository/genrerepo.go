@@ -10,14 +10,12 @@ import (
 
 // GenreRepository реализует domain.GenreRepository
 type GenreRepository struct {
-	*BaseRepository
+	client *ent.Client
 }
 
 // NewGenreRepository создает новый репозиторий жанров
 func NewGenreRepository(client *ent.Client) *GenreRepository {
-	return &GenreRepository{
-		BaseRepository: NewBaseRepository(client),
-	}
+	return &GenreRepository{client: client}
 }
 
 // getByIDInternal возвращает жанр по ID, работает как с транзакцией, так и без неё
@@ -35,12 +33,7 @@ func (r *GenreRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, id do
 
 // Create создает новый жанр
 func (r *GenreRepository) Create(ctx context.Context, domainGenre *domain.Genre) (*domain.Genre, error) {
-	return r.CreateTx(ctx, nil, domainGenre)
-}
-
-// CreateTx создает новый жанр внутри транзакции (если передана)
-func (r *GenreRepository) CreateTx(ctx context.Context, tx *ent.Tx, domainGenre *domain.Genre) (*domain.Genre, error) {
-	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.Genre, error) {
+	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.Genre, error) {
 		entGenre, err := tx.Genre.Create().
 			SetName(domainGenre.Name).
 			Save(ctx)
@@ -71,35 +64,10 @@ func (r *GenreRepository) GetByName(ctx context.Context, name string) (*domain.G
 	return MapGenreToDomain(entGenre), nil
 }
 
-// Update обновляет жанр
-// Примечание: name - immutable поле, его нельзя обновить
-// Этот метод загружает актуальные данные из БД
-func (r *GenreRepository) Update(ctx context.Context, domainGenre *domain.Genre) (*domain.Genre, error) {
-	return r.UpdateTx(ctx, nil, domainGenre)
-}
-
-// UpdateTx обновляет жанр внутри транзакции (если передана)
-func (r *GenreRepository) UpdateTx(ctx context.Context, tx *ent.Tx, domainGenre *domain.Genre) (*domain.Genre, error) {
-	// Так как все поля жанра immutable (кроме timestamps),
-	// просто возвращаем актуальные данные
-	return r.getByIDInternal(ctx, tx, domainGenre.ID)
-}
-
 // Delete удаляет жанр
 func (r *GenreRepository) Delete(ctx context.Context, id domain.ID) error {
-	return r.DeleteTx(ctx, nil, id)
-}
-
-// DeleteTx удаляет жанр внутри транзакции (если передана)
-func (r *GenreRepository) DeleteTx(ctx context.Context, tx *ent.Tx, id domain.ID) error {
-	_, err := DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (struct{}, error) {
-		err := tx.Genre.DeleteOneID(id).Exec(ctx)
-		if err != nil {
-			return struct{}{}, HandleError(err)
-		}
-		return struct{}{}, nil
-	})
-	return err
+	err := r.client.Genre.DeleteOneID(id).Exec(ctx)
+	return HandleError(err)
 }
 
 // List возвращает список жанров

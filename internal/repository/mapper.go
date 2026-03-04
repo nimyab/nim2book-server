@@ -358,7 +358,7 @@ func MapDictionaryToDomain(entDict *ent.Dictionary) *domain.DictionaryWord {
 	if entDict.Edges.DictionaryExamples != nil {
 		dict.Examples = make([]domain.DictionaryExample, len(entDict.Edges.DictionaryExamples))
 		for i, example := range entDict.Edges.DictionaryExamples {
-			dict.Examples[i] = MapDictionaryExampleToDomain(example, entDict.ID)
+			dict.Examples[i] = MapDictionaryExampleToDomain(example)
 		}
 	}
 
@@ -366,14 +366,13 @@ func MapDictionaryToDomain(entDict *ent.Dictionary) *domain.DictionaryWord {
 }
 
 // MapDictionaryExampleToDomain преобразует ent.DictionaryExample в domain.DictionaryExample
-func MapDictionaryExampleToDomain(entExample *ent.DictionaryExample, dictionaryID domain.ID) domain.DictionaryExample {
+func MapDictionaryExampleToDomain(entExample *ent.DictionaryExample) domain.DictionaryExample {
 	example := domain.DictionaryExample{
 		ID:                entExample.ID,
 		Text:              entExample.Text,
 		TranslatedText:    entExample.Translation,
 		WordPositionStart: entExample.TargetPositionStart,
 		WordPositionEnd:   entExample.TargetPositionEnd,
-		DictionaryID:      dictionaryID,
 	}
 
 	return example

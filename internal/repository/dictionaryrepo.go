@@ -11,14 +11,12 @@ import (
 
 // DictionaryRepository реализует domain.DictionaryRepository
 type DictionaryRepository struct {
-	*BaseRepository
+	client *ent.Client
 }
 
 // NewDictionaryRepository создает новый репозиторий словаря
 func NewDictionaryRepository(client *ent.Client) *DictionaryRepository {
-	return &DictionaryRepository{
-		BaseRepository: NewBaseRepository(client),
-	}
+	return &DictionaryRepository{client: client}
 }
 
 // getByIDInternal возвращает запись словаря по ID, может работать внутри транзакции
@@ -39,12 +37,7 @@ func (r *DictionaryRepository) getByIDInternal(ctx context.Context, tx *ent.Tx, 
 
 // Create создает новую запись в словаре
 func (r *DictionaryRepository) Create(ctx context.Context, domainDict *domain.DictionaryWord) (*domain.DictionaryWord, error) {
-	return r.CreateTx(ctx, nil, domainDict)
-}
-
-// CreateTx создает новую запись в словаре внутри транзакции (если передана)
-func (r *DictionaryRepository) CreateTx(ctx context.Context, tx *ent.Tx, domainDict *domain.DictionaryWord) (*domain.DictionaryWord, error) {
-	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.DictionaryWord, error) {
+	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.DictionaryWord, error) {
 		// Создаём примеры, если они есть
 		var exampleIDs []domain.ID
 		if len(domainDict.Examples) > 0 {
@@ -101,12 +94,7 @@ func (r *DictionaryRepository) GetByID(ctx context.Context, id domain.ID) (*doma
 
 // Update обновляет запись словаря
 func (r *DictionaryRepository) Update(ctx context.Context, domainDict *domain.DictionaryWord) (*domain.DictionaryWord, error) {
-	return r.UpdateTx(ctx, nil, domainDict)
-}
-
-// UpdateTx обновляет запись словаря внутри транзакции (если передана)
-func (r *DictionaryRepository) UpdateTx(ctx context.Context, tx *ent.Tx, domainDict *domain.DictionaryWord) (*domain.DictionaryWord, error) {
-	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.DictionaryWord, error) {
+	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.DictionaryWord, error) {
 		update := tx.Dictionary.UpdateOneID(domainDict.ID).
 			SetText(domainDict.Text).
 			SetFromLangCode(domainDict.FromLangCode).
@@ -132,12 +120,7 @@ func (r *DictionaryRepository) UpdateTx(ctx context.Context, tx *ent.Tx, domainD
 
 // Delete удаляет запись словаря
 func (r *DictionaryRepository) Delete(ctx context.Context, id domain.ID) error {
-	return r.DeleteTx(ctx, nil, id)
-}
-
-// DeleteTx удаляет запись словаря внутри транзакции (если передана)
-func (r *DictionaryRepository) DeleteTx(ctx context.Context, tx *ent.Tx, id domain.ID) error {
-	_, err := DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (struct{}, error) {
+	_, err := DoInTx(ctx, r.client, func(tx *ent.Tx) (struct{}, error) {
 		err := tx.Dictionary.DeleteOneID(id).Exec(ctx)
 		if err != nil {
 			return struct{}{}, HandleError(err)
@@ -206,14 +189,25 @@ func (r *DictionaryRepository) GetDictionaryWordsByText(ctx context.Context, tex
 // Методы для работы с примерами словаря
 // ============================================================================
 
-// AddExample добавляет новый пример к слову в словаре
-func (r *DictionaryRepository) AddExample(ctx context.Context, dictionaryID domain.ID, example *domain.DictionaryExample) (*domain.DictionaryExample, error) {
-	return r.AddExampleTx(ctx, nil, dictionaryID, example)
+// getExampleByIDInternal возвращает пример по ID внутри транзакции (если передана)
+func (r *DictionaryRepository) getExampleByIDInternal(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.DictionaryExample, error) {
+	client := GetClientOrTx(r.client, tx)
+
+	entExample, err := client.DictionaryExample.Query().
+		Where(dictionaryexample.ID(id)).
+		WithDictionary().
+		Only(ctx)
+
+	if err != nil {
+		return nil, HandleError(err)
+	}
+
+	return new(MapDictionaryExampleToDomain(entExample)), nil
 }
 
-// AddExampleTx добавляет новый пример к слову в словаре внутри транзакции (если передана)
-func (r *DictionaryRepository) AddExampleTx(ctx context.Context, tx *ent.Tx, dictionaryID domain.ID, example *domain.DictionaryExample) (*domain.DictionaryExample, error) {
-	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.DictionaryExample, error) {
+// AddExample добавляет новый пример к слову в словаре
+func (r *DictionaryRepository) AddExample(ctx context.Context, dictionaryID domain.ID, example *domain.DictionaryExample) (*domain.DictionaryExample, error) {
+	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.DictionaryExample, error) {
 		// Проверяем, существует ли словарная запись
 		exists, err := tx.Dictionary.Query().Where(dictionary.ID(dictionaryID)).Exist(ctx)
 		if err != nil {
@@ -241,53 +235,18 @@ func (r *DictionaryRepository) AddExampleTx(ctx context.Context, tx *ent.Tx, dic
 			return nil, HandleError(err)
 		}
 
-		return r.GetExampleByIDTx(ctx, tx, entExample.ID)
+		return r.getExampleByIDInternal(ctx, tx, entExample.ID)
 	})
 }
 
 // GetExampleByID возвращает пример по ID
 func (r *DictionaryRepository) GetExampleByID(ctx context.Context, id domain.ID) (*domain.DictionaryExample, error) {
-	return r.GetExampleByIDTx(ctx, nil, id)
-}
-
-// GetExampleByIDTx возвращает пример по ID внутри транзакции (если передана)
-func (r *DictionaryRepository) GetExampleByIDTx(ctx context.Context, tx *ent.Tx, id domain.ID) (*domain.DictionaryExample, error) {
-	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.DictionaryExample, error) {
-		entExample, err := tx.DictionaryExample.Query().
-			Where(dictionaryexample.ID(id)).
-			WithDictionary().
-			Only(ctx)
-
-		if err != nil {
-			return nil, HandleError(err)
-		}
-
-		var dictionaryID domain.ID
-		if entExample.Edges.Dictionary != nil {
-			dictionaryID = entExample.Edges.Dictionary.ID
-		}
-
-		example := &domain.DictionaryExample{
-			ID:                entExample.ID,
-			Text:              entExample.Text,
-			TranslatedText:    entExample.Translation,
-			WordPositionStart: entExample.TargetPositionStart,
-			WordPositionEnd:   entExample.TargetPositionEnd,
-			DictionaryID:      dictionaryID,
-		}
-
-		return example, nil
-	})
+	return r.getExampleByIDInternal(ctx, nil, id)
 }
 
 // UpdateExample обновляет пример
 func (r *DictionaryRepository) UpdateExample(ctx context.Context, example *domain.DictionaryExample) (*domain.DictionaryExample, error) {
-	return r.UpdateExampleTx(ctx, nil, example)
-}
-
-// UpdateExampleTx обновляет пример внутри транзакции (если передана)
-func (r *DictionaryRepository) UpdateExampleTx(ctx context.Context, tx *ent.Tx, example *domain.DictionaryExample) (*domain.DictionaryExample, error) {
-	return DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (*domain.DictionaryExample, error) {
+	return DoInTx(ctx, r.client, func(tx *ent.Tx) (*domain.DictionaryExample, error) {
 		update := tx.DictionaryExample.UpdateOneID(example.ID).
 			SetText(example.Text).
 			SetTranslation(example.TranslatedText).
@@ -299,25 +258,17 @@ func (r *DictionaryRepository) UpdateExampleTx(ctx context.Context, tx *ent.Tx, 
 			return nil, HandleError(err)
 		}
 
-		return r.GetExampleByIDTx(ctx, tx, example.ID)
+		return r.getExampleByIDInternal(ctx, tx, example.ID)
 	})
 }
 
 // DeleteExample удаляет пример
 func (r *DictionaryRepository) DeleteExample(ctx context.Context, id domain.ID) error {
-	return r.DeleteExampleTx(ctx, nil, id)
-}
-
-// DeleteExampleTx удаляет пример внутри транзакции (если передана)
-func (r *DictionaryRepository) DeleteExampleTx(ctx context.Context, tx *ent.Tx, id domain.ID) error {
-	_, err := DoInTxOrUse(ctx, r.client, tx, func(tx *ent.Tx) (struct{}, error) {
-		err := tx.DictionaryExample.DeleteOneID(id).Exec(ctx)
-		if err != nil {
-			return struct{}{}, HandleError(err)
-		}
-		return struct{}{}, nil
-	})
-	return err
+	err := r.client.DictionaryExample.DeleteOneID(id).Exec(ctx)
+	if err != nil {
+		return HandleError(err)
+	}
+	return nil
 }
 
 // ListExamplesByDictionaryID возвращает все примеры для словарной записи
@@ -342,19 +293,7 @@ func (r *DictionaryRepository) ListExamplesByDictionaryID(ctx context.Context, d
 
 		examples := make([]*domain.DictionaryExample, len(entExamples))
 		for i, entExample := range entExamples {
-			var dictID domain.ID
-			if entExample.Edges.Dictionary != nil {
-				dictID = entExample.Edges.Dictionary.ID
-			}
-
-			examples[i] = &domain.DictionaryExample{
-				ID:                entExample.ID,
-				Text:              entExample.Text,
-				TranslatedText:    entExample.Translation,
-				WordPositionStart: entExample.TargetPositionStart,
-				WordPositionEnd:   entExample.TargetPositionEnd,
-				DictionaryID:      dictID,
-			}
+			examples[i] = new(MapDictionaryExampleToDomain(entExample))
 		}
 
 		return examples, nil
