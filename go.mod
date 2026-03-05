@@ -18,7 +18,6 @@ require (
 	github.com/lib/pq v1.11.2
 	github.com/minio/minio-go/v7 v7.0.97
 	github.com/redis/go-redis/v9 v9.17.2
-	github.com/samber/do/v2 v2.0.0
 	github.com/samber/lo v1.52.0
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/echo-swagger v1.4.1
@@ -139,7 +138,6 @@ require (
 	github.com/prometheus/procfs v0.19.2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rs/xid v1.6.0 // indirect
-	github.com/samber/go-type-to-string v1.8.0 // indirect
 	github.com/schollz/progressbar/v3 v3.19.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect

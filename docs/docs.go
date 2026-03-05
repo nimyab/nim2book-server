@@ -318,11 +318,6 @@ const docTemplate = `{
         },
         "/dictionary/lookup": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "consumes": [
                     "application/json"
                 ],

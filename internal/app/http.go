@@ -36,12 +36,11 @@ import (
 	"github.com/nimyab/nim2book-back/internal/services/user/me"
 	"github.com/nimyab/nim2book-back/internal/services/user/metadata"
 	"github.com/nimyab/nim2book-back/pkg/validator"
-	"github.com/samber/do/v2"
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
 // setupHTTPServer initializes the Echo server with middleware and routes
-func (a *App) setupHTTPServer() {
+func (a *App) setupHTTPServer(services *Services) {
 	e := echo.New()
 
 	// Middleware
@@ -83,7 +82,7 @@ func (a *App) setupHTTPServer() {
 	e.GET("/ws", websocket.MakeSocketConnHandler(a.config))
 
 	// Setup routes
-	if err := a.setupRoutes(e); err != nil {
+	if err := a.setupRoutes(e, services); err != nil {
 		panic(err)
 	}
 
@@ -91,10 +90,11 @@ func (a *App) setupHTTPServer() {
 }
 
 // setupRoutes defines all HTTP routes
-func (a *App) setupRoutes(e *echo.Echo) error {
+func (a *App) setupRoutes(e *echo.Echo, services *Services) error {
 	// JWT middleware
 	jwtMiddleware := customMiddleware.JWT(a.config.JWTSecret)
 	adminRoleMiddleware := customMiddleware.AdminRole()
+	vipRoleMiddleware := customMiddleware.VIPRole()
 
 	apiV1 := e.Group("/api/v1")
 	{
@@ -104,162 +104,64 @@ func (a *App) setupRoutes(e *echo.Echo) error {
 		})
 
 		// Translate routes
-		vipRoleMiddleware := customMiddleware.VIPRole()
+		apiV1.POST("/translate/book", translate_book.MakeHTTPv1Handler(services.TranslateBook), jwtMiddleware, adminRoleMiddleware)
 
-		svcTranslateBook, err := do.Invoke[*translate_book.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.POST("/translate/book", translate_book.MakeHTTPv1Handler(svcTranslateBook), jwtMiddleware, adminRoleMiddleware)
-
-		svcTranslatePersonalUserBook, err := do.Invoke[*translate_personal_book.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.POST("/translate/personal-user-book", translate_personal_book.MakeHTTPv1Handler(svcTranslatePersonalUserBook), jwtMiddleware, vipRoleMiddleware)
+		apiV1.POST("/translate/personal-user-book", translate_personal_book.MakeHTTPv1Handler(services.TranslatePersonalBook), jwtMiddleware, vipRoleMiddleware)
 
 		// Auth routes
-		svcRegister, err := do.Invoke[*register.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.POST("/auth/register", register.MakeHTTPv1Handler(svcRegister))
+		apiV1.POST("/auth/register", register.MakeHTTPv1Handler(services.Register))
 
-		svcLogin, err := do.Invoke[*login.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.POST("/auth/login", login.MakeHTTPv1Handler(svcLogin, a.config))
+		apiV1.POST("/auth/login", login.MakeHTTPv1Handler(services.Login, a.config))
 
 		apiV1.POST("/auth/logout", logout.MakeHTTPv1Handler())
 
-		svcRefresh, err := do.Invoke[*refresh.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.POST("/auth/refresh", refresh.MakeHTTPv1Handler(svcRefresh, a.config))
+		apiV1.POST("/auth/refresh", refresh.MakeHTTPv1Handler(services.Refresh, a.config))
 
-		svcGoogleLogin, err := do.Invoke[*google_login.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.POST("/auth/google", google_login.MakeHTTPv1Handler(svcGoogleLogin, a.config))
+		apiV1.POST("/auth/google", google_login.MakeHTTPv1Handler(services.GoogleLogin, a.config))
 
 		// User routes
-		svcMe, err := do.Invoke[*me.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.GET("/users/me", me.MakeHTTPv1Handler(svcMe), jwtMiddleware)
+		apiV1.GET("/users/me", me.MakeHTTPv1Handler(services.Me), jwtMiddleware)
 
-		svcMetadata, err := do.Invoke[*metadata.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.PUT("/users/metadata", metadata.MakeHTTPv1Handler(svcMetadata), jwtMiddleware)
+		apiV1.PUT("/users/metadata", metadata.MakeHTTPv1Handler(services.Metadata), jwtMiddleware)
 
 		// Book routes
-		svcGetBooks, err := do.Invoke[*get_books.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.GET("/books", get_books.MakeHTTPv1Handler(svcGetBooks))
+		apiV1.GET("/books", get_books.MakeHTTPv1Handler(services.GetBooks))
 
-		svcGetBook, err := do.Invoke[*get_book.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.GET("/books/:id", get_book.MakeHTTPv1Handler(svcGetBook))
+		apiV1.GET("/books/:id", get_book.MakeHTTPv1Handler(services.GetBook))
 
-		svcUpdateBook, err := do.Invoke[*update_book.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.PUT("/books/:id", update_book.MakeHTTPv1Handler(svcUpdateBook), jwtMiddleware, adminRoleMiddleware)
+		apiV1.PUT("/books/:id", update_book.MakeHTTPv1Handler(services.UpdateBook), jwtMiddleware, adminRoleMiddleware)
 
-		svcGetChapter, err := do.Invoke[*get_chapter.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.GET("/books/:book_id/chapters/:chapter_number", get_chapter.MakeHTTPv1Handler(svcGetChapter))
+		apiV1.GET("/books/:book_id/chapters/:chapter_number", get_chapter.MakeHTTPv1Handler(services.GetChapter))
 
 		// Dictionary routes
-		svcLookup, err := do.Invoke[*lookup.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.POST("/dictionary/lookup", lookup.MakeHTTPv1Handler(svcLookup), jwtMiddleware)
+		apiV1.POST("/dictionary/lookup", lookup.MakeHTTPv1Handler(services.Lookup))
 
 		// FCM Token routes
-		svcAddFcmToken, err := do.Invoke[*add_fcm_token.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.POST("/fcm-tokens", add_fcm_token.MakeHTTPv1Handler(svcAddFcmToken), jwtMiddleware)
+		apiV1.POST("/fcm-tokens", add_fcm_token.MakeHTTPv1Handler(services.AddFcmToken), jwtMiddleware)
 
-		svcDeleteFcmToken, err := do.Invoke[*delete_fcm_token.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.DELETE("/fcm-tokens/:token", delete_fcm_token.MakeHTTPv1Handler(svcDeleteFcmToken), jwtMiddleware)
+		apiV1.DELETE("/fcm-tokens/:token", delete_fcm_token.MakeHTTPv1Handler(services.DeleteFcmToken), jwtMiddleware)
 
 		// File routes
-		svcFilePublic, err := do.Invoke[*file_public.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.GET("/files/*", file_public.MakeHTTPv1Handler(svcFilePublic))
+		apiV1.GET("/files/*", file_public.MakeHTTPv1Handler(services.FilePublic))
 
 		// Genre routes
-		svcGetGenres, err := do.Invoke[*get_genres.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.GET("/genres", get_genres.MakeHTTPv1Handler(svcGetGenres))
+		apiV1.GET("/genres", get_genres.MakeHTTPv1Handler(services.GetGenres))
 
-		svcGetGenre, err := do.Invoke[*get_genre.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.GET("/genres/:id", get_genre.MakeHTTPv1Handler(svcGetGenre))
+		apiV1.GET("/genres/:id", get_genre.MakeHTTPv1Handler(services.GetGenre))
 
-		svcCreateGenre, err := do.Invoke[*create_genre.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.POST("/genres", create_genre.MakeHTTPv1Handler(svcCreateGenre), jwtMiddleware, adminRoleMiddleware)
+		apiV1.POST("/genres", create_genre.MakeHTTPv1Handler(services.CreateGenre), jwtMiddleware, adminRoleMiddleware)
 
-		svcDeleteGenre, err := do.Invoke[*delete_genre.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.DELETE("/genres/:id", delete_genre.MakeHTTPv1Handler(svcDeleteGenre), jwtMiddleware, adminRoleMiddleware)
+		apiV1.DELETE("/genres/:id", delete_genre.MakeHTTPv1Handler(services.DeleteGenre), jwtMiddleware, adminRoleMiddleware)
 
 		// Notification routes
-		svcNotification, err := do.Invoke[*notification.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.POST("/notifications", notification.MakeHTTPv1Handler(svcNotification), jwtMiddleware, adminRoleMiddleware)
+		apiV1.POST("/notifications", notification.MakeHTTPv1Handler(services.Notification), jwtMiddleware, adminRoleMiddleware)
 
 		// Personal User Book routes
-		svcGetPersonalUserBooks, err := do.Invoke[*get_personal_user_books.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.GET("/personal-user-books", get_personal_user_books.MakeHTTPv1Handler(svcGetPersonalUserBooks), jwtMiddleware)
+		apiV1.GET("/personal-user-books", get_personal_user_books.MakeHTTPv1Handler(services.GetPersonalUserBooks), jwtMiddleware)
 
-		svcGetPersonalUserBook, err := do.Invoke[*get_personal_user_book.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.GET("/personal-user-books/:id", get_personal_user_book.MakeHTTPv1Handler(svcGetPersonalUserBook), jwtMiddleware)
+		apiV1.GET("/personal-user-books/:id", get_personal_user_book.MakeHTTPv1Handler(services.GetPersonalUserBook), jwtMiddleware)
 
-		svcUpdatePersonalUserBook, err := do.Invoke[*update_personal_user_book.Service](a.injector)
-		if err != nil {
-			return err
-		}
-		apiV1.PUT("/personal-user-books/:id", update_personal_user_book.MakeHTTPv1Handler(svcUpdatePersonalUserBook), jwtMiddleware)
+		apiV1.PUT("/personal-user-books/:id", update_personal_user_book.MakeHTTPv1Handler(services.UpdatePersonalUserBook), jwtMiddleware)
 	}
 
 	return nil

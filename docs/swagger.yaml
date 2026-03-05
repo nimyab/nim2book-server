@@ -655,8 +655,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/lookup.Output'
-      security:
-      - BearerAuth: []
       summary: Get list translate from dictionary
       tags:
       - dictionary
