@@ -29,6 +29,10 @@ docker-up:
 docker-down:
 	docker-compose -f docker-compose.dev.yml down
 
+# Docker image build
+dib:
+	docker build -t nimyab/nim2book:latest .
+
 # Testing commands
 test:
 	go test -v ./...
