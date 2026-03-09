@@ -66,7 +66,7 @@ func (t *ChapterTranslator) TranslateChapter(ctx context.Context, input Input) (
 	const operation = "translate.ChapterTranslator.TranslateChapter"
 	logger := slog.With(
 		slog.String("operation", operation),
-		slog.String("chapterTitle", input.Chapter.CapterTitle),
+		slog.String("chapterTitle", input.Chapter.ChapterTitle),
 		slog.Int("chapterOrder", input.ChapterOrder),
 	)
 
@@ -158,9 +158,9 @@ func (t *ChapterTranslator) TranslateChapter(ctx context.Context, input Input) (
 	}
 
 	translatedTitle := ""
-	if len(input.Chapter.CapterTitle) > 0 {
+	if len(input.Chapter.ChapterTitle) > 0 {
 		translatedTitleOutput, err := t.translator.Translate(&translate.Input{
-			Q:      input.Chapter.CapterTitle,
+			Q:      input.Chapter.ChapterTitle,
 			Source: input.From,
 			Target: input.To,
 		})
@@ -168,7 +168,7 @@ func (t *ChapterTranslator) TranslateChapter(ctx context.Context, input Input) (
 			logger.Error(
 				"failed to translate chapter title",
 				slog.String("err", err.Error()),
-				slog.String("chapterTitle", input.Chapter.CapterTitle),
+				slog.String("chapterTitle", input.Chapter.ChapterTitle),
 			)
 		} else {
 			translatedTitle = translatedTitleOutput.TranslatedText
@@ -177,14 +177,14 @@ func (t *ChapterTranslator) TranslateChapter(ctx context.Context, input Input) (
 
 	logger.Info(
 		"finished translating chapter",
-		slog.String("chapterTitle", input.Chapter.CapterTitle),
+		slog.String("chapterTitle", input.Chapter.ChapterTitle),
 		slog.Duration("duration", time.Since(startTime)),
 	)
 
 	return &domain.ChapterAlignNode{
 		Content:         contentNodes,
 		TranslatedTitle: translatedTitle,
-		Title:           input.Chapter.CapterTitle,
+		Title:           input.Chapter.ChapterTitle,
 		Order:           input.ChapterOrder,
 		Id:              input.Chapter.PamphletChapterData.ID,
 	}, nil

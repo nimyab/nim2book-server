@@ -63,13 +63,13 @@ type Service struct {
 }
 
 var (
-	ErrFailedToGetPersonalBook    = errors.New("failed to get personal book")
-	ErrFailedToCreatePersonalBook = errors.New("failed to create personal book")
-	ErrFailedGetAuthor            = errors.New("failed to get or create author")
-	ErrFailedToUpdateStatusBook   = errors.New("failed to update status book")
-	ErrFailedSaveChapter          = errors.New("failed to save chapter")
-	ErrFailedTranslateBookTitle   = errors.New("failed translate book title")
-	ErrFailedCreateBookChapter    = errors.New("failed to create book chapter")
+	ErrFailedToGetPersonalBook     = errors.New("failed to get personal book")
+	ErrFailedToCreatePersonalBook  = errors.New("failed to create personal book")
+	ErrFailedGetAuthor             = errors.New("failed to get or create author")
+	ErrFailedToUpdateStatusBook    = errors.New("failed to update status book")
+	ErrFailedSaveChapter           = errors.New("failed to save chapter")
+	ErrFailedTranslateChapterTitle = errors.New("failed translate chapter title")
+	ErrFailedCreateBookChapter     = errors.New("failed to create book chapter")
 )
 
 func New(
@@ -330,21 +330,21 @@ func (s *Service) translateChapters(
 			return
 		}
 
-		translatedBookTitle, err := s.translator.Translate(&translate.Input{
-			Q:      bookTitle,
+		translatedChapterTitle, err := s.translator.Translate(&translate.Input{
+			Q:      chapter.ChapterTitle,
 			Source: translationCtx.From,
 			Target: translationCtx.To,
 		})
 		if err != nil {
-			logger.Error("failed to translate book title", slog.String("error", err.Error()))
-			resultChan <- dto.ChapterResult[*domain.PersonalBookChapter]{Error: ErrFailedTranslateBookTitle}
+			logger.Error("failed to translate chapter title", slog.String("error", err.Error()))
+			resultChan <- dto.ChapterResult[*domain.PersonalBookChapter]{Error: ErrFailedTranslateChapterTitle}
 			return
 		}
 
 		personalBookChapter, err := s.personalBookRepo.CreateChapter(ctx, &domain.PersonalBookChapter{
 			PersonalBook:    &domain.PersonalBook{ID: bookId},
-			Title:           bookTitle,
-			TranslatedTitle: translatedBookTitle.TranslatedText,
+			Title:           chapter.ChapterTitle,
+			TranslatedTitle: translatedChapterTitle.TranslatedText,
 			Order:           chapterOrder,
 			ContentURL:      chapterUrl,
 		})

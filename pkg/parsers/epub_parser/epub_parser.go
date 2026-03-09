@@ -58,7 +58,7 @@ type TextUnit struct {
 type FormattedChapter struct {
 	PamphletChapterData pamphlet.Chapter
 	Content             []ContentUnit
-	CapterTitle         string
+	ChapterTitle        string
 }
 
 type ParsedData struct {
@@ -115,7 +115,7 @@ func Parse(data []byte) (*ParsedData, error) {
 		formattedChapters = append(formattedChapters, FormattedChapter{
 			PamphletChapterData: chapter,
 			Content:             items,
-			CapterTitle:         chapterTitle,
+			ChapterTitle:        chapterTitle,
 		})
 	}
 
