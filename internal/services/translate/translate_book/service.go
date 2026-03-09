@@ -79,13 +79,12 @@ func New(
 }
 
 var (
-	ErrFailedToGetBook             = errors.New("failed to get book")
-	ErrFailedToCreateBook          = errors.New("failed to create book")
-	ErrFailedGetAuthor             = errors.New("failed to get or create author")
-	ErrFailedToUpdateStatusBook    = errors.New("failed to update status book")
-	ErrFailedSaveChapter           = errors.New("failed to save chapter")
-	ErrFailedTranslateChapterTitle = errors.New("failed to translate chapter title")
-	ErrFailedCreateBookChapter     = errors.New("failed to create book chapter")
+	ErrFailedToGetBook          = errors.New("failed to get book")
+	ErrFailedToCreateBook       = errors.New("failed to create book")
+	ErrFailedGetAuthor          = errors.New("failed to get or create author")
+	ErrFailedToUpdateStatusBook = errors.New("failed to update status book")
+	ErrFailedSaveChapter        = errors.New("failed to save chapter")
+	ErrFailedCreateBookChapter  = errors.New("failed to create book chapter")
 )
 
 func (s *Service) Throttle() {
@@ -321,21 +320,10 @@ func (s *Service) translateChapters(
 			return
 		}
 
-		translatedChapterTitle, err := s.translator.Translate(&translate.Input{
-			Q:      chapter.ChapterTitle,
-			Source: translationCtx.From,
-			Target: translationCtx.To,
-		})
-		if err != nil {
-			logger.Error("failed to translate chapter title", slog.String("error", err.Error()))
-			resultChan <- dto.ChapterResult[*domain.BookChapter]{Error: ErrFailedTranslateChapterTitle}
-			return
-		}
-
 		bookChapter, err := s.bookRepo.CreateChapter(ctx, &domain.BookChapter{
 			Book:            &domain.Book{ID: bookId},
-			Title:           chapter.ChapterTitle,
-			TranslatedTitle: translatedChapterTitle.TranslatedText,
+			Title:           chapterAlignNode.Title,
+			TranslatedTitle: chapterAlignNode.TranslatedTitle,
 			Order:           chapterOrder,
 			ContentURL:      chapterUrl,
 		})
