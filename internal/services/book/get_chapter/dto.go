@@ -1,7 +1,7 @@
 package get_chapter
 
 type Input struct {
-	Path string `param:"path" validate:"required"`
+	Path string `query:"path" validate:"required"`
 }
 
 type Output []byte

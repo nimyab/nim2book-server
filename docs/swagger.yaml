@@ -570,24 +570,6 @@ paths:
       summary: Get books
       tags:
       - book
-  /books/{book_id}/chapters/{chapter_number}:
-    get:
-      parameters:
-      - description: Chapter path
-        in: query
-        name: path
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Chapter content
-          schema:
-            type: string
-      summary: Get chapter content
-      tags:
-      - book
   /books/{id}:
     get:
       parameters:
@@ -635,6 +617,24 @@ paths:
       security:
       - BearerAuth: []
       summary: Update book
+      tags:
+      - book
+  /books/chapter:
+    get:
+      parameters:
+      - description: Chapter path
+        in: query
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Chapter content
+          schema:
+            type: string
+      summary: Get chapter content
       tags:
       - book
   /dictionary/lookup:

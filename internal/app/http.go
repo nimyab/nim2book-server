@@ -131,7 +131,7 @@ func (a *App) setupRoutes(e *echo.Echo, services *Services) error {
 
 		apiV1.PUT("/books/:id", update_book.MakeHTTPv1Handler(services.UpdateBook), jwtMiddleware, adminRoleMiddleware)
 
-		apiV1.GET("/books/:book_id/chapters/:chapter_number", get_chapter.MakeHTTPv1Handler(services.GetChapter))
+		apiV1.GET("/books/chapter", get_chapter.MakeHTTPv1Handler(services.GetChapter))
 
 		// Dictionary routes
 		apiV1.POST("/dictionary/lookup", lookup.MakeHTTPv1Handler(services.Lookup))

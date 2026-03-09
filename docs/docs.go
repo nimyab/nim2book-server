@@ -211,7 +211,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/books/{book_id}/chapters/{chapter_number}": {
+        "/books/chapter": {
             "get": {
                 "produces": [
                     "application/json"
