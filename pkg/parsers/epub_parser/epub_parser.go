@@ -3,6 +3,7 @@ package epub_parser
 import (
 	"fmt"
 	"log/slog"
+	"path"
 	"regexp"
 	"strings"
 
@@ -97,7 +98,7 @@ func Parse(data []byte) (*ParsedData, error) {
 			return nil, fmt.Errorf("%s: %w", operation, err)
 		}
 
-		items, err := extractContentFromHtml(book, content)
+		items, err := extractContentFromHtml(book, chapter.Href, content)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", operation, err)
 		}
@@ -126,7 +127,7 @@ func Parse(data []byte) (*ParsedData, error) {
 	}, nil
 }
 
-func extractContentFromHtml(book *pamphlet.Book, xmlText string) ([]ContentUnit, error) {
+func extractContentFromHtml(book *pamphlet.Book, chapterHref string, xmlText string) ([]ContentUnit, error) {
 	const operation = "pkg.parsers.epub_parser.extractContentFromHtml"
 
 	doc, err := html.Parse(strings.NewReader(xmlText))
@@ -169,7 +170,7 @@ func extractContentFromHtml(book *pamphlet.Book, xmlText string) ([]ContentUnit,
 				}
 			}
 			if href != "" {
-				imageFile, err := resolveImage(book, href)
+				imageFile, err := resolveImage(book, chapterHref, href)
 				if err != nil {
 					slog.Error("failed to resolve image", slog.String("href", href), slog.String("error", err.Error()))
 				} else {
@@ -193,15 +194,52 @@ func extractContentFromHtml(book *pamphlet.Book, xmlText string) ([]ContentUnit,
 	return contentUnits, nil
 }
 
+func normalizeEpubPath(baseHref, ref string) string {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return ""
+	}
+
+	// Удаляем query/fragment из HTML-атрибутов, чтобы сравнивать только путь к файлу.
+	if i := strings.IndexAny(ref, "?#"); i >= 0 {
+		ref = ref[:i]
+	}
+
+	ref = strings.ReplaceAll(ref, "\\", "/")
+	baseHref = strings.ReplaceAll(strings.TrimSpace(baseHref), "\\", "/")
+
+	if strings.HasPrefix(ref, "/") {
+		return path.Clean(strings.TrimPrefix(ref, "/"))
+	}
+
+	baseDir := path.Dir(baseHref)
+	if baseDir == "." {
+		baseDir = ""
+	}
+
+	return strings.TrimPrefix(path.Clean(path.Join(baseDir, ref)), "./")
+}
+
 // resolveImage пытаемся найти изображение в манифесте по src
-func resolveImage(book *pamphlet.Book, src string) (pamphlet.ZipFile, error) {
+func resolveImage(book *pamphlet.Book, chapterHref, src string) (pamphlet.ZipFile, error) {
+	normalizedSrc := normalizeEpubPath(chapterHref, src)
+	if normalizedSrc == "" {
+		return pamphlet.ZipFile{}, fmt.Errorf("image path is empty")
+	}
+
 	for _, item := range book.ManifestItems {
-		if item.Href == src || item.RealPath == src || strings.HasSuffix(item.Href, src) || strings.HasSuffix(item.RealPath, src) {
+		normalizedHref := normalizeEpubPath("", item.Href)
+		normalizedRealPath := normalizeEpubPath("", item.RealPath)
+
+		if normalizedHref == normalizedSrc ||
+			normalizedRealPath == normalizedSrc ||
+			strings.HasSuffix(normalizedHref, "/"+normalizedSrc) ||
+			strings.HasSuffix(normalizedRealPath, "/"+normalizedSrc) {
 			return item.ZipFile, nil
 		}
 	}
 
-	return pamphlet.ZipFile{}, fmt.Errorf("image not found: %s", src)
+	return pamphlet.ZipFile{}, fmt.Errorf("image not found: %s (normalized: %s)", src, normalizedSrc)
 }
 
 // extractCover получаем обложку книги. Сначала пытаемся найти изображение на титульной странице, если не находим, то берем первое изображение из manifest
